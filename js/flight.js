@@ -93,8 +93,12 @@ const state = {
   tSpeed: 1,
   velocity: 0,
   vibe: 0,
-  _sunEl: 14,
-  _sunAz: 190,
+  zoom: 0.28,
+  tZoom: 0.28,
+  _sunEl: 8,
+  _sunAz: 200,
+  _mfdPhase: 0,
+  _mfdScreens: [],
 };
 
 const el = {
@@ -415,6 +419,7 @@ mount.appendChild(renderer.domElement);
 mount.style.background = "center / cover no-repeat url('assets/tex/cockpit-ref.jpg'), #ff8a3a";
 
 const scene = new THREE.Scene();
+scene.background = null;
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 40000);
 camera.position.set(0, 1.15, 1.35);
 
@@ -458,7 +463,11 @@ const rim = new THREE.PointLight(0xfff0d8, 0.55, 6);
 rim.position.set(0, 1.8, -0.9);
 scene.add(rim);
 
-/* Photoreal golden sunset only — procedural Sky was overpainting the vista */
+/*
+  Golden sunset through windshield (restored from preferred look):
+  CSS cockpit-ref plate under transparent canvas + drifting far vista plane.
+  Procedural Sky stays invisible — it was washing the golden vista pale.
+*/
 const sky = new Sky();
 sky.scale.setScalar(45000);
 sky.visible = false;
@@ -477,53 +486,115 @@ function setSun(elDeg, az) {
   sun.position.copy(sunPos).multiplyScalar(140);
 }
 setSun(8, 200);
-scene.background = null;
+state._skyDome = null;
+state._skyScroll = 0;
 
 const loader = new THREE.TextureLoader();
 
-/* Rotating photoreal sky dome — continuous flight motion */
-const skyDome = new THREE.Mesh(
-  new THREE.SphereGeometry(1200, 64, 32),
-  new THREE.MeshBasicMaterial({
-    color: 0xffb070,
-    side: THREE.BackSide,
-    depthWrite: false,
-    toneMapped: false,
-  })
-);
-scene.add(skyDome);
-state._skyDome = skyDome;
-state._skyScroll = 0;
+function makeGoldenVistaTex() {
+  const c = document.createElement("canvas");
+  c.width = 1536;
+  c.height = 768;
+  const ctx = c.getContext("2d");
+  const sky = ctx.createLinearGradient(0, 0, 0, 768);
+  sky.addColorStop(0, "#2a4a88");
+  sky.addColorStop(0.22, "#a85a48");
+  sky.addColorStop(0.4, "#e07828");
+  sky.addColorStop(0.55, "#ff9a28");
+  sky.addColorStop(0.7, "#ffc040");
+  sky.addColorStop(0.85, "#ffe08a");
+  sky.addColorStop(1, "#c88848");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, 1536, 768);
 
-loader.load("assets/tex/cockpit-ref.jpg", (tex) => {
+  const sunX = 1080;
+  const sunY = 300;
+  const bloom = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 480);
+  bloom.addColorStop(0, "rgba(255,250,220,1)");
+  bloom.addColorStop(0.08, "rgba(255,200,80,0.98)");
+  bloom.addColorStop(0.22, "rgba(255,120,30,0.7)");
+  bloom.addColorStop(0.5, "rgba(255,90,20,0.28)");
+  bloom.addColorStop(1, "rgba(255,80,10,0)");
+  ctx.fillStyle = bloom;
+  ctx.fillRect(0, 0, 1536, 768);
+
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  for (let i = 0; i < 18; i++) {
+    const a = -1.05 + i * 0.12;
+    const len = 580 + (i % 3) * 90;
+    const g = ctx.createLinearGradient(sunX, sunY, sunX + Math.cos(a) * len, sunY + Math.sin(a) * len);
+    g.addColorStop(0, "rgba(255,220,120,0.7)");
+    g.addColorStop(0.4, "rgba(255,150,40,0.28)");
+    g.addColorStop(1, "rgba(255,100,20,0)");
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 22 + (i % 5) * 8;
+    ctx.beginPath();
+    ctx.moveTo(sunX, sunY);
+    ctx.lineTo(sunX + Math.cos(a) * len, sunY + Math.sin(a) * len);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.fillStyle = "rgba(255,200,150,0.28)";
+  for (let i = 0; i < 10; i++) {
+    const y = 400 + i * 26 + Math.sin(i * 1.7) * 14;
+    ctx.beginPath();
+    ctx.ellipse(180 + i * 140, y, 240 + i * 16, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  skyDome.material.map = tex;
-  skyDome.material.color.set(0xffffff);
-  skyDome.material.needsUpdate = true;
-});
+  return tex;
+}
 
-/* Soft scrolling cloud veil (same sunset warmth — no mountain plate) */
-loader.load("assets/tex/cockpit-ref.jpg", (tex) => {
+function placeSunsetVista() {
+  if (state._farCloud) state._farCloud.parent?.remove(state._farCloud);
+  if (state._photoVista) {
+    state._photoVista.parent?.remove(state._photoVista);
+    state._photoVista = null;
+  }
+
+  const golden = makeGoldenVistaTex();
+  const far = new THREE.Mesh(
+    new THREE.PlaneGeometry(32, 18),
+    new THREE.MeshBasicMaterial({
+      map: golden,
+      depthTest: true,
+      depthWrite: false,
+      toneMapped: false,
+      fog: false,
+    })
+  );
+  far.position.set(0, 0.45, -7.6);
+  far.renderOrder = -20;
+  camera.add(far);
+  state._farCloud = far;
+  state._goldenMap = golden;
+}
+placeSunsetVista();
+
+loader.load("assets/sky/clouds-front.jpg", (tex) => {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.repeat.set(1.35, 1);
+  tex.repeat.set(2, 1);
+  if (state._cloudLayer) state._cloudLayer.parent?.remove(state._cloudLayer);
   const layer = new THREE.Mesh(
-    new THREE.PlaneGeometry(140, 70),
+    new THREE.PlaneGeometry(38, 16),
     new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
-      opacity: 0.38,
+      opacity: 0.2,
       depthWrite: false,
+      depthTest: true,
       toneMapped: false,
     })
   );
-  layer.position.set(0, 5, -48);
-  scene.add(layer);
+  layer.position.set(0, 0.85, -9.2);
+  layer.renderOrder = -18;
+  camera.add(layer);
   state._cloudLayer = layer;
-  state._farCloud = null;
 });
 
 new RGBELoader().load("assets/sky/khronos-env.hdr", (hdr) => {
@@ -553,6 +624,110 @@ for (let i = 0; i < (isMobile() ? 45 : 120); i++) {
   cityGroup.add(m);
 }
 
+
+function makeProjectPreview(project, index, highlight = false) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 400;
+  const ctx = c.getContext("2d");
+  const g = ctx.createLinearGradient(0, 0, 512, 400);
+  g.addColorStop(0, highlight ? "#1a2433" : "#0c121c");
+  g.addColorStop(1, highlight ? "#243044" : "#151c28");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 512, 400);
+  ctx.strokeStyle = highlight ? "rgba(240,196,90,0.85)" : "rgba(120,160,190,0.35)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(10, 10, 492, 380);
+  ctx.fillStyle = "#f0c45a";
+  ctx.font = "600 22px monospace";
+  ctx.fillText(`PROJECT ${String(index + 1).padStart(2, "0")}`, 28, 48);
+  ctx.fillStyle = "#e8e6e1";
+  ctx.font = "700 34px sans-serif";
+  const title = (project.name || "").slice(0, 16);
+  ctx.fillText(title, 28, 96);
+  ctx.fillStyle = "#9ad4de";
+  ctx.font = "16px monospace";
+  ctx.fillText("TAP · OPEN MISSION", 28, 360);
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.fillRect(28, 120, 456, 210);
+  ctx.fillStyle = "#cfd8e3";
+  ctx.font = "18px sans-serif";
+  const plain = project.title.replace(/<br\s*\/?>/gi, " ");
+  const words = plain.split(/\s+/);
+  let line = "";
+  let y = 160;
+  words.forEach((w) => {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > 420) {
+      ctx.fillText(line, 40, y);
+      line = w;
+      y += 28;
+    } else line = test;
+  });
+  if (line) ctx.fillText(line, 40, y);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function paintMfdScreens() {
+  const screens = state._mfdScreens || [];
+  if (!screens.length) return;
+  const phase = state._mfdPhase | 0;
+  screens.forEach((slot, i) => {
+    let projectIndex = slot.projectIndex;
+    if (projectIndex < 0) {
+      projectIndex = (phase + i) % PROJECTS.length;
+    } else {
+      projectIndex = (projectIndex + phase) % PROJECTS.length;
+    }
+    const highlight = state.project === projectIndex;
+    const tex = makeProjectPreview(PROJECTS[projectIndex], projectIndex, highlight);
+    if (slot.mesh.material.map) slot.mesh.material.map.dispose();
+    slot.mesh.material.map = tex;
+    slot.mesh.material.emissiveMap = tex;
+    slot.mesh.material.needsUpdate = true;
+    slot.liveIndex = projectIndex;
+  });
+}
+
+function installMfdScreens(root) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  const baseY = box.min.y + size.y * 0.48;
+  const baseZ = center.z - size.z * 0.18;
+  const slots = [
+    { x: -0.62, y: baseY + 0.08, z: baseZ, w: 0.3, h: 0.24, projectIndex: 0 },
+    { x: -0.28, y: baseY + 0.08, z: baseZ - 0.02, w: 0.3, h: 0.24, projectIndex: 1 },
+    { x: 0.06, y: baseY + 0.1, z: baseZ - 0.04, w: 0.28, h: 0.22, projectIndex: 2 },
+    { x: 0.38, y: baseY + 0.08, z: baseZ - 0.02, w: 0.3, h: 0.24, projectIndex: 3 },
+    { x: 0.7, y: baseY + 0.08, z: baseZ, w: 0.3, h: 0.24, projectIndex: 4 },
+    { x: 0.06, y: baseY - 0.18, z: baseZ + 0.04, w: 0.34, h: 0.2, projectIndex: -1 },
+  ];
+  const group = new THREE.Group();
+  group.name = "mfdPreviews";
+  state._mfdScreens = [];
+  slots.forEach((s) => {
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.9,
+      roughness: 0.35,
+      metalness: 0.05,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.h), mat);
+    mesh.position.set(s.x, s.y, s.z);
+    mesh.userData.mfd = true;
+    group.add(mesh);
+    state._mfdScreens.push({ mesh, projectIndex: s.projectIndex, liveIndex: 0 });
+  });
+  cockpit.add(group);
+  state._mfdGroup = group;
+  paintMfdScreens();
+}
+
+
 /* ========== A320 FLIGHTDECK (IDG-A32X fd_complete) ========== */
 const cockpit = new THREE.Group();
 scene.add(cockpit);
@@ -564,24 +739,59 @@ function prepareCockpitMaterials(root) {
     if (!o.isMesh) return;
     o.castShadow = !isMobile();
     o.receiveShadow = !isMobile();
+    const meshName = String(o.name || "").toLowerCase();
+    if (meshName === "hud" || meshName.includes("hudscreen")) {
+      o.visible = false;
+      return;
+    }
     const mats = Array.isArray(o.material) ? o.material : [o.material];
-    mats.forEach((m) => {
-      if (!m) return;
+    const cleaned = mats.map((m) => {
+      if (!m) return m;
       const n = String(m.name || "").toLowerCase();
-      if (n.includes("glass") || n.includes("visor")) {
+      /* FG baked exterior gallery blocked the real sky — punch it out */
+      if (n.includes("front_gallery") || n.includes("gallery")) {
+        const ghost = m.clone();
+        ghost.name = `${m.name}_ghost`;
+        ghost.transparent = true;
+        ghost.opacity = 0;
+        ghost.depthWrite = false;
+        ghost.colorWrite = false;
+        ghost.needsUpdate = true;
+        return ghost;
+      }
+      return m;
+    });
+    o.material = cleaned.length === 1 ? cleaned[0] : cleaned;
+
+    const useMats = Array.isArray(o.material) ? o.material : [o.material];
+    useMats.forEach((m) => {
+      if (!m || m.visible === false) return;
+      const n = String(m.name || "").toLowerCase();
+      if (n.includes("front_gallery") || n.includes("gallery")) return;
+      const isGlass =
+        (n.includes("glass") || n.includes("visor") || /mat\d*gla/i.test(n)) &&
+        !n.includes("glare");
+      if (isGlass) {
         m.transparent = true;
-        m.opacity = Math.min(m.opacity || 0.25, 0.35);
+        m.opacity = 0.04;
         m.depthWrite = false;
+        m.depthTest = true;
         m.side = THREE.DoubleSide;
+        if ("alphaTest" in m) m.alphaTest = 0;
+        if ("metalness" in m) m.metalness = 0;
+        if ("roughness" in m) m.roughness = 0.02;
+        if ("envMapIntensity" in m) m.envMapIntensity = 0.15;
+        if (m.map) m.map = null;
+        m.color?.set?.(0xffe8d0);
+        m.emissive?.set?.(0x000000);
       } else if (m.transparent && m.opacity < 0.2) {
-        /* keep intentional near-invisible helpers hidden */
         m.depthWrite = false;
       } else {
         m.transparent = false;
         m.opacity = 1;
         m.depthWrite = true;
       }
-      if ("envMapIntensity" in m) m.envMapIntensity = 1.05;
+      if ("envMapIntensity" in m && !isGlass) m.envMapIntensity = 1.05;
       m.needsUpdate = true;
     });
   });
@@ -618,7 +828,7 @@ new GLTFLoader().load(
     prepareCockpitMaterials(root);
     cockpit.add(root);
     fitCockpitView(root);
-    /* Cabin fill so textured panels read clearly */
+    installMfdScreens(root);
     const fill = new THREE.HemisphereLight(0xffe2c4, 0x2a3038, 0.85);
     cockpit.add(fill);
     const key = new THREE.DirectionalLight(0xfff0dd, 1.35);
@@ -633,8 +843,12 @@ new GLTFLoader().load(
 );
 
 /* ========== UI ========== */
-function show(card) {
+function clearStage() {
   [el.hero, el.project, el.system, el.contact].forEach((c) => c.classList.add("is-hidden"));
+}
+
+function show(card) {
+  clearStage();
   card.classList.remove("is-hidden");
 }
 
@@ -662,11 +876,12 @@ function applyProject(index, { maneuver = true } = {}) {
   });
 
   if (index < 0) {
-    show(el.hero);
+    clearStage();
     el.metaIndex.textContent = "— / 05";
     el.metaName.textContent = "READY";
     setEnv(PROJECTS[0].env);
     cityGroup.visible = false;
+    paintMfdScreens();
     return;
   }
 
@@ -706,6 +921,7 @@ function applyProject(index, { maneuver = true } = {}) {
 
   setEnv(p.env);
   cityGroup.visible = index === 4;
+  paintMfdScreens();
 
   if (maneuver && !reduce) {
     state.tRoll = index % 2 === 0 ? -0.05 : 0.045;
@@ -747,7 +963,7 @@ document.getElementById("viewContact")?.addEventListener("click", () => {
   setEnv(PROJECTS[4].env);
 });
 document.getElementById("closeSystem")?.addEventListener("click", () => {
-  if (state.project < 0) show(el.hero);
+  if (state.project < 0) clearStage();
   else show(el.project);
 });
 
@@ -771,29 +987,55 @@ window.addEventListener(
 window.addEventListener(
   "wheel",
   (e) => {
+    e.preventDefault?.();
     state.velocity = Math.min(1.6, Math.abs(e.deltaY) / 70);
-    state.tSpeed = 1 + Math.min(1.15, state.velocity);
-    state._scrollAcc = (state._scrollAcc || 0) + e.deltaY;
-    if (state._scrollAcc > 400) {
-      state._scrollAcc = 0;
-      applyProject(Math.min(4, state.project < 0 ? 0 : state.project + 1));
-    } else if (state._scrollAcc < -400) {
-      state._scrollAcc = 0;
-      applyProject(state.project <= 0 ? -1 : state.project - 1);
-    }
+    state.tSpeed = 1 + Math.min(0.8, state.velocity * 0.6);
+    /* scroll = move toward / away from captain panel (zoom/dolly) */
+    state.tZoom = THREE.MathUtils.clamp(state.tZoom - Math.sign(e.deltaY) * 0.055, 0, 1);
   },
-  { passive: true }
+  { passive: false }
 );
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowDown") applyProject(Math.min(4, state.project < 0 ? 0 : state.project + 1));
-  if (e.key === "ArrowUp") applyProject(state.project <= 0 ? -1 : state.project - 1);
+  if (e.key === "ArrowUp" || e.key === "=" || e.key === "+") {
+    state.tZoom = THREE.MathUtils.clamp(state.tZoom + 0.08, 0, 1);
+  }
+  if (e.key === "ArrowDown" || e.key === "-" || e.key === "_") {
+    state.tZoom = THREE.MathUtils.clamp(state.tZoom - 0.08, 0, 1);
+  }
+  if (e.key === "Escape") applyProject(-1, { maneuver: false });
   if (e.key === "c" || e.key === "C") {
     show(el.contact);
     cityGroup.visible = true;
     setEnv(PROJECTS[4].env);
   }
 });
+
+const raycaster = new THREE.Raycaster();
+const pointerNdc = new THREE.Vector2();
+function onMfdPointer(e) {
+  if (!state._mfdScreens?.length) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointerNdc, camera);
+  const hits = raycaster.intersectObjects(
+    state._mfdScreens.map((s) => s.mesh),
+    false
+  );
+  if (!hits.length) return;
+  const slot = state._mfdScreens.find((s) => s.mesh === hits[0].object);
+  if (!slot) return;
+  applyProject(slot.liveIndex ?? 0);
+}
+renderer.domElement.addEventListener("pointerdown", onMfdPointer);
+renderer.domElement.style.cursor = "grab";
+
+setInterval(() => {
+  if (reduce) return;
+  state._mfdPhase = (state._mfdPhase + 1) % PROJECTS.length;
+  paintMfdScreens();
+}, 4200);
 
 setInterval(() => {
   const d = new Date();
@@ -828,22 +1070,34 @@ function animate(now) {
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0018;
   const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.002;
   const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
+  state.zoom += (state.tZoom - state.zoom) * 0.08;
   const lookBias = isMobile() ? -0.015 : -0.04;
   cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
-  camera.position.set(base.x + vx * 4, base.y + vy * 3, base.z);
+  /* zoom in = move toward instrument panel (-Z) + tighter FOV */
+  const dolly = (state.zoom - 0.28) * (isMobile() ? 0.95 : 1.25);
+  camera.position.set(base.x + vx * 4, base.y + vy * 3 - state.zoom * 0.04, base.z - dolly);
+  camera.fov = (isMobile() ? 70 : 72) - state.zoom * 16;
+  camera.updateProjectionMatrix();
 
   if (state._skyDome) {
-    state._skyDome.rotation.y += dt * (0.03 + state.speed * 0.045);
+    state._skyDome.rotation.y += dt * (0.02 + state.speed * 0.03);
   }
-  state._skyScroll = (state._skyScroll || 0) + dt * (1.1 + state.speed * 1.6);
-  mount.style.setProperty("--sky-x", `${50 + state.yaw * -28 - state._skyScroll * 3.2}%`);
-  mount.style.setProperty("--sky-y", `${42 + state.pitch * 22 + Math.sin(state.vibe * 0.35) * 1.5}%`);
+  state._skyScroll = (state._skyScroll || 0) + dt * (1.6 + state.speed * 1.8);
+  mount.style.setProperty("--sky-x", `${68 + state.yaw * -18 - state._skyScroll * 2.8}%`);
+  mount.style.setProperty("--sky-y", `${42 + state.pitch * 14 + Math.sin(state.vibe * 0.35) * 1.2}%`);
 
+  if (state._farCloud) {
+    state._farCloud.position.x = state.yaw * -1.4;
+    state._farCloud.position.y = 0.45 + state.pitch * 0.85;
+    if (state._goldenMap) {
+      state._goldenMap.offset.x = (state._skyScroll || 0) * 0.018 + state.yaw * -0.05;
+    }
+  }
   if (state._cloudLayer) {
-    state._cloudLayer.position.x = state.yaw * -14;
-    state._cloudLayer.position.y = 5 + state.pitch * 5;
+    state._cloudLayer.position.x = state.yaw * -2.0;
+    state._cloudLayer.position.y = 0.85 + state.pitch * 1.0;
     if (state._cloudLayer.material.map) {
-      state._cloudLayer.material.map.offset.x += dt * (0.045 + state.speed * 0.07);
+      state._cloudLayer.material.map.offset.x += dt * (0.03 + state.speed * 0.045);
     }
   }
 

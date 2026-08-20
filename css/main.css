@@ -10,8 +10,8 @@
   --amber: #d48a1a;
   --orange: #e07a3a;
   --cyan: #2f8fa3;
-  --glass: rgba(246, 244, 238, 0.72);
-  --glass-edge: rgba(255, 255, 255, 0.55);
+  --glass: rgba(246, 244, 238, 0.22);
+  --glass-edge: rgba(255, 255, 255, 0.38);
   --font-d: "Outfit", "Pretendard Variable", Pretendard, sans-serif;
   --font-b: "Pretendard Variable", Pretendard, sans-serif;
   --font-m: "IBM Plex Mono", ui-monospace, monospace;
@@ -36,8 +36,8 @@ img { max-width: 100%; display: block; }
   inset: 0;
   z-index: 0;
   background: #ff8a3a;
-  --sky-x: 50%;
-  --sky-y: 46%;
+  --sky-x: 68%;
+  --sky-y: 42%;
 }
 #webgl::before {
   content: "";
@@ -46,9 +46,9 @@ img { max-width: 100%; display: block; }
   z-index: 0;
   background-image: url("../assets/tex/cockpit-ref.jpg");
   background-repeat: no-repeat;
-  background-size: 145% auto;
+  background-size: 180% auto;
   background-position: var(--sky-x) var(--sky-y);
-  filter: saturate(1.55) contrast(1.15) brightness(1.0);
+  filter: saturate(1.85) contrast(1.22) brightness(1.02) sepia(0.12);
   pointer-events: none;
   will-change: background-position;
 }
@@ -91,8 +91,8 @@ img { max-width: 100%; display: block; }
   border-radius: 18px;
   background: var(--glass);
   border: 1px solid var(--glass-edge);
-  box-shadow: 0 18px 50px rgba(40, 50, 65, 0.18), inset 0 1px 0 rgba(255,255,255,0.65);
-  backdrop-filter: blur(16px) saturate(1.15);
+  box-shadow: 0 18px 50px rgba(40, 50, 65, 0.12), inset 0 1px 0 rgba(255,255,255,0.45);
+  backdrop-filter: blur(10px) saturate(1.05);
   transform: perspective(900px) rotateY(6deg);
   transform-origin: left center;
   transition: transform 0.35s ease, opacity 0.35s ease;
@@ -256,11 +256,12 @@ img { max-width: 100%; display: block; }
   top: max(1rem, env(safe-area-inset-top));
   right: max(1rem, env(safe-area-inset-right));
   bottom: 3.2rem;
-  left: calc(min(24vw, 320px) + 2.4rem);
+  left: calc(min(24vw, 320px) + 2.8rem);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-end;
   pointer-events: none;
+  padding-top: 0;
 }
 .stage > * { pointer-events: auto; }
 
@@ -268,15 +269,17 @@ img { max-width: 100%; display: block; }
 .project-card,
 .system-card,
 .contact-card {
-  width: min(100%, 860px);
-  padding: 1.5rem 1.6rem 1.7rem;
-  border-radius: 22px;
-  background: rgba(246, 244, 238, 0.78);
-  border: 1px solid rgba(255,255,255,0.65);
-  box-shadow: 0 20px 60px rgba(35, 50, 70, 0.16);
-  backdrop-filter: blur(14px);
+  width: min(100%, 420px);
+  padding: 1.15rem 1.25rem 1.25rem;
+  border-radius: 18px;
+  background: rgba(246, 244, 238, 0.22);
+  border: 1px solid rgba(255,255,255,0.38);
+  box-shadow: 0 14px 40px rgba(35, 50, 70, 0.1);
+  backdrop-filter: blur(10px) saturate(1.05);
   transform: translateY(0);
   transition: opacity 0.45s ease, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  margin-left: auto;
+  align-self: flex-start;
 }
 .is-hidden {
   opacity: 0;
@@ -325,9 +328,11 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
 
 .project-card {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 1.1rem;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
   align-items: stretch;
+  max-height: calc(100vh - 5.5rem);
+  overflow: auto;
 }
 .project-tags {
   display: flex;
@@ -520,7 +525,7 @@ body.is-ready .boot {
     margin: 0;
     padding: 0.45rem 0.55rem;
     border-radius: 14px;
-    background: rgba(246, 244, 238, 0.78);
+    background: rgba(246, 244, 238, 0.48);
     border: 1px solid rgba(255,255,255,0.6);
     backdrop-filter: blur(12px);
     box-shadow: 0 8px 24px rgba(30, 40, 55, 0.12);
@@ -561,7 +566,7 @@ body.is-ready .boot {
     overflow-x: auto;
     overflow-y: hidden;
     border-radius: 14px;
-    background: rgba(246, 244, 238, 0.92);
+    background: rgba(246, 244, 238, 0.55);
     border: 1px solid rgba(255,255,255,0.65);
     backdrop-filter: blur(12px);
     -webkit-overflow-scrolling: touch;
@@ -596,10 +601,10 @@ body.is-ready .boot {
     margin: 0;
     padding: 0.5rem;
     border-radius: 16px;
-    background: rgba(246, 244, 238, 0.84);
-    border: 1px solid rgba(255,255,255,0.6);
+    background: rgba(246, 244, 238, 0.38);
+    border: 1px solid rgba(255,255,255,0.5);
     backdrop-filter: blur(12px);
-    box-shadow: 0 -8px 28px rgba(30, 40, 55, 0.12);
+    box-shadow: 0 -8px 28px rgba(30, 40, 55, 0.1);
   }
   .gauges {
     grid-column: 1 / -1;
@@ -621,18 +626,19 @@ body.is-ready .boot {
     top: calc(max(0.55rem, env(safe-area-inset-top)) + 3.5rem);
     bottom: calc(5.6rem + env(safe-area-inset-bottom));
     align-items: flex-start;
-    justify-content: center;
+    justify-content: flex-end;
   }
   .hero-card,
   .project-card,
   .system-card,
   .contact-card {
-    width: 100%;
-    max-height: 28vh;
+    width: min(100%, 420px);
+    margin-left: auto;
+    max-height: 34vh;
     overflow: auto;
     padding: 0.7rem 0.8rem 0.75rem;
     border-radius: 14px;
-    background: rgba(246, 244, 238, 0.68);
+    background: rgba(246, 244, 238, 0.34);
   }
   .hero-card .lede,
   .hero-card .chips {
@@ -656,5 +662,16 @@ body.is-ready .boot {
 @media (prefers-reduced-motion: reduce) {
   .hero-card, .project-card, .system-card, .contact-card, .flight-ui {
     transition: none;
+  }
+}
+
+.hud-credit { opacity: 0.55; font-size: 0.68rem; letter-spacing: 0.02em; }
+
+@media (min-width: 981px) and (max-width: 1200px) {
+  .stage {
+    left: calc(min(28vw, 280px) + 1.6rem);
+  }
+  .project-card, .system-card, .contact-card, .hero-card {
+    width: min(100%, 400px);
   }
 }
