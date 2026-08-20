@@ -1,393 +1,156 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="SaveAs For Biz — 필요한 것을 직접 만듭니다. 조종석에서 프로젝트를 비행하듯 탐색하는 디지털 시스템 스튜디오." />
-  <meta name="theme-color" content="#0b0c0e" />
+  <meta name="description" content="SaveAs For Biz — 비즈니스의 아이디어를 실제로 작동하게 만듭니다." />
+  <meta name="theme-color" content="#85B9E6" />
   <meta property="og:title" content="SaveAs For Biz" />
-  <meta property="og:description" content="필요한 것을 직접 만듭니다. 쇼핑몰 · 웹서비스 · 커스텀 시스템 · 모바일 · 자동화" />
+  <meta property="og:description" content="쇼핑몰, 웹서비스, 커스텀 시스템, 자동화까지. 기획부터 디자인, 개발, 운영 구조까지 연결합니다." />
   <meta property="og:url" content="https://save-as.me/" />
-  <meta property="og:type" content="website" />
   <link rel="icon" href="assets/brand/saveas-mark.svg" type="image/svg+xml" />
   <title>SaveAs For Biz — 세이브애즈 포 비즈</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/main.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
-<body class="is-booting">
-  <a class="skip" href="#panel">콘텐츠로 이동</a>
+<body>
+  <div id="webgl" aria-hidden="true"></div>
 
-  <!-- L1–L2: SKY -->
-  <div class="sky-stage" id="skyStage" aria-hidden="true">
-    <canvas id="skyCanvas"></canvas>
-    <div class="horizon" id="horizon"></div>
-    <div class="sky-tint" id="skyTint"></div>
-  </div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="glass-glare" aria-hidden="true"></div>
 
-  <!-- L3–L7: COCKPIT -->
-  <div class="cockpit" id="cockpit">
-    <div class="cockpit-ambient" id="cockpitAmbient">
-      <div class="window-assembly" id="windowAssembly">
-        <div class="window-view" id="windowView">
-          <div class="window-mask">
-            <div class="window-sky-clone" aria-hidden="true"></div>
+  <aside class="flight-ui" id="flightUi">
+    <header class="ui-brand">
+      <img src="assets/brand/saveas-mark.svg" alt="" width="28" height="28" />
+      <div>
+        <strong>SAVEAS FOR BIZ</strong>
+        <em>DIGITAL SYSTEM STUDIO</em>
+      </div>
+    </header>
+
+    <div class="ui-meta">
+      <div><span>PROJECT</span><b id="metaIndex">01 / 05</b></div>
+      <div><span>CURRENT</span><b id="metaName">LOCAL</b></div>
+    </div>
+
+    <p class="ui-label">PROJECT ROUTE</p>
+    <nav class="route" id="routeNav" aria-label="프로젝트">
+      <button type="button" class="route-item is-active" data-index="0">
+        <em>01</em>
+        <span>오프라인 상품의 온라인 판매 전환</span>
+      </button>
+      <button type="button" class="route-item" data-index="1">
+        <em>02</em>
+        <span>커스텀 상품 쇼핑몰</span>
+      </button>
+      <button type="button" class="route-item" data-index="2">
+        <em>03</em>
+        <span>MakerBridge</span>
+      </button>
+      <button type="button" class="route-item" data-index="3">
+        <em>04</em>
+        <span>Cursor Mobile</span>
+      </button>
+      <button type="button" class="route-item" data-index="4">
+        <em>05</em>
+        <span>PWA</span>
+      </button>
+    </nav>
+
+    <div class="gauges">
+      <div><span>ALT</span><b id="gAlt">12,400</b></div>
+      <div><span>SPD</span><b id="gSpd">312</b></div>
+      <div><span>HDG</span><b id="gHdg">086°</b></div>
+    </div>
+
+    <button type="button" class="ui-action" id="viewSystem">시스템 보기</button>
+    <button type="button" class="ui-action ghost" id="viewContact" style="margin-top:0.45rem">프로젝트 문의</button>
+  </aside>
+
+  <main class="stage" id="stage">
+    <section class="hero-card" id="heroCard">
+      <p class="eyebrow">SAVEAS FOR BIZ</p>
+      <h1>비즈니스의 아이디어를<br />실제로 작동하게 만듭니다.</h1>
+      <p class="lede">쇼핑몰, 웹서비스, 커스텀 시스템, 자동화까지.<br />기획부터 디자인, 개발, 운영 구조까지 연결합니다.</p>
+      <div class="chips">
+        <span>쇼핑몰</span><span>웹서비스</span><span>커스텀 시스템</span><span>자동화</span>
+      </div>
+    </section>
+
+    <section class="project-card is-hidden" id="projectCard" aria-live="polite">
+      <div class="project-copy">
+        <p class="eyebrow" id="pEye">PROJECT 01</p>
+        <h2 id="pTitle">오프라인 상품을<br />온라인에서도 팔 수 있게.</h2>
+        <p class="lede" id="pBody">실제 로컬 매장의 상품을 온라인 판매용 상품으로 다시 기획했습니다. 패키지, 상세페이지, 스마트스토어 구축, 상품 등록, 쿠팡 확장과 기본 운영 교육까지 연결했습니다.</p>
+        <div class="project-tags" id="pTags"></div>
+        <a class="link-out" id="pLink" href="#" target="_blank" rel="noopener" hidden>자세히 보기 ↗</a>
+      </div>
+      <div class="project-display" id="pDisplay">
+        <div class="display-bezel">
+          <div class="display-bar">
+            <span id="dLabel">DISPLAY</span>
+            <span class="dot"></span>
           </div>
-          <div class="glass" aria-hidden="true"></div>
-          <svg class="window-frame" viewBox="0 0 1200 520" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <mask id="winMask">
-                <rect width="1200" height="520" fill="#fff" />
-                <path d="M70 70 L420 70 L465 115 L735 115 L780 70 L1130 70 L1130 440 L70 440 Z" fill="#000" />
-              </mask>
-            </defs>
-            <rect class="wf-outer" width="1200" height="520" mask="url(#winMask)" />
-            <path class="wf-mullion" d="M480 100 L480 440 M720 100 L720 440 M600 100 L600 440" />
-            <path class="wf-ledge" d="M55 455 L1145 455 L1145 475 L55 475 Z" />
-            <circle cx="70" cy="70" r="3.2" class="wf-screw" />
-            <circle cx="1130" cy="70" r="3.2" class="wf-screw" />
-            <circle cx="70" cy="440" r="3.2" class="wf-screw" />
-            <circle cx="1130" cy="440" r="3.2" class="wf-screw" />
-          </svg>
-          <div class="window-hud">
-            <span>FWD WINDOW</span>
-            <span id="hudBank">BANK 0.0°</span>
-            <span id="hudSpd">SPD 148</span>
+          <div class="display-screen" id="dScreen">
+            <img id="dImg" alt="" />
+            <div class="mb-switches" id="mbSwitches" hidden>
+              <button type="button" data-demo="editor" class="on">TEXT</button>
+              <button type="button" data-demo="product">IMAGE</button>
+              <button type="button" data-demo="cutline">CUTLINE</button>
+              <button type="button" data-demo="dash">ADMIN</button>
+            </div>
           </div>
         </div>
       </div>
+    </section>
 
-      <header class="cockpit-top">
-        <div class="brand-plate">
-          <img src="assets/brand/saveas-mark.svg" alt="" width="22" height="22" />
-          <div>
-            <strong>SAVEAS FOR BIZ</strong>
-            <em>DIGITAL SYSTEM STUDIO</em>
-          </div>
-        </div>
-        <div class="sys-strip">
-          <span class="pulse"></span>
-          <span id="sysStatus">SYSTEM BOOT</span>
-          <span class="sep">/</span>
-          <span id="sysClock">00:00:00</span>
-        </div>
-      </header>
+    <section class="system-card is-hidden" id="systemCard">
+      <p class="eyebrow">SYSTEM MAP</p>
+      <h2>플랫폼에 묶이지 않습니다.</h2>
+      <div class="sys-grid">
+        <article><h3>COMMERCE</h3><p>Cafe24 · Godomall · Imweb · SmartStore · POD</p></article>
+        <article><h3>DEVELOPMENT</h3><p>Custom Web · PWA · API · Automation · Editor</p></article>
+        <article><h3>DESIGN</h3><p>UI/UX · Package · Detail · Brand Experience</p></article>
+        <article><h3>DIGITIZATION</h3><p>Offline → Online · Channel · Operation</p></article>
+      </div>
+      <button type="button" class="ui-action ghost" id="closeSystem">돌아가기</button>
+    </section>
 
-      <main class="panel" id="panel">
-        <!-- HERO / CONTROL PANEL -->
-        <section class="deck deck-hero" id="top" data-mission="00" data-mood="dawn" data-status="ONLINE">
-          <div class="bezel">
-            <div class="bezel-head">
-              <span>CONTROL PANEL</span>
-              <span>SEOUL / SAVEAS</span>
-            </div>
-            <h1 class="hero-ko">필요한 것을<br />직접 만듭니다.</h1>
-            <p class="hero-line">쇼핑몰 · 웹서비스 · 커스텀 시스템 · 모바일 · 자동화</p>
-            <div class="tech-labels">
-              <span>BUILD</span><span>CONNECT</span><span>AUTOMATE</span>
-            </div>
-            <div class="readouts">
-              <div><em>SYS</em><b id="rSys">ONLINE</b></div>
-              <div><em>ALT</em><b id="rAlt">0012</b></div>
-              <div><em>SPD</em><b id="rSpd">148</b></div>
-              <div><em>RTE</em><b id="rRte">00</b></div>
-            </div>
-            <button class="btn-engage" id="startMission" type="button">START MISSION</button>
-          </div>
-        </section>
+    <section class="contact-card is-hidden" id="contactCard">
+      <p class="eyebrow">FINAL APPROACH</p>
+      <h2>프로젝트가 필요하신가요?</h2>
+      <p class="lede">정해진 형태가 없어도 괜찮습니다.<br />문제부터 함께 정리하고 필요한 방식으로 구현합니다.</p>
+      <div class="contact-actions">
+        <a class="ui-action" href="mailto:saveasme1@gmail.com">프로젝트 문의</a>
+        <a class="link-out" href="https://instagram.com/saveasme1" target="_blank" rel="noopener">Instagram</a>
+      </div>
+    </section>
+  </main>
 
-        <!-- FLIGHT PLAN -->
-        <section class="deck deck-plan" id="plan" data-mission="00" data-mood="dawn" data-status="ROUTE SELECT">
-          <div class="plan-grid">
-            <div class="bezel plan-list-bezel">
-              <div class="bezel-head">
-                <span>FLIGHT PLAN</span>
-                <span>ROUTE SELECT</span>
-              </div>
-              <h2>항로를 선택하십시오.</h2>
-              <ul class="route-list" id="routeList">
-                <li>
-                  <button type="button" class="route-btn" data-target="#m01" data-route="01" data-name="LOCAL COMMERCE" data-type="OFFLINE → ONLINE" aria-pressed="true">
-                    <em>ROUTE 01</em><span>LOCAL COMMERCE</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" class="route-btn" data-target="#m02" data-route="02" data-name="CUSTOM COMMERCE" data-type="POD / EDITOR">
-                    <em>ROUTE 02</em><span>CUSTOM COMMERCE</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" class="route-btn" data-target="#m03" data-route="03" data-name="MAKERBRIDGE" data-type="WEB PRODUCT EDITOR">
-                    <em>ROUTE 03</em><span>MAKERBRIDGE</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" class="route-btn" data-target="#m04" data-route="04" data-name="CURSOR MOBILE" data-type="DESKTOP → MOBILE → CLOUD">
-                    <em>ROUTE 04</em><span>CURSOR MOBILE</span>
-                  </button>
-                </li>
-                <li>
-                  <button type="button" class="route-btn" data-target="#m05" data-route="05" data-name="PWA / WEB APP" data-type="PRIVATE INSTALLABLE">
-                    <em>ROUTE 05</em><span>PWA / WEB APP</span>
-                  </button>
-                </li>
-              </ul>
-            </div>
-            <aside class="bezel plan-preview" id="planPreview">
-              <div class="bezel-head">
-                <span>NAV DISPLAY</span>
-                <span class="blink" id="navLock">STANDBY</span>
-              </div>
-              <dl class="nav-data">
-                <div><dt>MISSION</dt><dd id="navMission">01</dd></div>
-                <div><dt>SYSTEM</dt><dd id="navSystem">LOCAL COMMERCE</dd></div>
-                <div><dt>TYPE</dt><dd id="navType">OFFLINE → ONLINE</dd></div>
-                <div><dt>STATUS</dt><dd id="navStatus">ACTIVE</dd></div>
-              </dl>
-              <button class="btn-engage" id="engageRoute" type="button">ENGAGE</button>
-            </aside>
-          </div>
-        </section>
+  <footer class="hud-bottom">
+    <span id="liveClock">00:00:00</span>
+    <span>SCROLL · THROTTLE</span>
+    <span>MOVE · LOOK</span>
+  </footer>
 
-        <!-- M01 -->
-        <section class="deck mission" id="m01" data-mission="01" data-mood="morning" data-status="LOCAL COMMERCE">
-          <div class="mfd">
-            <div class="mfd-top">
-              <span>MISSION 01</span>
-              <span>LOCAL → COMMERCE</span>
-              <span class="mfd-live">LIVE</span>
-            </div>
-            <div class="mfd-body">
-              <div class="mfd-copy">
-                <h2>오프라인 상품을<br />온라인에서도 팔 수 있게.</h2>
-                <p>까치산 김치찌개 — 로컬 매장의 메뉴·패키지·판매 구조를 스마트스토어와 쿠팡 채널로 전환한 Mission.</p>
-                <ol class="flow-rail" id="flow01">
-                  <li class="on">STORE</li>
-                  <li>PACKAGE</li>
-                  <li>DETAIL</li>
-                  <li>SMARTSTORE</li>
-                  <li>COUPANG</li>
-                </ol>
-                <a class="btn-ghost" href="https://smartstore.naver.com/_mymura" target="_blank" rel="noopener">VIEW STORE ↗</a>
-              </div>
-              <div class="mfd-screen">
-                <div class="carousel" id="car01">
-                  <img src="assets/missions/01-local/store-3.webp" alt="매장 메뉴" width="800" height="1000" loading="lazy" />
-                  <img src="assets/missions/01-local/store-4.webp" alt="메뉴판" width="600" height="800" loading="lazy" />
-                  <img src="assets/missions/01-local/commerce-bridge.webp" alt="온라인 전환" width="700" height="450" loading="lazy" />
-                </div>
-                <div class="mfd-caption" id="cap01">STORE SIGNAL</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- M02 -->
-        <section class="deck mission" id="m02" data-mission="02" data-mood="day" data-status="CUSTOM COMMERCE">
-          <div class="mfd">
-            <div class="mfd-top">
-              <span>MISSION 02</span>
-              <span>CUSTOM COMMERCE</span>
-              <span class="mfd-live">LIVE</span>
-            </div>
-            <div class="mfd-body">
-              <div class="mfd-copy">
-                <h2>직접 만들고<br />그대로 주문합니다.</h2>
-                <p>SaveAs — 웹에서 디자인한 뒤 주문·제작까지 이어지는 POD / Custom Product Commerce Engine.</p>
-                <ol class="flow-rail compact">
-                  <li>DESIGN</li><li>PREVIEW</li><li>ORDER</li><li>PRODUCTION</li>
-                </ol>
-                <a class="btn-ghost" href="https://save-as.co.kr" target="_blank" rel="noopener">SAVE-AS.CO.KR ↗</a>
-              </div>
-              <div class="mfd-screen editor-screen">
-                <img class="editor-bg" src="assets/missions/02-saveas/product-hero.webp" alt="SaveAs 제품" loading="lazy" width="900" height="900" />
-                <div class="editor-demo" id="saveasDemo" aria-hidden="true">
-                  <div class="demo-cursor"></div>
-                  <div class="demo-label">DESIGN → ORDER</div>
-                </div>
-                <div class="mfd-caption">CREATION ENGINE</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- M03 MAKERBRIDGE -->
-        <section class="deck mission" id="m03" data-mission="03" data-mood="altitude" data-status="MAKERBRIDGE">
-          <div class="mfd">
-            <div class="mfd-top">
-              <span>MISSION 03</span>
-              <span>MAKERBRIDGE</span>
-              <span class="mfd-live">DEMO</span>
-            </div>
-            <div class="mfd-body stack">
-              <div class="mfd-copy wide">
-                <div class="mb-row">
-                  <img src="assets/brand/mb-logo.svg" alt="" width="28" height="28" />
-                  <span>CAFE24 PRODUCT EDITOR</span>
-                </div>
-                <h2>브라우저에서 편집하고<br />제작 데이터까지.</h2>
-                <p>Text · Image · Align · Finishing · Cutline · Preview · Order Link</p>
-              </div>
-              <div class="mfd-screen mb-display" id="mbDisplay">
-                <img class="mb-frame" id="mbFrame" src="assets/missions/03-makerbridge/editor.webp" alt="MakerBridge 에디터" width="1400" height="900" loading="lazy" />
-                <div class="mb-overlay" id="mbOverlay">
-                  <div class="mb-demo mb-demo-text is-active" data-demo="text">
-                    <span class="typed">SAVEAS</span>
-                    <i class="caret"></i>
-                  </div>
-                  <div class="mb-demo mb-demo-image" data-demo="image">
-                    <img src="assets/missions/02-saveas/editor-1.png" alt="" />
-                  </div>
-                  <div class="mb-demo mb-demo-align" data-demo="align">
-                    <span class="align-box">CENTER</span>
-                    <div class="guide-v"></div>
-                    <div class="guide-h"></div>
-                  </div>
-                  <div class="mb-demo mb-demo-cutline" data-demo="cutline">
-                    <div class="cut-shape"></div>
-                  </div>
-                </div>
-                <div class="mfd-caption" id="mbCap">TEXT INPUT</div>
-              </div>
-              <div class="switch-bank" role="tablist" aria-label="MakerBridge demo">
-                <button type="button" class="switch on" data-demo="text" aria-pressed="true"><i></i><span>TEXT</span></button>
-                <button type="button" class="switch" data-demo="image" aria-pressed="false"><i></i><span>IMAGE</span></button>
-                <button type="button" class="switch" data-demo="align" aria-pressed="false"><i></i><span>ALIGN</span></button>
-                <button type="button" class="switch" data-demo="cutline" aria-pressed="false"><i></i><span>CUTLINE</span></button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- M04 -->
-        <section class="deck mission" id="m04" data-mission="04" data-mood="sunset" data-status="CURSOR MOBILE">
-          <div class="mfd">
-            <div class="mfd-top">
-              <span>MISSION 04</span>
-              <span>CURSOR MOBILE</span>
-              <span class="mfd-live">LINK</span>
-            </div>
-            <div class="mfd-body stack">
-              <div class="mfd-copy wide">
-                <h2>개발 장소의<br />제약을 제거합니다.</h2>
-                <p>Desktop → Mobile → Cloud. PC가 꺼져도 작업이 이어지는 Continuity.</p>
-              </div>
-              <div class="link-board" id="linkBoard">
-                <div class="node pc">
-                  <div class="node-screen"><pre><code>agent.resume()</code></pre></div>
-                  <span>DESKTOP</span>
-                  <b class="st" id="stPc">ONLINE</b>
-                </div>
-                <div class="tx" aria-hidden="true"><span></span><span></span><span></span></div>
-                <div class="node cloud">
-                  <strong>CLOUD</strong>
-                  <span>RELAY</span>
-                  <b class="st on" id="stCloud">ONLINE</b>
-                </div>
-                <div class="tx" aria-hidden="true"><span></span><span></span><span></span></div>
-                <div class="node mobile">
-                  <img src="assets/missions/04-cursor/og-install.png" alt="Mobile" width="200" height="200" loading="lazy" />
-                  <span>MOBILE</span>
-                  <b class="st" id="stMobile">STANDBY</b>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- M05 -->
-        <section class="deck mission" id="m05" data-mission="05" data-mood="night" data-status="PWA">
-          <div class="mfd">
-            <div class="mfd-top">
-              <span>MISSION 05</span>
-              <span>PWA / PRIVATE WEB APP</span>
-              <span class="mfd-live">READY</span>
-            </div>
-            <div class="mfd-body">
-              <div class="mfd-copy">
-                <h2>설치형 웹으로<br />전환된 커머스.</h2>
-                <p>공개 사이트를 넘어선 Private / Installable Web Experience. 브랜드명은 비공개 처리.</p>
-                <ul class="pwa-list">
-                  <li><span>HOME SCREEN</span><b>READY</b></li>
-                  <li><span>STANDALONE</span><b>READY</b></li>
-                  <li><span>MEMBER GATE</span><b>READY</b></li>
-                  <li><span>PUSH CAPABLE</span><b>READY</b></li>
-                </ul>
-              </div>
-              <div class="mfd-screen pwa-device">
-                <div class="pwa-notch"></div>
-                <div class="pwa-ui">
-                  <em>PRIVATE SURFACE</em>
-                  <strong>APP-LIKE WEB</strong>
-                  <span class="install">ADD TO HOME</span>
-                </div>
-                <div class="mfd-caption">INSTALLABLE</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- CAPABILITIES -->
-        <section class="deck" id="capabilities" data-mission="--" data-mood="night" data-status="SYSTEM MAP">
-          <div class="bezel">
-            <div class="bezel-head"><span>SYSTEM MAP</span><span>NO PLATFORM LIMITS</span></div>
-            <h2>하나의 시스템으로.<br />플랫폼에 묶이지 않습니다.</h2>
-            <div class="cap-grid">
-              <article><h3>COMMERCE</h3><ul><li>Cafe24</li><li>Godomall</li><li>Imweb</li><li>Naver SmartStore</li><li>POD Commerce</li></ul></article>
-              <article><h3>DEVELOPMENT</h3><ul><li>Custom Web</li><li>PWA</li><li>API</li><li>Automation</li><li>Custom Editor</li></ul></article>
-              <article><h3>DESIGN</h3><ul><li>UI/UX</li><li>Package</li><li>Detail Page</li><li>Brand Experience</li></ul></article>
-              <article><h3>DIGITIZATION</h3><ul><li>Offline → Online</li><li>Channel Setup</li><li>Operation Training</li></ul></article>
-            </div>
-          </div>
-        </section>
-
-        <!-- FINAL APPROACH -->
-        <section class="deck deck-final" id="contact" data-mission="END" data-mood="night" data-status="FINAL APPROACH">
-          <div class="bezel final-bezel">
-            <div class="bezel-head"><span class="pulse"></span><span>FINAL APPROACH</span></div>
-            <h2>필요한 시스템이 있다면<br />다음 목적지를 함께 정합니다.</h2>
-            <p>정해져 있지 않아도 됩니다. 문제부터 정의하고, 필요한 형태로 구현합니다.</p>
-            <div class="ending-actions">
-              <a class="btn-engage" href="mailto:saveasme1@gmail.com">PROJECT REQUEST</a>
-              <a class="btn-ghost" href="https://instagram.com/saveasme1" target="_blank" rel="noopener">INSTAGRAM</a>
-            </div>
-            <dl class="contact-board">
-              <div><dt>COMMS</dt><dd><a href="mailto:saveasme1@gmail.com">saveasme1@gmail.com</a></dd></div>
-              <div><dt>SIGNAL</dt><dd><a href="https://instagram.com/saveasme1" target="_blank" rel="noopener">@saveasme1</a></dd></div>
-              <div><dt>DOMAIN</dt><dd>save-as.me</dd></div>
-            </dl>
-          </div>
-        </section>
-      </main>
-
-      <!-- Throttle / Mission lever -->
-      <aside class="throttle" id="throttle" aria-label="Mission throttle">
-        <div class="throttle-rail">
-          <button type="button" data-target="#top" title="BOOT">00</button>
-          <button type="button" data-target="#m01" title="M1">01</button>
-          <button type="button" data-target="#m02" title="M2">02</button>
-          <button type="button" data-target="#m03" title="M3">03</button>
-          <button type="button" data-target="#m04" title="M4">04</button>
-          <button type="button" data-target="#m05" title="M5">05</button>
-          <button type="button" data-target="#contact" title="FINAL">FN</button>
-          <div class="throttle-handle" id="throttleHandle" role="slider" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"></div>
-        </div>
-        <span class="throttle-label">THR</span>
-      </aside>
+  <div class="boot" id="boot">
+    <div>
+      <strong>SAVEAS FOR BIZ</strong>
+      <em>Opening cockpit…</em>
     </div>
   </div>
 
-  <div class="boot-overlay" id="bootOverlay" aria-hidden="true">
-    <div class="boot-panel">
-      <span class="pulse"></span>
-      <strong>SYSTEM BOOT</strong>
-      <em id="bootLine">INITIALIZING COCKPIT…</em>
-    </div>
-  </div>
-
-  <script src="js/sky.js" defer></script>
-  <script src="js/main.js" defer></script>
+  <script type="module" src="js/flight.js"></script>
 </body>
 </html>
