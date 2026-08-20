@@ -412,15 +412,18 @@ function makeBrushed() {
 
 /* ========== renderer / scene ========== */
 const mount = document.getElementById("webgl");
-const renderer = new THREE.WebGLRenderer({ antialias: !isMobile(), powerPreference: "high-performance", alpha: false });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.4 : 2));
+const renderer = new THREE.WebGLRenderer({
+  antialias: !isMobile(),
+  powerPreference: "high-performance",
+  alpha: false,
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x87b8e8, 1);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.72;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.shadowMap.enabled = !isMobile();
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = false;
 mount.appendChild(renderer.domElement);
 mount.style.background = "#7eb6e8";
 
@@ -436,17 +439,7 @@ const hemi = new THREE.HemisphereLight(0xb8d8ff, 0x8a9a70, 0.95);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d0, 2.4);
 sun.position.set(40, 60, -20);
-sun.castShadow = !isMobile();
-if (sun.castShadow) {
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.near = 1;
-  sun.shadow.camera.far = 80;
-  sun.shadow.camera.left = -8;
-  sun.shadow.camera.right = 8;
-  sun.shadow.camera.top = 8;
-  sun.shadow.camera.bottom = -8;
-  sun.shadow.bias = -0.0004;
-}
+sun.castShadow = false;
 scene.add(sun);
 const cabin = new THREE.PointLight(0xfff4e6, 1.35, 12);
 cabin.position.set(0, 1.65, 0.45);
@@ -539,8 +532,8 @@ function addPhotoCloud(url, w, h, z, opacity) {
   });
 }
 addPhotoCloud("assets/sky/clouds-front.jpg", 110, 42, -38, 0.42);
-addPhotoCloud("assets/sky/clouds-drama.jpg", 160, 60, -70, 0.32);
-addPhotoCloud("assets/sky/sky-clouds.jpg", 220, 80, -140, 0.22);
+if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 160, 60, -70, 0.32);
+if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 220, 80, -140, 0.22);
 
 const softCloud = canvasTex((ctx, w, h) => {
   ctx.clearRect(0, 0, w, h);
@@ -564,7 +557,7 @@ const softCloud = canvasTex((ctx, w, h) => {
 const cloudGroup = new THREE.Group();
 scene.add(cloudGroup);
 const clouds = [];
-const nCloud = isMobile() ? 14 : 32;
+const nCloud = isMobile() ? 6 : 12;
 for (let i = 0; i < nCloud; i++) {
   const mat = new THREE.SpriteMaterial({ map: softCloud, transparent: true, depthWrite: false, opacity: 0.5 });
   const s = new THREE.Sprite(mat);
@@ -580,9 +573,9 @@ const ROUTE = {
   from: { name: "GMP", lat: 37.5583, lon: 126.7906 },
   to: { name: "USN", lat: 35.5935, lon: 129.3519 },
   /* z≈8 = cruise altitude look (cities/coast/mountains), not field-green closeup */
-  zoom: isMobile() ? 8 : 8,
-  samples: isMobile() ? 14 : 20,
-  cols: isMobile() ? 5 : 7,
+  zoom: 8,
+  samples: isMobile() ? 8 : 12,
+  cols: isMobile() ? 3 : 5,
 };
 
 function lonLatToTile(lon, lat, z) {
@@ -616,33 +609,14 @@ function loadTileImage(z, x, y) {
 }
 
 function gradeAerialCanvas(ctx, w, h) {
-  /* Cruise-window grade: less neon green, more haze / urban contrast */
-  const img = ctx.getImageData(0, 0, w, h);
-  const d = img.data;
-  for (let i = 0; i < d.length; i += 4) {
-    let r = d[i];
-    let g = d[i + 1];
-    let b = d[i + 2];
-    /* pull excess greens toward muted olive/gray */
-    if (g > r + 12 && g > b + 8) {
-      g = r * 0.42 + g * 0.38 + b * 0.2;
-      r = r * 0.9 + 18;
-      b = b * 0.95 + 22;
-    }
-    /* slight cool haze */
-    r = r * 0.88 + 28;
-    g = g * 0.9 + 34;
-    b = b * 0.96 + 48;
-    d[i] = Math.min(255, r);
-    d[i + 1] = Math.min(255, g);
-    d[i + 2] = Math.min(255, b);
-  }
-  ctx.putImageData(img, 0, 0);
+  /* Cheap haze overlay — avoid per-pixel getImageData stutter */
   const haze = ctx.createLinearGradient(0, 0, 0, h);
-  haze.addColorStop(0, "rgba(170,200,230,0.28)");
-  haze.addColorStop(0.45, "rgba(160,190,220,0.08)");
-  haze.addColorStop(1, "rgba(40,55,70,0.18)");
+  haze.addColorStop(0, "rgba(170,200,230,0.32)");
+  haze.addColorStop(0.45, "rgba(160,190,220,0.1)");
+  haze.addColorStop(1, "rgba(40,55,70,0.2)");
   ctx.fillStyle = haze;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = "rgba(90,110,120,0.12)";
   ctx.fillRect(0, 0, w, h);
 }
 
@@ -737,7 +711,7 @@ const cityGroup = new THREE.Group();
 cityGroup.visible = false;
 scene.add(cityGroup);
 const cityMat = new THREE.MeshStandardMaterial({ color: 0xffd090, emissive: 0xffaa55, emissiveIntensity: 0.45 });
-for (let i = 0; i < (isMobile() ? 45 : 120); i++) {
+for (let i = 0; i < (isMobile() ? 20 : 50); i++) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2 + Math.random() * 10, 2.2), cityMat);
   m.position.set((Math.random() - 0.5) * 800, -115 + Math.random() * 8, -280 - Math.random() * 1400);
   cityGroup.add(m);
@@ -856,8 +830,8 @@ state._camBase = { x: 0, y: 1.15, z: 1.35 };
 function prepareCockpitMaterials(root) {
   root.traverse((o) => {
     if (!o.isMesh) return;
-    o.castShadow = !isMobile();
-    o.receiveShadow = !isMobile();
+    o.castShadow = false;
+    o.receiveShadow = false;
     const meshName = String(o.name || "").toLowerCase();
     if (meshName === "hud" || meshName.includes("hudscreen")) {
       o.visible = false;
@@ -1099,7 +1073,8 @@ window.addEventListener(
     if (reduce || state.padActive) return;
     const nx = (e.clientX / window.innerWidth) * 2 - 1;
     const ny = (e.clientY / window.innerHeight) * 2 - 1;
-    state.tYaw = nx * (isMobile() ? 0.38 : 0.85);
+    /* mouse right → look right (camera Y rotation inverted from screen X) */
+    state.tYaw = -nx * (isMobile() ? 0.38 : 0.85);
     state.tPitch = -ny * (isMobile() ? 0.14 : 0.24);
     if (el.flightUi) {
       el.flightUi.style.setProperty("--ui-x", `${nx * 5}px`);
@@ -1160,7 +1135,8 @@ renderer.domElement.style.cursor = "grab";
 /* Arcade stick: hold to look / zoom */
 const padHold = { left: false, right: false, up: false, down: false, zin: false, zout: false };
 function syncPadFromHold() {
-  state.pad.yaw = (padHold.right ? 1 : 0) + (padHold.left ? -1 : 0);
+  /* left → look left (+Y rot), right → look right (-Y rot) */
+  state.pad.yaw = (padHold.left ? 1 : 0) + (padHold.right ? -1 : 0);
   state.pad.pitch = (padHold.up ? 1 : 0) + (padHold.down ? -1 : 0);
   state.pad.zoom = (padHold.zin ? 1 : 0) + (padHold.zout ? -1 : 0);
   state.padActive = !!(state.pad.yaw || state.pad.pitch || state.pad.zoom);
@@ -1191,6 +1167,8 @@ document.getElementById("stickReset")?.addEventListener("click", () => {
   state.tZoom = 0.28;
   state.yaw = 0;
   state.pitch = 0;
+  state.zoomSide = 0;
+  state.tZoomSide = 0;
   Object.keys(padHold).forEach((k) => {
     padHold[k] = false;
   });
@@ -1202,7 +1180,7 @@ setInterval(() => {
   if (reduce) return;
   state._mfdPhase = (state._mfdPhase + 1) % PROJECTS.length;
   paintMfdScreens();
-}, 4200);
+}, 5500);
 
 setInterval(() => {
   const d = new Date();
@@ -1215,19 +1193,20 @@ window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.35 : 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
 });
 
 let prev = performance.now();
+let gaugeTick = 0;
 function animate(now) {
   const dt = Math.min(0.05, (now - prev) / 1000);
   prev = now;
 
-  state.speed += (state.tSpeed - state.speed) * 0.045;
-  state.velocity *= 0.93;
+  state.speed += (state.tSpeed - state.speed) * 0.08;
+  state.velocity *= 0.9;
   if (state.velocity < 0.02) {
     state.velocity = 0;
-    state.tSpeed += (1 - state.tSpeed) * 0.035;
+    state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
   if (state.padActive) {
@@ -1236,23 +1215,23 @@ function animate(now) {
     state.tYaw = state.pad.yaw * maxYaw;
     state.tPitch = state.pad.pitch * maxPitch;
     if (state.pad.zoom) {
-      state.tZoom = THREE.MathUtils.clamp(state.tZoom + state.pad.zoom * dt * 0.55, 0, 1);
-      state.tSpeed = 1.25;
+      state.tZoom = THREE.MathUtils.clamp(state.tZoom + state.pad.zoom * dt * 0.9, 0, 1);
+      state.tSpeed = 1.35;
     }
   }
 
-  state.yaw += (state.tYaw - state.yaw) * 0.14;
-  state.pitch += (state.tPitch - state.pitch) * 0.12;
-  state.roll += (state.tRoll - state.roll) * 0.1;
+  state.yaw += (state.tYaw - state.yaw) * 0.22;
+  state.pitch += (state.tPitch - state.pitch) * 0.2;
+  state.roll += (state.tRoll - state.roll) * 0.16;
   state.vibe += dt;
 
-  const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0018;
-  const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.002;
+  const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0012;
+  const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.0014;
   const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
-  state.zoom += (state.tZoom - state.zoom) * 0.08;
-  /* look left/right then zoom → bias toward that side so side MFDs are reachable */
-  state.tZoomSide = state.yaw * Math.max(0, state.zoom - 0.22) * (isMobile() ? 1.8 : 2.6);
-  state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.12;
+  state.zoom += (state.tZoom - state.zoom) * 0.14;
+  /* yaw already screen-correct; side bias follows look */
+  state.tZoomSide = -state.yaw * Math.max(0, state.zoom - 0.22) * (isMobile() ? 1.8 : 2.6);
+  state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.18;
   const lookBias = (isMobile() ? -0.02 : -0.05) - state.zoom * 0.18;
   cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw * 0.92, state.roll + vx * 2);
   const dolly = (state.zoom - 0.28) * (isMobile() ? 0.55 : 0.72);
@@ -1265,41 +1244,36 @@ function animate(now) {
   camera.updateProjectionMatrix();
 
   if (state._skyDome) {
-    state._skyDome.rotation.y += dt * (0.015 + state.speed * 0.025);
+    state._skyDome.rotation.y += dt * (0.02 + state.speed * 0.035);
   }
-  state._skyScroll = (state._skyScroll || 0) + dt * (0.8 + state.speed * 1.1);
 
-  /* compressed GMP→USN flyover */
-  state.flightT = (state.flightT + dt * (0.045 + state.speed * 0.08)) % 1;
+  /* compressed GMP→USN — faster scroll, no needsUpdate spam */
+  state.flightT = (state.flightT + dt * (0.09 + state.speed * 0.12)) % 1;
   if (state._terrain?.tex) {
-    state._terrain.tex.offset.y = state.flightT;
-    state._terrain.tex.needsUpdate = true;
-    terrainGroup.position.x = state.yaw * -6;
-    terrainGroup.rotation.z = state.yaw * 0.08;
+    state._terrain.tex.offset.y = 1 - state.flightT;
+    terrainGroup.position.x = state.yaw * 5;
+    terrainGroup.rotation.z = -state.yaw * 0.06;
   }
 
   for (const layer of cloudLayers) {
-    layer.mesh.position.x = state.yaw * (-10 - layer.speed);
-    layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 4;
-    layer.mesh.position.z = layer.baseZ + Math.sin(state.vibe * 0.3 + layer.speed) * 2;
+    layer.mesh.position.x = state.yaw * (-8 - layer.speed * 0.6);
+    layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 3;
     if (layer.mesh.material.map) {
-      layer.mesh.material.map.offset.x += dt * (0.01 + state.speed * 0.015);
+      layer.mesh.material.map.offset.x += dt * (0.018 + state.speed * 0.025);
     }
   }
 
   for (const s of clouds) {
-    s.position.z += dt * (22 + state.speed * 55);
-    s.position.x += state.yaw * dt * 12;
+    s.position.z += dt * (40 + state.speed * 70);
+    s.position.x += state.yaw * dt * 10;
     if (s.position.z > 90) {
-      s.position.z = -1600 - Math.random() * 500;
-      s.position.x = (Math.random() - 0.5) * 2200;
+      s.position.z = -1200 - Math.random() * 400;
+      s.position.x = (Math.random() - 0.5) * 1800;
     }
   }
 
-  ground.rotation.z = state.yaw * 0.12;
-
   tickEnv();
-  updateGauges();
+  if ((gaugeTick++ & 3) === 0) updateGauges();
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }

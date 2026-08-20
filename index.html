@@ -70,17 +70,18 @@
     </nav>
 
     <div class="stick-deck" id="stickDeck" aria-label="시야 조작">
-      <div class="stick-pad">
-        <button type="button" class="stick-btn stick-up" data-hold="up" aria-label="위를 보기">▲</button>
-        <button type="button" class="stick-btn stick-left" data-hold="left" aria-label="왼쪽">◀</button>
-        <button type="button" class="stick-btn stick-center" id="stickReset" aria-label="중앙 리셋">◎</button>
-        <button type="button" class="stick-btn stick-right" data-hold="right" aria-label="오른쪽">▶</button>
-        <button type="button" class="stick-btn stick-down" data-hold="down" aria-label="아래">▼</button>
+      <div class="look-pad" role="group" aria-label="시야 회전">
+        <button type="button" class="stick-btn look-left" data-hold="left" aria-label="왼쪽 보기">↺ 좌</button>
+        <button type="button" class="stick-btn look-stop" id="stickReset" aria-label="시야 정지">정지</button>
+        <button type="button" class="stick-btn look-right" data-hold="right" aria-label="오른쪽 보기">우 ↻</button>
       </div>
-      <div class="zoom-pad">
-        <button type="button" class="stick-btn zoom-in" data-hold="zin" aria-label="줌 인">＋</button>
-        <button type="button" class="stick-btn zoom-out" data-hold="zout" aria-label="줌 아웃">－</button>
-        <span class="zoom-label">ZOOM</span>
+      <div class="tilt-pad" role="group" aria-label="고개">
+        <button type="button" class="stick-btn" data-hold="up" aria-label="고개 들기">고개↑</button>
+        <button type="button" class="stick-btn" data-hold="down" aria-label="고개 숙이기">고개↓</button>
+      </div>
+      <div class="zoom-pad" role="group" aria-label="줌">
+        <button type="button" class="stick-btn zoom-in" data-hold="zin" aria-label="가까이">가까이</button>
+        <button type="button" class="stick-btn zoom-out" data-hold="zout" aria-label="멀리">멀리</button>
       </div>
     </div>
 
