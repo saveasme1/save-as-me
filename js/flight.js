@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -415,8 +415,8 @@ mount.appendChild(renderer.domElement);
 mount.style.background = "center / cover no-repeat url('assets/tex/cockpit-ref.jpg'), #ff8a3a";
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(64, window.innerWidth / window.innerHeight, 0.04, 40000);
-camera.position.set(0, 1.22, 0.88);
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 40000);
+camera.position.set(0, 1.15, 1.35);
 
 const cameraRig = new THREE.Group();
 cameraRig.add(camera);
@@ -553,358 +553,85 @@ for (let i = 0; i < (isMobile() ? 45 : 120); i++) {
   cityGroup.add(m);
 }
 
-/* ========== DETAILED COCKPIT ========== */
+/* ========== A320 FLIGHTDECK (IDG-A32X fd_complete) ========== */
 const cockpit = new THREE.Group();
 scene.add(cockpit);
+state._cockpitReady = false;
+state._camBase = { x: 0, y: 1.15, z: 1.35 };
 
-const panelNoise = makePanelNoise();
-panelNoise.wrapS = panelNoise.wrapT = THREE.RepeatWrapping;
-panelNoise.repeat.set(2.5, 2.5);
-const bump = makeBumpMap();
-bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-bump.repeat.set(3, 3);
-const leatherMap = makeLeather();
-leatherMap.wrapS = leatherMap.wrapT = THREE.RepeatWrapping;
-leatherMap.repeat.set(2, 2);
-const brushed = makeBrushed();
-brushed.wrapS = brushed.wrapT = THREE.RepeatWrapping;
+function prepareCockpitMaterials(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = !isMobile();
+    o.receiveShadow = !isMobile();
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => {
+      if (!m) return;
+      const n = String(m.name || "").toLowerCase();
+      if (n.includes("glass") || n.includes("visor")) {
+        m.transparent = true;
+        m.opacity = Math.min(m.opacity || 0.25, 0.35);
+        m.depthWrite = false;
+        m.side = THREE.DoubleSide;
+      } else if (m.transparent && m.opacity < 0.2) {
+        /* keep intentional near-invisible helpers hidden */
+        m.depthWrite = false;
+      } else {
+        m.transparent = false;
+        m.opacity = 1;
+        m.depthWrite = true;
+      }
+      if ("envMapIntensity" in m) m.envMapIntensity = 1.05;
+      m.needsUpdate = true;
+    });
+  });
+}
 
-const ivory = new THREE.MeshPhysicalMaterial({
-  color: 0xe9e5dc, map: panelNoise, bumpMap: bump, bumpScale: 0.012,
-  roughness: 0.52, metalness: 0.06, clearcoat: 0.22, clearcoatRoughness: 0.45, envMapIntensity: 0.65,
-});
-const warmGray = new THREE.MeshPhysicalMaterial({
-  color: 0xd0cbc0, map: panelNoise, bumpMap: bump, bumpScale: 0.01,
-  roughness: 0.48, metalness: 0.12, clearcoat: 0.15, envMapIntensity: 0.7,
-});
-const aluminum = new THREE.MeshPhysicalMaterial({
-  color: 0xc0c3be, map: brushed, roughness: 0.22, metalness: 0.85,
-  clearcoat: 0.35, clearcoatRoughness: 0.25, envMapIntensity: 1.25,
-});
-const darkBezel = new THREE.MeshPhysicalMaterial({
-  color: 0x141618, roughness: 0.35, metalness: 0.45, clearcoat: 0.4, envMapIntensity: 0.55,
-});
-const seatMat = new THREE.MeshStandardMaterial({
-  color: 0xffffff, map: leatherMap, roughness: 0.82, metalness: 0.04, envMapIntensity: 0.25,
-});
-const plastic = new THREE.MeshPhysicalMaterial({
-  color: 0x2c3036, roughness: 0.48, metalness: 0.18, clearcoat: 0.3, envMapIntensity: 0.45,
-});
-const rubber = new THREE.MeshStandardMaterial({ color: 0x1a1c1f, roughness: 0.92, metalness: 0.02 });
-const ledGreen = new THREE.MeshStandardMaterial({ color: 0x3d9e6f, emissive: 0x1f7a4a, emissiveIntensity: 0.85 });
-const ledAmber = new THREE.MeshStandardMaterial({ color: 0xd4a017, emissive: 0xa87810, emissiveIntensity: 0.7 });
-const carpet = new THREE.MeshStandardMaterial({
-  color: 0x5a5852, map: panelNoise, roughness: 0.95, metalness: 0, envMapIntensity: 0.1,
-});
-
-function applyPBR(mat, { map, nor, rough, color = 0xffffff, repeat = 2 } = {}) {
-  const prep = (tex, srgb = false) => {
-    if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(repeat, repeat);
-    tex.anisotropy = 8;
+function fitCockpitView(root) {
+  /*
+    Blender/FG Z-up exported via glTF → Three Y-up.
+    Rotate Y -90 so FG +X (nose) faces camera -Z.
+  */
+  root.rotation.set(0, -Math.PI / 2, 0);
+  root.position.set(0, 0, 0);
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  /* Slightly aft of cabin center, high enough to see panel + both seats + pedestal */
+  state._camBase = {
+    x: center.x,
+    y: box.min.y + Math.min(Math.max(size.y * 0.52, 1.05), 1.45),
+    z: center.z + size.z * 0.12,
   };
-  if (map)
-    loader.load(map, (tex) => {
-      prep(tex, true);
-      mat.map = tex;
-      mat.color.set(color);
-      mat.needsUpdate = true;
-    });
-  if (nor)
-    loader.load(nor, (tex) => {
-      prep(tex, false);
-      mat.normalMap = tex;
-      mat.normalScale = new THREE.Vector2(0.55, 0.55);
-      mat.needsUpdate = true;
-    });
-  if (rough)
-    loader.load(rough, (tex) => {
-      prep(tex, false);
-      mat.roughnessMap = tex;
-      mat.needsUpdate = true;
-    });
-}
-applyPBR(ivory, { map: "assets/tex/paint_diff.jpg", nor: "assets/tex/paint_nor.jpg", rough: "assets/tex/paint_rough.jpg", color: 0xf0ebe3, repeat: 3 });
-applyPBR(warmGray, { map: "assets/tex/paint_diff.jpg", nor: "assets/tex/paint_nor.jpg", rough: "assets/tex/paint_rough.jpg", color: 0xd8d2c6, repeat: 2.5 });
-applyPBR(aluminum, { map: "assets/tex/metal_diff.jpg", nor: "assets/tex/metal_nor.jpg", rough: "assets/tex/metal_rough.jpg", color: 0xffffff, repeat: 4 });
-applyPBR(seatMat, { map: "assets/tex/leather_diff.jpg", nor: "assets/tex/leather_nor.jpg", rough: "assets/tex/leather_rough.jpg", color: 0x3a3d44, repeat: 2 });
-
-function mesh(geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
-  const m = new THREE.Mesh(geo, mat);
-  m.position.set(x, y, z);
-  m.rotation.set(rx, ry, rz);
-  m.castShadow = !isMobile();
-  m.receiveShadow = !isMobile();
-  cockpit.add(m);
-  return m;
-}
-function box(w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
-  return mesh(new THREE.BoxGeometry(w, h, d), mat, x, y, z, rx, ry, rz);
-}
-function rbox(w, h, d, r, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
-  return mesh(new RoundedBoxGeometry(w, h, d, 3, r), mat, x, y, z, rx, ry, rz);
-}
-function cyl(rTop, rBot, h, mat, x, y, z, rx = 0, ry = 0, rz = 0, seg = 20) {
-  return mesh(new THREE.CylinderGeometry(rTop, rBot, h, seg), mat, x, y, z, rx, ry, rz);
-}
-function bolt(x, y, z, s = 0.012) {
-  cyl(s, s, s * 0.7, aluminum, x, y, z, Math.PI / 2, 0, 0, 10);
-}
-function toggle(x, y, z, on = false, rx = 0, ry = 0) {
-  rbox(0.028, 0.018, 0.038, 0.004, plastic, x, y, z, rx, ry, 0);
-  box(0.008, 0.028, 0.008, on ? ledGreen : aluminum, x, y + 0.018, z, 0.35 * (on ? 1 : -0.4), ry, 0);
-}
-function knob(x, y, z, r = 0.016) {
-  cyl(r, r * 0.9, 0.014, plastic, x, y, z, Math.PI / 2, 0, 0, 16);
-  cyl(r * 0.35, r * 0.35, 0.01, aluminum, x, y, z + 0.008, Math.PI / 2, 0, 0, 10);
-}
-function rocker(x, y, z) {
-  rbox(0.04, 0.012, 0.055, 0.003, plastic, x, y, z);
-  box(0.036, 0.006, 0.022, darkBezel, x, y + 0.008, z - 0.01, -0.25, 0, 0);
-}
-
-function pillar(x, y, z, h, rx, ry, thick = 0.1) {
-  const g = new THREE.Group();
-  g.position.set(x, y, z);
-  g.rotation.set(rx, ry, 0);
-  const core = new THREE.Mesh(new RoundedBoxGeometry(thick, h, thick * 1.25, 2, 0.014), ivory);
-  const trim = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.15, h * 0.98, thick * 0.28, 2, 0.008), aluminum);
-  trim.position.z = thick * 0.55;
-  const gasket = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.05, h * 0.94, thick * 0.08, 2, 0.006), rubber);
-  gasket.position.z = thick * 0.78;
-  [core, trim, gasket].forEach((m) => {
-    m.castShadow = !isMobile();
-    m.receiveShadow = !isMobile();
-    g.add(m);
+  state._cockpitReady = true;
+  console.info("[cockpit]", {
+    size: size.toArray().map((v) => +v.toFixed(2)),
+    cam: { ...state._camBase },
   });
-  cockpit.add(g);
-  return g;
 }
 
-function buildYoke(x, y, z, scale = 1) {
-  const g = new THREE.Group();
-  g.position.set(x, y, z);
-  g.scale.setScalar(scale);
-  const col = new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.42, 6, 12), aluminum);
-  col.position.y = 0.05;
-  const hub = new THREE.Mesh(new RoundedBoxGeometry(0.12, 0.05, 0.08, 2, 0.012), darkBezel);
-  hub.position.y = 0.32;
-  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.022, 14, 36, Math.PI * 1.4), rubber);
-  wheel.rotation.set(Math.PI / 2, 0.12, 0);
-  wheel.position.set(0, 0.34, 0.02);
-  const bar = new THREE.Mesh(new RoundedBoxGeometry(0.28, 0.032, 0.04, 2, 0.008), darkBezel);
-  bar.position.set(0, 0.34, 0.02);
-  const gripL = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.05, 4, 8), rubber);
-  gripL.position.set(-0.13, 0.34, 0.02);
-  const gripR = gripL.clone();
-  gripR.position.x = 0.13;
-  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.012, 10), ledAmber);
-  btn.rotation.x = Math.PI / 2;
-  btn.position.set(0.05, 0.355, 0.04);
-  [col, hub, wheel, bar, gripL, gripR, btn].forEach((m) => {
-    m.castShadow = !isMobile();
-    g.add(m);
-  });
-  cockpit.add(g);
-  return g;
-}
-
-function buildSeat(x, z, flip = 1) {
-  const g = new THREE.Group();
-  g.position.set(x, 0, z);
-  const base = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.12, 0.48, 3, 0.04), seatMat);
-  base.position.set(0, 0.38, 0);
-  const cushion = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.1, 0.42, 3, 0.045), seatMat);
-  cushion.position.set(0, 0.48, 0.02);
-  const back = new THREE.Mesh(new RoundedBoxGeometry(0.48, 0.72, 0.1, 3, 0.04), seatMat);
-  back.position.set(0, 0.85, 0.22);
-  back.rotation.x = -0.12;
-  const head = new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.16, 0.1, 3, 0.04), seatMat);
-  head.position.set(0, 1.28, 0.18);
-  const arm = new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.05, 0.32, 2, 0.02), plastic);
-  arm.position.set(0.28 * flip, 0.7, 0.02);
-  const rail = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.35, 4, 8), aluminum);
-  rail.position.set(0.28 * flip, 0.55, 0.05);
-  rail.rotation.x = Math.PI / 2;
-  [base, cushion, back, head, arm, rail].forEach((m) => {
-    m.castShadow = !isMobile();
-    m.receiveShadow = !isMobile();
-    g.add(m);
-  });
-  cockpit.add(g);
-}
-
-rbox(3.5, 0.06, 2.7, 0.02, carpet, 0, 0.0, 0.3);
-rbox(0.95, 0.05, 0.75, 0.015, darkBezel, -0.72, 0.05, 0.4);
-rbox(0.95, 0.05, 0.75, 0.015, darkBezel, 0.72, 0.05, 0.4);
-rbox(0.35, 0.04, 0.55, 0.01, rubber, 0, 0.04, 0.55);
-
-rbox(2.95, 0.06, 1.05, 0.025, ivory, 0, 1.14, -0.9, 0.46, 0, 0);
-rbox(2.85, 0.045, 0.55, 0.02, warmGray, 0, 1.22, -0.72, 0.55, 0, 0);
-rbox(3.0, 0.09, 0.14, 0.02, aluminum, 0, 1.02, -0.48, 0.1, 0, 0);
-rbox(2.92, 0.035, 0.07, 0.01, rubber, 0, 1.08, -0.4);
-rbox(2.7, 0.03, 0.12, 0.008, darkBezel, 0, 1.28, -1.15, 0.65, 0, 0);
-[-1.1, -0.55, 0, 0.55, 1.1].forEach((x) => bolt(x, 1.05, -0.42));
-
-rbox(2.75, 0.55, 0.2, 0.03, ivory, 0, 0.76, -0.4, -0.4, 0, 0);
-rbox(2.7, 0.09, 0.72, 0.02, ivory, 0, 0.52, -0.28, -0.1, 0, 0);
-rbox(2.65, 0.045, 0.55, 0.012, aluminum, 0, 0.46, -0.14);
-rbox(2.55, 0.03, 0.5, 0.008, darkBezel, 0, 0.49, -0.12);
-[-0.28, 0.28].forEach((x) => rbox(0.04, 0.42, 0.08, 0.008, plastic, x, 0.82, -0.32, -0.4, 0, 0));
-
-rbox(0.5, 0.58, 1.28, 0.035, warmGray, 0, 0.34, 0.3);
-rbox(0.46, 0.05, 1.0, 0.015, darkBezel, 0, 0.66, 0.2);
-rbox(0.42, 0.04, 0.35, 0.01, plastic, 0, 0.7, 0.55);
-const fmcTex = makeFMC();
-mesh(
-  new THREE.PlaneGeometry(0.34, 0.24),
-  new THREE.MeshStandardMaterial({
-    map: fmcTex, emissiveMap: fmcTex, emissive: 0xffffff, emissiveIntensity: 0.4, roughness: 0.35,
-  }),
-  0, 0.74, 0.48, -1.05, 0, 0
-);
-for (let i = 0; i < 8; i++) {
-  rbox(0.032, 0.012, 0.028, 0.004, plastic, -0.14 + (i % 4) * 0.09, 0.72, 0.62 + Math.floor(i / 4) * 0.06);
-}
-[-0.11, 0.0, 0.11].forEach((x, i) => {
-  const lean = 0.35 + i * 0.04;
-  cyl(0.014, 0.014, 0.32, aluminum, x, 0.84, 0.02, lean, 0, 0, 14);
-  cyl(0.026, 0.022, 0.055, rubber, x, 0.98, -0.04, lean, 0, 0, 14);
-  rbox(0.04, 0.02, 0.03, 0.006, darkBezel, x, 1.01, -0.06, lean, 0, 0);
-});
-box(0.012, 0.18, 0.012, aluminum, -0.2, 0.78, 0.22, 0.55, 0, 0.2);
-box(0.012, 0.18, 0.012, aluminum, 0.2, 0.78, 0.22, 0.55, 0, -0.2);
-cyl(0.018, 0.018, 0.025, ledAmber, -0.2, 0.88, 0.15, Math.PI / 2, 0, 0);
-cyl(0.018, 0.018, 0.025, ledGreen, 0.2, 0.88, 0.15, Math.PI / 2, 0, 0);
-[-0.22, 0.22].forEach((x) => {
-  cyl(0.075, 0.075, 0.018, plastic, x, 0.52, 0.58, 0, 0, Math.PI / 2, 24);
-  cyl(0.02, 0.02, 0.022, aluminum, x, 0.52, 0.58, 0, 0, Math.PI / 2, 12);
-});
-for (let i = 0; i < 6; i++) knob(-0.16 + i * 0.065, 0.69, 0.08, 0.012);
-
-rbox(0.48, 0.78, 1.55, 0.04, ivory, -1.34, 0.55, 0.1, 0, 0.18, 0);
-rbox(0.44, 0.7, 1.4, 0.035, ivory, 1.36, 0.5, 0.1, 0, -0.16, 0);
-rbox(0.4, 0.035, 1.15, 0.01, darkBezel, -1.34, 0.9, 0.02, 0, 0.18, 0);
-rbox(0.36, 0.035, 1.05, 0.01, darkBezel, 1.36, 0.82, 0.02, 0, -0.16, 0);
-for (let i = 0; i < 12; i++) {
-  toggle(-1.3, 0.94, -0.4 + i * 0.09, i % 4 === 0, 0, 0.18);
-  rocker(1.32, 0.86, -0.35 + i * 0.09);
-}
-for (let i = 0; i < 5; i++) knob(-1.28, 0.88, 0.55 + i * 0.08, 0.014);
-cyl(0.015, 0.015, 1.1, aluminum, -1.55, 1.15, 0.05, 0, 0, Math.PI / 2, 12);
-cyl(0.015, 0.015, 1.0, aluminum, 1.58, 1.1, 0.05, 0, 0, Math.PI / 2, 12);
-
-rbox(2.9, 0.08, 0.22, 0.02, aluminum, 0, 0.95, -1.05, 0.15, 0, 0);
-/* Windshield frame as one assembly — post shares Z with sill + header */
-(() => {
-  const z = -1.1;
-  const ySill = 1.0;
-  const yHead = 2.5;
-  const postH = yHead - ySill;
-  const postY = (ySill + yHead) / 2;
-  rbox(3.45, 0.12, 0.24, 0.025, aluminum, 0, ySill, z, 0.08, 0, 0);
-  rbox(3.45, 0.16, 0.28, 0.03, aluminum, 0, yHead, z, 0.12, 0, 0);
-  /* Roof mass: header → overhead, no crack of sky above the post */
-  rbox(3.4, 0.55, 0.95, 0.04, ivory, 0, 2.48, -0.35, 0.55, 0, 0);
-  rbox(3.35, 0.2, 0.55, 0.03, warmGray, 0, 2.42, -0.7, 0.4, 0, 0);
-  rbox(0.07, postH + 0.08, 0.16, 0.018, ivory, 0, postY + 0.02, z, 0.04, 0, 0);
-  rbox(0.09, postH, 0.06, 0.014, aluminum, 0, postY, z + 0.07, 0.04, 0, 0);
-  rbox(0.7, 0.12, 0.2, 0.025, aluminum, 0, yHead, z + 0.04, 0.1, 0, 0);
-  rbox(0.65, 0.1, 0.18, 0.02, aluminum, 0, ySill, z + 0.04, 0.08, 0, 0);
-})();
-
-rbox(2.35, 0.1, 1.45, 0.03, warmGray, 0, 2.32, -0.05, 0.88, 0, 0);
-mesh(
-  new THREE.PlaneGeometry(1.75, 1.0),
-  new THREE.MeshStandardMaterial({ map: makeOverhead(), roughness: 0.55, metalness: 0.05, envMapIntensity: 0.35 }),
-  0,
-  2.14,
-  0.28,
-  0.98,
-  0,
-  0
-);
-const ohRows = isMobile() ? 3 : 5;
-const ohCols = isMobile() ? 8 : 14;
-for (let row = 0; row < ohRows; row++) {
-  for (let col = 0; col < ohCols; col++) {
-    const x = -0.78 + col * 0.115;
-    const z = -0.2 + row * 0.13;
-    const y = 2.02 - row * 0.015;
-    if ((col + row) % 5 === 0) knob(x, y, z, 0.011);
-    else if ((col + row) % 3 === 0) rocker(x, y, z);
-    else toggle(x, y, z, (col + row) % 7 === 0, 0.95, 0);
+new GLTFLoader().load(
+  "assets/models/a320-cockpit.glb",
+  (gltf) => {
+    const root = gltf.scene;
+    prepareCockpitMaterials(root);
+    cockpit.add(root);
+    fitCockpitView(root);
+    /* Cabin fill so textured panels read clearly */
+    const fill = new THREE.HemisphereLight(0xffe2c4, 0x2a3038, 0.85);
+    cockpit.add(fill);
+    const key = new THREE.DirectionalLight(0xfff0dd, 1.35);
+    key.position.set(0.4, 2.2, 1.2);
+    cockpit.add(key);
+    document.body.classList.add("is-cockpit-ready");
+  },
+  undefined,
+  (err) => {
+    console.error("A320 cockpit GLB failed", err);
   }
-}
+);
 
-/* No transmission glass — Physical transmission was blacking out the view */
-const glassMat = new THREE.MeshStandardMaterial({
-  color: 0xffe8d0,
-  transparent: true,
-  opacity: 0.04,
-  roughness: 0.05,
-  metalness: 0,
-  depthWrite: false,
-  envMapIntensity: 0.25,
-});
-
-// One continuous glass pane + single center post already built into header/sill
-mesh(new THREE.PlaneGeometry(5.1, 1.6), glassMat, 0, 1.72, -1.13, 0.04, 0, 0);
-mesh(new THREE.PlaneGeometry(1.1, 1.0), glassMat, -1.78, 1.38, 0.08, 0.03, Math.PI / 2.05, 0);
-mesh(new THREE.PlaneGeometry(1.05, 0.95), glassMat, 1.8, 1.36, 0.1, 0.03, -Math.PI / 2.05, 0);
-
-function screen(tex, w, h, x, y, z, rx) {
-  rbox(w + 0.07, h + 0.07, 0.055, 0.012, darkBezel, x, y, z - 0.01, rx, 0, 0);
-  rbox(w + 0.04, h + 0.04, 0.02, 0.006, plastic, x, y, z + 0.008, rx, 0, 0);
-  rbox(w + 0.018, h + 0.018, 0.008, 0.003, aluminum, x, y, z + 0.016, rx, 0, 0);
-  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => {
-    cyl(0.005, 0.005, 0.01, aluminum, x + sx * (w * 0.48), y + sy * (h * 0.48), z + 0.02, Math.PI / 2, 0, 0, 8);
-  });
-  const panel = mesh(
-    new THREE.PlaneGeometry(w, h),
-    new THREE.MeshStandardMaterial({
-      map: tex,
-      emissiveMap: tex,
-      emissive: 0xffffff,
-      emissiveIntensity: 1.05,
-      roughness: 0.22,
-      metalness: 0.08,
-    }),
-    x, y, z + 0.028, rx, 0, 0
-  );
-  mesh(
-    new THREE.PlaneGeometry(w * 0.995, h * 0.995),
-    new THREE.MeshStandardMaterial({
-      color: 0xa8c8e8,
-      transparent: true,
-      opacity: 0.12,
-      roughness: 0.05,
-      metalness: 0.4,
-      depthWrite: false,
-    }),
-    x, y, z + 0.032, rx, 0, 0
-  );
-  return panel;
-}
-screen(makePFD(), 0.5, 0.44, -0.58, 0.88, -0.26, -0.5);
-screen(makeND(), 0.5, 0.44, 0.0, 0.88, -0.28, -0.5);
-screen(makeEICAS(), 0.44, 0.5, 0.58, 0.86, -0.24, -0.5);
-screen(makeND(), 0.28, 0.22, -0.35, 0.58, -0.02, -0.7);
-screen(makePFD(), 0.28, 0.22, 0.35, 0.58, -0.02, -0.7);
-for (let i = 0; i < 10; i++) {
-  knob(-0.9 + i * 0.2, 0.55, -0.05, 0.013);
-  if (i % 2 === 0) toggle(-0.8 + i * 0.2, 0.52, 0.05, i % 4 === 0);
-}
-
-buildYoke(0.58, 0.42, 0.42, 1);
-buildYoke(-0.55, 0.4, 0.48, 0.92);
-buildSeat(-0.58, 0.98, -1);
-buildSeat(0.58, 0.98, 1);
-
-rbox(3.2, 2.2, 0.12, 0.04, warmGray, 0, 1.4, 1.65);
-rbox(1.2, 0.8, 0.08, 0.03, ivory, 0, 1.5, 1.58);
-cyl(0.04, 0.04, 0.5, aluminum, -1.2, 1.8, 1.5, 0, 0, Math.PI / 2);
 /* ========== UI ========== */
 function show(card) {
   [el.hero, el.project, el.system, el.contact].forEach((c) => c.classList.add("is-hidden"));
@@ -1100,11 +827,10 @@ function animate(now) {
 
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0018;
   const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.002;
-  const camY = isMobile() ? 1.18 : 1.22;
-  const camZ = isMobile() ? 0.82 : 0.88;
-  const lookBias = isMobile() ? -0.02 : -0.06;
+  const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
+  const lookBias = isMobile() ? -0.015 : -0.04;
   cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
-  camera.position.set(vx * 5, camY + vy * 4, camZ);
+  camera.position.set(base.x + vx * 4, base.y + vy * 3, base.z);
 
   if (state._skyDome) {
     state._skyDome.rotation.y += dt * (0.03 + state.speed * 0.045);
