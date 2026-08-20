@@ -438,91 +438,8 @@ ground.rotation.x = -Math.PI / 2;
 ground.position.y = -120;
 scene.add(ground);
 
-/* Photo cloud layers (parallax) */
-const cloudLayers = [];
-function addPhotoCloud(url, w, h, z, opacity) {
-  loader.load(url, (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
-      new THREE.MeshBasicMaterial({
-        map: tex,
-        transparent: true,
-        opacity,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      })
-    );
-    m.position.set(0, h * 0.08, z);
-    scene.add(m);
-    cloudLayers.push({ mesh: m, baseZ: z, speed: 6 + Math.random() * 10, opacity });
-  });
-}
-addPhotoCloud("assets/sky/clouds-front.jpg", 110, 42, -38, 0.42);
-addPhotoCloud("assets/sky/clouds-drama.jpg", 160, 60, -70, 0.32);
-addPhotoCloud("assets/sky/sky-clouds.jpg", 220, 80, -140, 0.22);
-
-/* Scrolling cloud film (motion without broken stock video) */
-const filmCanvas = document.createElement("canvas");
-filmCanvas.width = 1024;
-filmCanvas.height = 512;
-const filmCtx = filmCanvas.getContext("2d");
-const filmTex = new THREE.CanvasTexture(filmCanvas);
-filmTex.colorSpace = THREE.SRGBColorSpace;
-filmTex.wrapS = THREE.RepeatWrapping;
-const filmMesh = new THREE.Mesh(
-  new THREE.CylinderGeometry(55, 55, 28, 48, 1, true),
-  new THREE.MeshBasicMaterial({
-    map: filmTex,
-    transparent: true,
-    opacity: 0.5,
-    side: THREE.BackSide,
-    depthWrite: false,
-  })
-);
-filmMesh.position.set(0, 10, -20);
-filmMesh.scale.x = -1;
-scene.add(filmMesh);
-state._film = { canvas: filmCanvas, ctx: filmCtx, tex: filmTex, mesh: filmMesh, imgs: [], offset: 0 };
-["assets/sky/clouds-front.jpg", "assets/sky/clouds-drama.jpg", "assets/sky/horizon-wide.jpg"].forEach((url) => {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  img.onload = () => state._film.imgs.push(img);
-  img.src = url;
-});
-
-const softCloud = canvasTex((ctx, w, h) => {
-  ctx.clearRect(0, 0, w, h);
-  [
-    [0.32, 0.55, 0.3],
-    [0.52, 0.48, 0.26],
-    [0.68, 0.58, 0.22],
-    [0.45, 0.64, 0.2],
-  ].forEach(([x, y, r]) => {
-    const g = ctx.createRadialGradient(w * x, h * y, 0, w * x, h * y, w * r);
-    g.addColorStop(0, "rgba(255,255,255,0.95)");
-    g.addColorStop(0.45, "rgba(255,255,255,0.4)");
-    g.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(w * x, h * y, w * r, 0, Math.PI * 2);
-    ctx.fill();
-  });
-}, 256, 128);
-
-const cloudGroup = new THREE.Group();
-scene.add(cloudGroup);
+/* No floating photo-planes / film / sprites — sky dome only (keeps window view clean) */
 const clouds = [];
-const nCloud = isMobile() ? 18 : 40;
-for (let i = 0; i < nCloud; i++) {
-  const mat = new THREE.SpriteMaterial({ map: softCloud, transparent: true, depthWrite: false, opacity: 0.5 });
-  const s = new THREE.Sprite(mat);
-  const sc = 70 + Math.random() * 180;
-  s.scale.set(sc, sc * 0.4, 1);
-  s.position.set((Math.random() - 0.5) * 2200, 40 + Math.random() * 160, -140 - Math.random() * 1800);
-  cloudGroup.add(s);
-  clouds.push(s);
-}
 
 const cityGroup = new THREE.Group();
 cityGroup.visible = false;
@@ -534,7 +451,7 @@ for (let i = 0; i < (isMobile() ? 45 : 120); i++) {
   cityGroup.add(m);
 }
 
-﻿/* ========== DETAILED COCKPIT ========== */
+/* ========== DETAILED COCKPIT ========== */
 const cockpit = new THREE.Group();
 scene.add(cockpit);
 
@@ -578,6 +495,39 @@ const carpet = new THREE.MeshStandardMaterial({
   color: 0x5a5852, map: panelNoise, roughness: 0.95, metalness: 0, envMapIntensity: 0.1,
 });
 
+function applyPBR(mat, { map, nor, rough, color = 0xffffff, repeat = 2 } = {}) {
+  const prep = (tex, srgb = false) => {
+    if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(repeat, repeat);
+    tex.anisotropy = 8;
+  };
+  if (map)
+    loader.load(map, (tex) => {
+      prep(tex, true);
+      mat.map = tex;
+      mat.color.set(color);
+      mat.needsUpdate = true;
+    });
+  if (nor)
+    loader.load(nor, (tex) => {
+      prep(tex, false);
+      mat.normalMap = tex;
+      mat.normalScale = new THREE.Vector2(0.55, 0.55);
+      mat.needsUpdate = true;
+    });
+  if (rough)
+    loader.load(rough, (tex) => {
+      prep(tex, false);
+      mat.roughnessMap = tex;
+      mat.needsUpdate = true;
+    });
+}
+applyPBR(ivory, { map: "assets/tex/paint_diff.jpg", nor: "assets/tex/paint_nor.jpg", rough: "assets/tex/paint_rough.jpg", color: 0xf0ebe3, repeat: 3 });
+applyPBR(warmGray, { map: "assets/tex/paint_diff.jpg", nor: "assets/tex/paint_nor.jpg", rough: "assets/tex/paint_rough.jpg", color: 0xd8d2c6, repeat: 2.5 });
+applyPBR(aluminum, { map: "assets/tex/metal_diff.jpg", nor: "assets/tex/metal_nor.jpg", rough: "assets/tex/metal_rough.jpg", color: 0xffffff, repeat: 4 });
+applyPBR(seatMat, { map: "assets/tex/leather_diff.jpg", nor: "assets/tex/leather_nor.jpg", rough: "assets/tex/leather_rough.jpg", color: 0x3a3d44, repeat: 2 });
+
 function mesh(geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
   const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y, z);
@@ -616,22 +566,26 @@ function pillar(x, y, z, h, rx, ry, thick = 0.1) {
   const g = new THREE.Group();
   g.position.set(x, y, z);
   g.rotation.set(rx, ry, 0);
-  const core = new THREE.Mesh(new RoundedBoxGeometry(thick, h, thick * 1.35, 2, 0.018), warmGray);
-  const trim = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.25, h * 0.98, thick * 0.35, 2, 0.01), aluminum);
-  trim.position.z = thick * 0.55;
-  const gasket = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.15, h * 0.96, thick * 0.12, 2, 0.008), rubber);
-  gasket.position.z = thick * 0.85;
-  const rail = new THREE.Mesh(new THREE.CapsuleGeometry(thick * 0.12, h * 0.72, 4, 8), aluminum);
-  rail.position.set(thick * 0.55, 0, 0);
-  [core, trim, gasket, rail].forEach((m) => {
+  const core = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.15, h, thick * 1.5, 3, 0.022), ivory);
+  const trim = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.35, h * 0.98, thick * 0.42, 2, 0.012), aluminum);
+  trim.position.z = thick * 0.62;
+  const gasket = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.2, h * 0.94, thick * 0.1, 2, 0.008), rubber);
+  gasket.position.z = thick * 0.95;
+  const lip = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.4, h * 0.2, thick * 0.55, 2, 0.015), warmGray);
+  lip.position.set(0, h * 0.38, thick * 0.2);
+  const lip2 = lip.clone();
+  lip2.position.y = -h * 0.38;
+  const rail = new THREE.Mesh(new THREE.CapsuleGeometry(thick * 0.14, h * 0.65, 4, 10), aluminum);
+  rail.position.set(thick * 0.62, 0, thick * 0.1);
+  [core, trim, gasket, lip, lip2, rail].forEach((m) => {
     m.castShadow = !isMobile();
     m.receiveShadow = !isMobile();
     g.add(m);
   });
-  for (let i = 0; i < 5; i++) {
-    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.01, 8), aluminum);
+  for (let i = 0; i < 6; i++) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.012, 8), aluminum);
     b.rotation.x = Math.PI / 2;
-    b.position.set(0, -h * 0.35 + i * (h * 0.18), thick * 0.7);
+    b.position.set(0, -h * 0.38 + i * (h * 0.15), thick * 0.78);
     g.add(b);
   }
   cockpit.add(g);
@@ -925,7 +879,16 @@ function updateGauges() {
 }
 
 document.querySelectorAll(".route-item").forEach((btn) => {
-  btn.addEventListener("click", () => applyProject(Number(btn.dataset.index)));
+  btn.addEventListener("click", () => {
+    applyProject(Number(btn.dataset.index));
+    document.body.classList.remove("is-routes-open");
+    const t = document.getElementById("mRouteBtn");
+    if (t) t.setAttribute("aria-expanded", "false");
+  });
+});
+document.getElementById("mRouteBtn")?.addEventListener("click", () => {
+  const open = document.body.classList.toggle("is-routes-open");
+  document.getElementById("mRouteBtn")?.setAttribute("aria-expanded", open ? "true" : "false");
 });
 document.getElementById("viewSystem")?.addEventListener("click", () => show(el.system));
 document.getElementById("viewContact")?.addEventListener("click", () => {
@@ -1014,32 +977,14 @@ function animate(now) {
 
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0018;
   const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.002;
-  cameraRig.rotation.set(state.pitch + vy * 2 - 0.06, state.yaw, state.roll + vx * 2);
-  camera.position.set(vx * 5, 1.22 + vy * 4, 0.88);
+  const camY = isMobile() ? 1.18 : 1.22;
+  const camZ = isMobile() ? 0.82 : 0.88;
+  const lookBias = isMobile() ? -0.02 : -0.06;
+  cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
+  camera.position.set(vx * 5, camY + vy * 4, camZ);
 
   if (state._skyDome) {
-    state._skyDome.rotation.y += dt * (0.015 + state.speed * 0.025);
-  }
-
-  if (state._film && state._film.imgs.length) {
-    const f = state._film;
-    f.offset += dt * (0.08 + state.speed * 0.12);
-    const { ctx, canvas } = f;
-    ctx.fillStyle = "#6aa8d8";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const img = f.imgs[Math.floor(f.offset) % f.imgs.length];
-    const next = f.imgs[Math.floor(f.offset + 1) % f.imgs.length];
-    const frac = f.offset % 1;
-    const drift = (f.offset * 120) % canvas.width;
-    ctx.globalAlpha = 1;
-    ctx.drawImage(img, -drift, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, canvas.width - drift, 0, canvas.width, canvas.height);
-    ctx.globalAlpha = frac * 0.45;
-    ctx.drawImage(next, -drift * 0.7, -10, canvas.width, canvas.height);
-    ctx.globalAlpha = 1;
-    f.tex.needsUpdate = true;
-    f.mesh.rotation.y += dt * (0.04 + state.speed * 0.06);
-    f.mesh.material.opacity = 0.35 + state.speed * 0.12;
+    state._skyDome.rotation.y += dt * (0.012 + state.speed * 0.02);
   }
 
   for (const s of clouds) {
@@ -1049,13 +994,6 @@ function animate(now) {
       s.position.z = -1600 - Math.random() * 500;
       s.position.x = (Math.random() - 0.5) * 2200;
     }
-  }
-
-  for (const layer of cloudLayers) {
-    layer.mesh.position.x = state.yaw * (-10 - layer.speed);
-    layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 4;
-    layer.mesh.position.z = layer.baseZ + Math.sin(state.vibe * 0.3 + layer.speed) * 2;
-    layer.mesh.material.opacity = layer.opacity * (0.85 + state.speed * 0.08);
   }
 
   ground.rotation.z = state.yaw * 0.12;

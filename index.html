@@ -37,6 +37,7 @@
         <strong>SAVEAS FOR BIZ</strong>
         <em>DIGITAL SYSTEM STUDIO</em>
       </div>
+      <button type="button" class="m-route-btn" id="mRouteBtn" aria-expanded="false" aria-controls="routeNav">ROUTE</button>
     </header>
 
     <div class="ui-meta">
@@ -68,14 +69,16 @@
       </button>
     </nav>
 
-    <div class="gauges">
-      <div><span>ALT</span><b id="gAlt">12,400</b></div>
-      <div><span>SPD</span><b id="gSpd">312</b></div>
-      <div><span>HDG</span><b id="gHdg">086°</b></div>
-    </div>
+    <div class="ui-actions-wrap">
+      <div class="gauges">
+        <div><span>ALT</span><b id="gAlt">12,400</b></div>
+        <div><span>SPD</span><b id="gSpd">312</b></div>
+        <div><span>HDG</span><b id="gHdg">086°</b></div>
+      </div>
 
-    <button type="button" class="ui-action" id="viewSystem">시스템 보기</button>
-    <button type="button" class="ui-action ghost" id="viewContact" style="margin-top:0.45rem">프로젝트 문의</button>
+      <button type="button" class="ui-action" id="viewSystem">시스템 보기</button>
+      <button type="button" class="ui-action ghost" id="viewContact">프로젝트 문의</button>
+    </div>
   </aside>
 
   <main class="stage" id="stage">
