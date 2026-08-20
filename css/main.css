@@ -35,22 +35,10 @@ img { max-width: 100%; display: block; }
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: #ff8a3a;
-  --sky-x: 68%;
-  --sky-y: 42%;
+  background: #7eb6e8;
 }
 #webgl::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: url("../assets/tex/cockpit-ref.jpg");
-  background-repeat: no-repeat;
-  background-size: 180% auto;
-  background-position: var(--sky-x) var(--sky-y);
-  filter: saturate(1.85) contrast(1.22) brightness(1.02) sepia(0.12);
-  pointer-events: none;
-  will-change: background-position;
+  display: none;
 }
 #webgl canvas {
   position: relative;

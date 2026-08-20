@@ -17,7 +17,8 @@ const PROJECTS = [
     linkLabel: "스마트스토어 보기 ↗",
     art: "assets/symbols/01-local.svg",
     demos: null,
-    env: { turbidity: 4.5, elevation: 12, azimuth: 188, rayleigh: 2.2, exposure: 1.05, ground: 0x6a5040 },
+    /* Day → night as missions progress (2nd sky era) */
+    env: { turbidity: 1.8, elevation: 32, azimuth: 175, rayleigh: 2.2, exposure: 0.72, ground: 0x7f9a6a },
     alt: 4200,
     hdg: 42,
   },
@@ -31,7 +32,7 @@ const PROJECTS = [
     linkLabel: "save-as.co.kr ↗",
     art: "assets/symbols/02-saveas.svg",
     demos: null,
-    env: { turbidity: 5.0, elevation: 10, azimuth: 195, rayleigh: 2.0, exposure: 1.08, ground: 0x7a5a40 },
+    env: { turbidity: 1.4, elevation: 40, azimuth: 160, rayleigh: 1.6, exposure: 0.78, ground: 0xa8b89a },
     alt: 9800,
     hdg: 86,
   },
@@ -49,7 +50,7 @@ const PROJECTS = [
       { id: "cutline", label: "CUTLINE", art: "assets/symbols/03-makerbridge.svg" },
       { id: "align", label: "ALIGN", art: "assets/symbols/03-makerbridge.svg" },
     ],
-    env: { turbidity: 3.8, elevation: 14, azimuth: 180, rayleigh: 1.8, exposure: 1.1, ground: 0x8a6a50 },
+    env: { turbidity: 1.1, elevation: 52, azimuth: 150, rayleigh: 1.1, exposure: 0.8, ground: 0x6f8fa8 },
     alt: 12400,
     hdg: 112,
   },
@@ -62,7 +63,7 @@ const PROJECTS = [
     link: null,
     art: "assets/symbols/04-cursor.svg",
     demos: null,
-    env: { turbidity: 6.0, elevation: 8, azimuth: 200, rayleigh: 2.4, exposure: 0.95, ground: 0x5a4030 },
+    env: { turbidity: 4.5, elevation: 12, azimuth: 205, rayleigh: 2.2, exposure: 0.55, ground: 0x5a4a3a },
     alt: 7600,
     hdg: 148,
   },
@@ -75,7 +76,7 @@ const PROJECTS = [
     link: null,
     art: "assets/symbols/05-pwa.svg",
     demos: null,
-    env: { turbidity: 7.2, elevation: 6, azimuth: 210, rayleigh: 2.6, exposure: 0.9, ground: 0x4a3828 },
+    env: { turbidity: 6.5, elevation: 2, azimuth: 220, rayleigh: 0.6, exposure: 0.38, ground: 0x121820 },
     alt: 2800,
     hdg: 186,
   },
@@ -95,10 +96,13 @@ const state = {
   vibe: 0,
   zoom: 0.28,
   tZoom: 0.28,
-  _sunEl: 8,
-  _sunAz: 200,
+  zoomSide: 0,
+  tZoomSide: 0,
+  _sunEl: 34,
+  _sunAz: 168,
   _mfdPhase: 0,
   _mfdScreens: [],
+  flightT: 0,
 };
 
 const el = {
@@ -406,20 +410,19 @@ function makeBrushed() {
 
 /* ========== renderer / scene ========== */
 const mount = document.getElementById("webgl");
-const renderer = new THREE.WebGLRenderer({ antialias: !isMobile(), powerPreference: "high-performance", alpha: true });
+const renderer = new THREE.WebGLRenderer({ antialias: !isMobile(), powerPreference: "high-performance", alpha: false });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.4 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x000000, 0);
+renderer.setClearColor(0x87b8e8, 1);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 0.72;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = !isMobile();
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 mount.appendChild(renderer.domElement);
-mount.style.background = "center / cover no-repeat url('assets/tex/cockpit-ref.jpg'), #ff8a3a";
+mount.style.background = "#7eb6e8";
 
 const scene = new THREE.Scene();
-scene.background = null;
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 40000);
 camera.position.set(0, 1.15, 1.35);
 
@@ -427,9 +430,9 @@ const cameraRig = new THREE.Group();
 cameraRig.add(camera);
 scene.add(cameraRig);
 
-const hemi = new THREE.HemisphereLight(0xffc080, 0xd09060, 1.15);
+const hemi = new THREE.HemisphereLight(0xb8d8ff, 0x8a9a70, 0.95);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xff9a40, 3.4);
+const sun = new THREE.DirectionalLight(0xfff2d0, 2.4);
 sun.position.set(40, 60, -20);
 sun.castShadow = !isMobile();
 if (sun.castShadow) {
@@ -463,20 +466,16 @@ const rim = new THREE.PointLight(0xfff0d8, 0.55, 6);
 rim.position.set(0, 1.8, -0.9);
 scene.add(rim);
 
-/*
-  Golden sunset through windshield (restored from preferred look):
-  CSS cockpit-ref plate under transparent canvas + drifting far vista plane.
-  Procedural Sky stays invisible — it was washing the golden vista pale.
-*/
+/* Procedural Sky + photoreal blue dome + moving clouds (2nd sky era) */
 const sky = new Sky();
 sky.scale.setScalar(45000);
-sky.visible = false;
+sky.visible = true;
 scene.add(sky);
 const skyU = sky.material.uniforms;
-skyU.turbidity.value = 5.5;
-skyU.rayleigh.value = 2.4;
-skyU.mieCoefficient.value = 0.006;
-skyU.mieDirectionalG.value = 0.88;
+skyU.turbidity.value = 1.8;
+skyU.rayleigh.value = 2.2;
+skyU.mieCoefficient.value = 0.003;
+skyU.mieDirectionalG.value = 0.75;
 const sunPos = new THREE.Vector3();
 function setSun(elDeg, az) {
   const phi = THREE.MathUtils.degToRad(90 - elDeg);
@@ -485,116 +484,30 @@ function setSun(elDeg, az) {
   skyU.sunPosition.value.copy(sunPos);
   sun.position.copy(sunPos).multiplyScalar(140);
 }
-setSun(8, 200);
-state._skyDome = null;
+setSun(34, 168);
 state._skyScroll = 0;
 
 const loader = new THREE.TextureLoader();
 
-function makeGoldenVistaTex() {
-  const c = document.createElement("canvas");
-  c.width = 1536;
-  c.height = 768;
-  const ctx = c.getContext("2d");
-  const sky = ctx.createLinearGradient(0, 0, 0, 768);
-  sky.addColorStop(0, "#2a4a88");
-  sky.addColorStop(0.22, "#a85a48");
-  sky.addColorStop(0.4, "#e07828");
-  sky.addColorStop(0.55, "#ff9a28");
-  sky.addColorStop(0.7, "#ffc040");
-  sky.addColorStop(0.85, "#ffe08a");
-  sky.addColorStop(1, "#c88848");
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, 1536, 768);
+const skyDome = new THREE.Mesh(
+  new THREE.SphereGeometry(4200, 64, 32),
+  new THREE.MeshBasicMaterial({
+    color: 0x7eb6e8,
+    side: THREE.BackSide,
+    depthWrite: false,
+    toneMapped: false,
+  })
+);
+scene.add(skyDome);
+state._skyDome = skyDome;
 
-  const sunX = 1080;
-  const sunY = 300;
-  const bloom = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 480);
-  bloom.addColorStop(0, "rgba(255,250,220,1)");
-  bloom.addColorStop(0.08, "rgba(255,200,80,0.98)");
-  bloom.addColorStop(0.22, "rgba(255,120,30,0.7)");
-  bloom.addColorStop(0.5, "rgba(255,90,20,0.28)");
-  bloom.addColorStop(1, "rgba(255,80,10,0)");
-  ctx.fillStyle = bloom;
-  ctx.fillRect(0, 0, 1536, 768);
-
-  ctx.save();
-  ctx.globalCompositeOperation = "screen";
-  for (let i = 0; i < 18; i++) {
-    const a = -1.05 + i * 0.12;
-    const len = 580 + (i % 3) * 90;
-    const g = ctx.createLinearGradient(sunX, sunY, sunX + Math.cos(a) * len, sunY + Math.sin(a) * len);
-    g.addColorStop(0, "rgba(255,220,120,0.7)");
-    g.addColorStop(0.4, "rgba(255,150,40,0.28)");
-    g.addColorStop(1, "rgba(255,100,20,0)");
-    ctx.strokeStyle = g;
-    ctx.lineWidth = 22 + (i % 5) * 8;
-    ctx.beginPath();
-    ctx.moveTo(sunX, sunY);
-    ctx.lineTo(sunX + Math.cos(a) * len, sunY + Math.sin(a) * len);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  ctx.fillStyle = "rgba(255,200,150,0.28)";
-  for (let i = 0; i < 10; i++) {
-    const y = 400 + i * 26 + Math.sin(i * 1.7) * 14;
-    ctx.beginPath();
-    ctx.ellipse(180 + i * 140, y, 240 + i * 16, 30, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  const tex = new THREE.CanvasTexture(c);
+loader.load("assets/sky/puresky-2k.jpg", (tex) => {
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  return tex;
-}
-
-function placeSunsetVista() {
-  if (state._farCloud) state._farCloud.parent?.remove(state._farCloud);
-  if (state._photoVista) {
-    state._photoVista.parent?.remove(state._photoVista);
-    state._photoVista = null;
-  }
-
-  const golden = makeGoldenVistaTex();
-  const far = new THREE.Mesh(
-    new THREE.PlaneGeometry(32, 18),
-    new THREE.MeshBasicMaterial({
-      map: golden,
-      depthTest: true,
-      depthWrite: false,
-      toneMapped: false,
-      fog: false,
-    })
-  );
-  far.position.set(0, 0.45, -7.6);
-  far.renderOrder = -20;
-  camera.add(far);
-  state._farCloud = far;
-  state._goldenMap = golden;
-}
-placeSunsetVista();
-
-loader.load("assets/sky/clouds-front.jpg", (tex) => {
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.repeat.set(2, 1);
-  if (state._cloudLayer) state._cloudLayer.parent?.remove(state._cloudLayer);
-  const layer = new THREE.Mesh(
-    new THREE.PlaneGeometry(38, 16),
-    new THREE.MeshBasicMaterial({
-      map: tex,
-      transparent: true,
-      opacity: 0.2,
-      depthWrite: false,
-      depthTest: true,
-      toneMapped: false,
-    })
-  );
-  layer.position.set(0, 0.85, -9.2);
-  layer.renderOrder = -18;
-  camera.add(layer);
-  state._cloudLayer = layer;
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  skyDome.material.map = tex;
+  skyDome.material.color.set(0xffffff);
+  skyDome.material.needsUpdate = true;
+  scene.background = tex;
 });
 
 new RGBELoader().load("assets/sky/khronos-env.hdr", (hdr) => {
@@ -602,17 +515,185 @@ new RGBELoader().load("assets/sky/khronos-env.hdr", (hdr) => {
   scene.environment = hdr;
 });
 
+/* Photo cloud layers (parallax) */
+const cloudLayers = [];
+function addPhotoCloud(url, w, h, z, opacity) {
+  loader.load(url, (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        toneMapped: false,
+      })
+    );
+    m.position.set(0, h * 0.08, z);
+    scene.add(m);
+    cloudLayers.push({ mesh: m, baseZ: z, speed: 6 + Math.random() * 10, opacity });
+  });
+}
+addPhotoCloud("assets/sky/clouds-front.jpg", 110, 42, -38, 0.42);
+addPhotoCloud("assets/sky/clouds-drama.jpg", 160, 60, -70, 0.32);
+addPhotoCloud("assets/sky/sky-clouds.jpg", 220, 80, -140, 0.22);
+
+const softCloud = canvasTex((ctx, w, h) => {
+  ctx.clearRect(0, 0, w, h);
+  [
+    [0.32, 0.55, 0.3],
+    [0.52, 0.48, 0.26],
+    [0.68, 0.58, 0.22],
+    [0.45, 0.64, 0.2],
+  ].forEach(([x, y, r]) => {
+    const g = ctx.createRadialGradient(w * x, h * y, 0, w * x, h * y, w * r);
+    g.addColorStop(0, "rgba(255,255,255,0.95)");
+    g.addColorStop(0.45, "rgba(255,255,255,0.4)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(w * x, h * y, w * r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}, 256, 128);
+
+const cloudGroup = new THREE.Group();
+scene.add(cloudGroup);
+const clouds = [];
+const nCloud = isMobile() ? 14 : 32;
+for (let i = 0; i < nCloud; i++) {
+  const mat = new THREE.SpriteMaterial({ map: softCloud, transparent: true, depthWrite: false, opacity: 0.5 });
+  const s = new THREE.Sprite(mat);
+  const sc = 70 + Math.random() * 180;
+  s.scale.set(sc, sc * 0.4, 1);
+  s.position.set((Math.random() - 0.5) * 2200, 40 + Math.random() * 160, -140 - Math.random() * 1800);
+  cloudGroup.add(s);
+  clouds.push(s);
+}
+
+/* ========== GMP → USN compressed satellite corridor (Esri World Imagery) ========== */
+const ROUTE = {
+  from: { name: "GMP", lat: 37.5583, lon: 126.7906 },
+  to: { name: "USN", lat: 35.5935, lon: 129.3519 },
+  zoom: isMobile() ? 10 : 11,
+  samples: isMobile() ? 12 : 18,
+};
+
+function lonLatToTile(lon, lat, z) {
+  const n = 2 ** z;
+  const x = Math.floor(((lon + 180) / 360) * n);
+  const latRad = (lat * Math.PI) / 180;
+  const y = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n);
+  return { x, y, n };
+}
+
+function lerpRoute(t) {
+  return {
+    lat: ROUTE.from.lat + (ROUTE.to.lat - ROUTE.from.lat) * t,
+    lon: ROUTE.from.lon + (ROUTE.to.lon - ROUTE.from.lon) * t,
+  };
+}
+
+function loadTileImage(z, x, y) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const done = (v) => {
+      clearTimeout(timer);
+      resolve(v);
+    };
+    const timer = setTimeout(() => done(null), 4500);
+    img.onload = () => done(img);
+    img.onerror = () => done(null);
+    img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  });
+}
+
+const terrainGroup = new THREE.Group();
+terrainGroup.position.set(0, -2.4, -18);
+scene.add(terrainGroup);
+state._terrain = null;
+state._routeReady = false;
+
+async function buildGmpUsnTerrain() {
+  const z = ROUTE.zoom;
+  const tileSize = 256;
+  const cols = 3;
+  const rows = ROUTE.samples;
+  const canvas = document.createElement("canvas");
+  canvas.width = tileSize * cols;
+  canvas.height = tileSize * rows;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#3a5a3a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const jobs = [];
+  for (let i = 0; i < rows; i++) {
+    const t = i / Math.max(1, rows - 1);
+    const { lat, lon } = lerpRoute(t);
+    const tile = lonLatToTile(lon, lat, z);
+    jobs.push(
+      Promise.all([-1, 0, 1].map((dx) => loadTileImage(z, tile.x + dx, tile.y))).then((imgs) => {
+        imgs.forEach((img, ci) => {
+          if (!img) return;
+          ctx.drawImage(img, ci * tileSize, i * tileSize, tileSize, tileSize);
+        });
+      })
+    );
+  }
+  await Promise.all(jobs);
+
+  ctx.fillStyle = "rgba(255,220,80,0.9)";
+  ctx.font = "bold 28px sans-serif";
+  ctx.fillText("GMP · SEOUL", 24, 40);
+  ctx.fillText("USN · ULSAN", 24, canvas.height - 24);
+
+  ctx.strokeStyle = "rgba(255, 210, 70, 0.7)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(canvas.width * 0.5, 8);
+  ctx.lineTo(canvas.width * 0.5, canvas.height - 8);
+  ctx.stroke();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    toneMapped: false,
+    fog: false,
+  });
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(90, 220, 1, rows), mat);
+  strip.rotation.x = -Math.PI / 2.15;
+  strip.position.set(0, 0, -40);
+  terrainGroup.add(strip);
+
+  const near = new THREE.Mesh(new THREE.PlaneGeometry(70, 90), mat);
+  near.rotation.x = -Math.PI / 2.35;
+  near.position.set(0, 0.6, -8);
+  terrainGroup.add(near);
+
+  state._terrain = { strip, near, tex, mat };
+  state._routeReady = true;
+  const label = document.getElementById("routeLabel");
+  if (label) label.textContent = "GMP → USN · LIVE MAP";
+}
+
+buildGmpUsnTerrain().catch((err) => console.warn("terrain", err));
+
 const ground = new THREE.Mesh(
   new THREE.CircleGeometry(12000, 96),
-  new THREE.MeshStandardMaterial({ color: 0xc48848, roughness: 1, metalness: 0, envMapIntensity: 0.2 })
+  new THREE.MeshStandardMaterial({ color: 0x7f9a6a, roughness: 1, metalness: 0, envMapIntensity: 0.2 })
 );
 ground.rotation.x = -Math.PI / 2;
 ground.position.y = -180;
 ground.visible = false;
 scene.add(ground);
-
-/* No floating photo-planes / film / sprites — sky dome only (keeps window view clean) */
-const clouds = [];
 
 const cityGroup = new THREE.Group();
 cityGroup.visible = false;
@@ -698,12 +779,12 @@ function installMfdScreens(root) {
   const baseY = box.min.y + size.y * 0.48;
   const baseZ = center.z - size.z * 0.18;
   const slots = [
-    { x: -0.62, y: baseY + 0.08, z: baseZ, w: 0.3, h: 0.24, projectIndex: 0 },
-    { x: -0.28, y: baseY + 0.08, z: baseZ - 0.02, w: 0.3, h: 0.24, projectIndex: 1 },
-    { x: 0.06, y: baseY + 0.1, z: baseZ - 0.04, w: 0.28, h: 0.22, projectIndex: 2 },
-    { x: 0.38, y: baseY + 0.08, z: baseZ - 0.02, w: 0.3, h: 0.24, projectIndex: 3 },
-    { x: 0.7, y: baseY + 0.08, z: baseZ, w: 0.3, h: 0.24, projectIndex: 4 },
-    { x: 0.06, y: baseY - 0.18, z: baseZ + 0.04, w: 0.34, h: 0.2, projectIndex: -1 },
+    { x: -0.72, y: baseY + 0.08, z: baseZ + 0.02, w: 0.34, h: 0.26, projectIndex: 0 },
+    { x: -0.34, y: baseY + 0.08, z: baseZ, w: 0.34, h: 0.26, projectIndex: 1 },
+    { x: 0.06, y: baseY + 0.1, z: baseZ - 0.02, w: 0.32, h: 0.24, projectIndex: 2 },
+    { x: 0.44, y: baseY + 0.08, z: baseZ, w: 0.34, h: 0.26, projectIndex: 3 },
+    { x: 0.82, y: baseY + 0.08, z: baseZ + 0.02, w: 0.34, h: 0.26, projectIndex: 4 },
+    { x: 0.06, y: baseY - 0.18, z: baseZ + 0.06, w: 0.38, h: 0.22, projectIndex: -1 },
   ];
   const group = new THREE.Group();
   group.name = "mfdPreviews";
@@ -867,6 +948,13 @@ function tickEnv() {
   state._sunAz += (e.azimuth - state._sunAz) * k;
   setSun(state._sunEl, state._sunAz);
   ground.material.color.lerp(new THREE.Color(e.ground), k);
+  /* night: dim cloud layers */
+  const night = Math.max(0, 1 - e.elevation / 40);
+  for (const layer of cloudLayers) {
+    layer.mesh.material.opacity += (layer.opacity * (1 - night * 0.75) - layer.mesh.material.opacity) * k;
+  }
+  hemi.intensity += ((0.95 - night * 0.55) - hemi.intensity) * k;
+  sun.intensity += ((2.4 - night * 1.6) - sun.intensity) * k;
 }
 
 function applyProject(index, { maneuver = true } = {}) {
@@ -973,8 +1061,8 @@ window.addEventListener(
     if (reduce) return;
     const nx = (e.clientX / window.innerWidth) * 2 - 1;
     const ny = (e.clientY / window.innerHeight) * 2 - 1;
-    state.tYaw = nx * (isMobile() ? 0.28 : 0.62);
-    state.tPitch = -ny * (isMobile() ? 0.12 : 0.22);
+    state.tYaw = nx * (isMobile() ? 0.38 : 0.85);
+    state.tPitch = -ny * (isMobile() ? 0.14 : 0.24);
     if (el.flightUi) {
       el.flightUi.style.setProperty("--ui-x", `${nx * 5}px`);
       el.flightUi.style.setProperty("--ui-y", `${ny * 3}px`);
@@ -1071,33 +1159,40 @@ function animate(now) {
   const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.002;
   const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
   state.zoom += (state.tZoom - state.zoom) * 0.08;
-  const lookBias = isMobile() ? -0.015 : -0.04;
-  cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
-  /* zoom in = move toward instrument panel (-Z) + tighter FOV */
-  const dolly = (state.zoom - 0.28) * (isMobile() ? 0.95 : 1.25);
-  camera.position.set(base.x + vx * 4, base.y + vy * 3 - state.zoom * 0.04, base.z - dolly);
-  camera.fov = (isMobile() ? 70 : 72) - state.zoom * 16;
+  /* look left/right then zoom → bias toward that side so side MFDs are reachable */
+  state.tZoomSide = state.yaw * Math.max(0, state.zoom - 0.22) * (isMobile() ? 1.8 : 2.6);
+  state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.12;
+  const lookBias = (isMobile() ? -0.02 : -0.05) - state.zoom * 0.18;
+  cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw * 0.92, state.roll + vx * 2);
+  const dolly = (state.zoom - 0.28) * (isMobile() ? 0.55 : 0.72);
+  camera.position.set(
+    base.x + vx * 4 + state.zoomSide,
+    base.y + vy * 3 - state.zoom * 0.08,
+    base.z - dolly
+  );
+  camera.fov = (isMobile() ? 70 : 72) - state.zoom * 10;
   camera.updateProjectionMatrix();
 
   if (state._skyDome) {
-    state._skyDome.rotation.y += dt * (0.02 + state.speed * 0.03);
+    state._skyDome.rotation.y += dt * (0.015 + state.speed * 0.025);
   }
-  state._skyScroll = (state._skyScroll || 0) + dt * (1.6 + state.speed * 1.8);
-  mount.style.setProperty("--sky-x", `${68 + state.yaw * -18 - state._skyScroll * 2.8}%`);
-  mount.style.setProperty("--sky-y", `${42 + state.pitch * 14 + Math.sin(state.vibe * 0.35) * 1.2}%`);
+  state._skyScroll = (state._skyScroll || 0) + dt * (0.8 + state.speed * 1.1);
 
-  if (state._farCloud) {
-    state._farCloud.position.x = state.yaw * -1.4;
-    state._farCloud.position.y = 0.45 + state.pitch * 0.85;
-    if (state._goldenMap) {
-      state._goldenMap.offset.x = (state._skyScroll || 0) * 0.018 + state.yaw * -0.05;
-    }
+  /* compressed GMP→USN flyover */
+  state.flightT = (state.flightT + dt * (0.045 + state.speed * 0.08)) % 1;
+  if (state._terrain?.tex) {
+    state._terrain.tex.offset.y = state.flightT;
+    state._terrain.tex.needsUpdate = true;
+    terrainGroup.position.x = state.yaw * -6;
+    terrainGroup.rotation.z = state.yaw * 0.08;
   }
-  if (state._cloudLayer) {
-    state._cloudLayer.position.x = state.yaw * -2.0;
-    state._cloudLayer.position.y = 0.85 + state.pitch * 1.0;
-    if (state._cloudLayer.material.map) {
-      state._cloudLayer.material.map.offset.x += dt * (0.03 + state.speed * 0.045);
+
+  for (const layer of cloudLayers) {
+    layer.mesh.position.x = state.yaw * (-10 - layer.speed);
+    layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 4;
+    layer.mesh.position.z = layer.baseZ + Math.sin(state.vibe * 0.3 + layer.speed) * 2;
+    if (layer.mesh.material.map) {
+      layer.mesh.material.map.offset.x += dt * (0.01 + state.speed * 0.015);
     }
   }
 
