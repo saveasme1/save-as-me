@@ -1,0 +1,467 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="SaveAs For Biz — 기획부터 디자인, 개발, 온라인 판매 전환까지. 비즈니스를 위한 디지털 컨트롤 센터." />
+  <meta name="theme-color" content="#0a0a0b" />
+  <meta property="og:title" content="SaveAs For Biz" />
+  <meta property="og:description" content="WE BUILD WHAT BUSINESS NEEDS. 비즈니스에 필요한 모든 것을 설계하고 구현합니다." />
+  <meta property="og:url" content="https://save-as.me/" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="assets/brand/saveas-mark.svg" type="image/svg+xml" />
+  <title>SaveAs For Biz — 세이브애즈 포 비즈</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="crosshair" id="crosshair" aria-hidden="true">
+    <span class="ch-h"></span><span class="ch-v"></span>
+  </div>
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="SaveAs For Biz">
+      <img src="assets/brand/saveas-mark.svg" alt="" width="28" height="28" />
+      <span class="brand-text">
+        <strong>SAVEAS</strong>
+        <em>FOR BIZ</em>
+      </span>
+    </a>
+    <nav class="top-nav" aria-label="Primary">
+      <a href="#missions">MISSIONS</a>
+      <a href="#capabilities">SYSTEM</a>
+      <a href="#contact">CONTACT</a>
+    </nav>
+    <button class="nav-toggle" id="navToggle" aria-label="메뉴" aria-expanded="false">
+      <span></span><span></span>
+    </button>
+  </header>
+
+  <aside class="instrument" id="instrument" aria-hidden="true">
+    <div class="inst-block">
+      <span class="inst-label">ALT</span>
+      <span class="inst-value" id="instAlt">000%</span>
+    </div>
+    <div class="inst-block">
+      <span class="inst-label">MISSION</span>
+      <span class="inst-value" id="instMission">00 / 05</span>
+    </div>
+    <div class="inst-block">
+      <span class="inst-label">STATUS</span>
+      <span class="inst-value inst-status" id="instStatus">STANDBY</span>
+    </div>
+    <div class="inst-gauge" aria-hidden="true">
+      <svg viewBox="0 0 40 40">
+        <circle cx="20" cy="20" r="16" class="g-track" />
+        <circle cx="20" cy="20" r="16" class="g-fill" id="instGauge" />
+      </svg>
+    </div>
+  </aside>
+
+  <div class="mobile-nav" id="mobileNav">
+    <a href="#missions">MISSIONS</a>
+    <a href="#capabilities">SYSTEM</a>
+    <a href="#contact">CONTACT</a>
+  </div>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero" data-mission="00" data-status="BOOT">
+      <div class="hero-frame">
+        <div class="hero-meta">
+          <span class="pulse"></span>
+          <span>SYS.ONLINE</span>
+          <span class="sep">/</span>
+          <span>SAVE-AS.ME</span>
+          <span class="sep">/</span>
+          <span id="heroClock">00:00:00</span>
+        </div>
+
+        <h1 class="hero-title">
+          <span class="line">WE BUILD</span>
+          <span class="line accent">WHAT BUSINESS</span>
+          <span class="line">NEEDS.</span>
+        </h1>
+
+        <p class="hero-sub">비즈니스에 필요한 모든 것을 설계하고 구현합니다.<br />아이디어에서 판매까지, 한 곳에서.</p>
+
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#missions">ENTER MISSIONS</a>
+          <a class="btn btn-ghost" href="#contact">PROJECT REQUEST</a>
+        </div>
+
+        <div class="capability-matrix" aria-label="System capability">
+          <div class="cm-head">
+            <span>SYSTEM CAPABILITY</span>
+            <span class="cm-tag">PLATFORM AGNOSTIC</span>
+          </div>
+          <ul class="cm-list">
+            <li><span>WEB DEVELOPMENT</span><i></i><b class="ready">READY</b></li>
+            <li><span>E-COMMERCE</span><i></i><b class="ready">READY</b></li>
+            <li><span>CUSTOM EDITOR</span><i></i><b class="ready">READY</b></li>
+            <li><span>PWA / WEB APP</span><i></i><b class="ready">READY</b></li>
+            <li><span>MOBILE</span><i></i><b class="ready">READY</b></li>
+            <li><span>COMMERCE CONVERSION</span><i></i><b class="ready">READY</b></li>
+            <li><span>API / AUTOMATION</span><i></i><b class="ready">READY</b></li>
+          </ul>
+          <div class="platform-strip" aria-label="Supported platforms">
+            <span>CAFE24</span><span>GODOMALL</span><span>IMWEB</span><span>NAVER COMMERCE</span>
+            <span>CUSTOM WEB</span><span>PWA</span><span>API</span><span>AUTOMATION</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-coords" aria-hidden="true">
+        <span>N 37.5665°</span>
+        <span>E 126.9780°</span>
+        <span>CTRL / BIZ</span>
+      </div>
+    </section>
+
+    <!-- MISSION INDEX -->
+    <section class="mission-index" id="missions">
+      <div class="section-label">
+        <span>FLIGHT PLAN</span>
+        <span>05 MISSIONS</span>
+      </div>
+      <h2 class="section-title">SELECTED<br />OPERATIONS.</h2>
+      <ol class="mission-list">
+        <li><a href="#m01"><em>01</em><span>LOCAL → COMMERCE</span><b>까치산 김치찌개</b></a></li>
+        <li><a href="#m02"><em>02</em><span>CUSTOM COMMERCE</span><b>SaveAs POD Engine</b></a></li>
+        <li><a href="#m03"><em>03</em><span>MAKERBRIDGE</span><b>Cafe24 Product Editor</b></a></li>
+        <li><a href="#m04"><em>04</em><span>CURSOR MOBILE</span><b>Desktop → Mobile → Cloud</b></a></li>
+        <li><a href="#m05"><em>05</em><span>PWA / WEB APP</span><b>Private Installable Experience</b></a></li>
+      </ol>
+    </section>
+
+    <!-- M01 -->
+    <section class="mission mission-sticky" id="m01" data-mission="01" data-status="LOCAL COMMERCE">
+      <div class="mission-rail">
+        <div class="mission-code">MISSION 01</div>
+        <h2 class="mission-title">LOCAL<br /><span>→ COMMERCE</span></h2>
+        <p class="mission-ko">오프라인 매장의 상품을<br />온라인 비즈니스로 전환</p>
+        <p class="mission-lead">까치산 김치찌개 — 실제 로컬 매장의 메뉴·패키지·브랜드 경험을 스마트스토어와 쿠팡 판매 구조로 재설계했습니다. 단순 디자인 작업이 아니라, <strong>오프라인에 부가 매출 채널을 만드는 전환 프로젝트</strong>입니다.</p>
+        <ul class="mission-tags">
+          <li>상품 기획</li><li>패키지 디자인</li><li>상세페이지</li>
+          <li>스마트스토어</li><li>쿠팡 확장</li><li>운영 교육</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://smartstore.naver.com/_mymura" target="_blank" rel="noopener">VIEW STORE ↗</a>
+      </div>
+      <div class="mission-stage">
+        <div class="stage-stack">
+          <figure class="shot shot-xl">
+            <picture>
+              <source srcset="assets/missions/01-local/store-3.webp" type="image/webp" />
+              <img src="assets/missions/01-local/store-3.jpeg" alt="까치산 김치찌개 매장 메뉴" loading="lazy" width="800" height="1000" />
+            </picture>
+            <figcaption>OFFLINE · STORE SIGNAL</figcaption>
+          </figure>
+          <figure class="shot">
+            <picture>
+              <source srcset="assets/missions/01-local/store-4.webp" type="image/webp" />
+              <img src="assets/missions/01-local/store-4.jpeg" alt="매장 메뉴판" loading="lazy" width="600" height="800" />
+            </picture>
+            <figcaption>MENU → PRODUCT STRUCTURE</figcaption>
+          </figure>
+          <figure class="shot">
+            <picture>
+              <source srcset="assets/missions/01-local/commerce-bridge.webp" type="image/webp" />
+              <img src="assets/missions/01-local/commerce-bridge.jpg" alt="오프라인 매장과 온라인 전환 연출" loading="lazy" width="700" height="450" />
+            </picture>
+            <figcaption>OFFLINE → ONLINE BRIDGE</figcaption>
+          </figure>
+        </div>
+        <div class="flow-strip">
+          <span>OFFLINE PRODUCT</span>
+          <i></i>
+          <span>PACKAGE / DETAIL</span>
+          <i></i>
+          <span>SMARTSTORE + COUPANG</span>
+          <i></i>
+          <span class="on">LIVE CHANNEL</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- M02 -->
+    <section class="mission mission-sticky" id="m02" data-mission="02" data-status="CUSTOM COMMERCE">
+      <div class="mission-rail">
+        <div class="mission-code">MISSION 02</div>
+        <h2 class="mission-title">COMMERCE,<br /><span>WITH A CREATION ENGINE.</span></h2>
+        <p class="mission-ko">디자인하고, 주문하고, 제작한다</p>
+        <p class="mission-lead">SaveAs는 단순 쇼핑몰이 아닙니다. 사용자가 웹에서 상품을 고르고 직접 디자인한 뒤 주문까지 이어지는 <strong>POD / Custom Product Commerce Platform</strong>입니다.</p>
+        <div class="flow-vertical">
+          <span>DESIGN</span><span>ORDER</span><span>PRODUCTION</span>
+        </div>
+        <ul class="mission-tags">
+          <li>Web Editor</li><li>Image Upload</li><li>Text Edit</li>
+          <li>Preview</li><li>POD Flow</li><li>JS / PHP</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://save-as.co.kr" target="_blank" rel="noopener">SAVE-AS.CO.KR ↗</a>
+      </div>
+      <div class="mission-stage">
+        <div class="stage-grid-2">
+          <figure class="shot shot-xl">
+            <picture>
+              <source srcset="assets/missions/02-saveas/product-hero.webp" type="image/webp" />
+              <img src="assets/missions/02-saveas/product-hero.jpg" alt="SaveAs 커스텀 아크릴 제품" loading="lazy" width="900" height="900" />
+            </picture>
+            <figcaption>PHYSICAL OUTPUT</figcaption>
+          </figure>
+          <figure class="shot">
+            <picture>
+              <source srcset="assets/missions/02-saveas/shot-3.webp" type="image/webp" />
+              <img src="assets/missions/02-saveas/shot-3.jpg" alt="커스텀 주차번호판 제품" loading="lazy" width="800" height="800" />
+            </picture>
+            <figcaption>CUSTOM PRODUCT RESULT</figcaption>
+          </figure>
+          <figure class="shot">
+            <picture>
+              <source srcset="assets/missions/02-saveas/editor-ui.webp" type="image/webp" />
+              <img src="assets/missions/02-saveas/editor-ui.jpg" alt="제품 제작 가이드 뷰" loading="lazy" width="800" height="800" />
+            </picture>
+            <figcaption>PRODUCTION SPEC</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/missions/02-saveas/editor-1.png" alt="사용자 편집 디자인" loading="lazy" width="700" height="700" />
+            <figcaption>USER DESIGN DATA</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- M03 -->
+    <section class="mission mission-sticky mission-feature" id="m03" data-mission="03" data-status="MAKERBRIDGE">
+      <div class="mission-rail">
+        <div class="mission-code">MISSION 03</div>
+        <div class="mb-brand-row">
+          <img src="assets/brand/mb-logo.svg" alt="MakerBridge" width="40" height="40" />
+          <span>MAKERBRIDGE</span>
+        </div>
+        <h2 class="mission-title">CAFE24<br /><span>PRODUCT EDITOR.</span></h2>
+        <p class="mission-ko">쇼핑몰 상품 페이지에서 바로 디자인하는 웹 편집기</p>
+        <p class="mission-lead">Cafe24에 설치하는 Web Product Editor App. POD·인쇄·커스텀 상품 판매자가 고객에게 <strong>텍스트, 이미지, 정렬, 후가공, 칼선, 프리뷰</strong>까지 제공하는 제작 엔진입니다.</p>
+        <ul class="capability-chips">
+          <li>TEXT</li><li>IMAGE</li><li>ALIGN</li><li>FINISHING</li>
+          <li>CUTLINE</li><li>PREVIEW</li><li>ORDER LINK</li><li>PRINT DATA</li>
+        </ul>
+      </div>
+      <div class="mission-stage">
+        <figure class="shot shot-display">
+          <picture>
+            <source srcset="assets/missions/03-makerbridge/editor.webp" type="image/webp" />
+            <img src="assets/missions/03-makerbridge/editor.jpg" alt="MakerBridge 에디터 화면" loading="lazy" width="1400" height="900" />
+          </picture>
+          <figcaption>LIVE EDITOR · PRECISION WORKSPACE</figcaption>
+        </figure>
+        <div class="stage-row">
+          <figure class="shot">
+            <picture>
+              <source srcset="assets/missions/03-makerbridge/product-edit.webp" type="image/webp" />
+              <img src="assets/missions/03-makerbridge/product-edit.jpg" alt="상품 페이지 편집 CTA" loading="lazy" width="700" height="450" />
+            </picture>
+            <figcaption>PRODUCT PAGE CTA</figcaption>
+          </figure>
+          <figure class="shot">
+            <picture>
+              <source srcset="assets/missions/03-makerbridge/dashboard.webp" type="image/webp" />
+              <img src="assets/missions/03-makerbridge/dashboard.jpg" alt="MakerBridge 대시보드" loading="lazy" width="700" height="450" />
+            </picture>
+            <figcaption>ADMIN DASHBOARD</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/missions/03-makerbridge/cutline.jpg" alt="칼선 편집" loading="lazy" width="700" height="450" />
+            <figcaption>CUTLINE CONTROL</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- M04 -->
+    <section class="mission mission-bridge" id="m04" data-mission="04" data-status="CURSOR MOBILE">
+      <div class="mission-rail">
+        <div class="mission-code">MISSION 04</div>
+        <h2 class="mission-title">DESKTOP<br /><span>→ MOBILE<br />→ CLOUD</span></h2>
+        <p class="mission-ko">개발 장소의 제약을 제거한다</p>
+        <p class="mission-lead">PC에 묶여 있던 Cursor 기반 개발을 모바일로 이어가고, Cloud 연동으로 <strong>PC가 꺼져 있어도 작업이 가능한 방향</strong>으로 확장합니다. 퇴근 후, 이동 중, 어디서든 같은 맥락을 이어갑니다.</p>
+        <ul class="mission-tags">
+          <li>Mobile Dev</li><li>Relay</li><li>Cloud Agent</li><li>Continuity</li>
+        </ul>
+      </div>
+      <div class="mission-stage bridge-visual" aria-label="Desktop to mobile continuity">
+        <div class="bridge-node">
+          <div class="device device-pc">
+            <div class="device-bar"><span></span><span></span><span></span></div>
+            <pre class="code-pane" aria-hidden="true"><code>// mission continuity
+agent.resume({
+  from: "desktop",
+  to: "mobile"
+})</code></pre>
+          </div>
+          <span class="bridge-label">DESKTOP</span>
+        </div>
+        <div class="bridge-link" aria-hidden="true">
+          <span class="bridge-pulse"></span>
+          <span class="bridge-pulse delay"></span>
+        </div>
+        <div class="bridge-node">
+          <div class="device device-phone">
+            <img src="assets/missions/04-cursor/og-install.png" alt="Cursor Mobile 설치 화면" loading="lazy" width="400" height="400" />
+          </div>
+          <span class="bridge-label">MOBILE</span>
+        </div>
+        <div class="bridge-link" aria-hidden="true">
+          <span class="bridge-pulse"></span>
+        </div>
+        <div class="bridge-node">
+          <div class="device device-cloud">
+            <strong>CLOUD</strong>
+            <span>ALWAYS ON</span>
+            <span class="cloud-dot"></span>
+          </div>
+          <span class="bridge-label">CLOUD</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- M05 -->
+    <section class="mission mission-sticky" id="m05" data-mission="05" data-status="PWA">
+      <div class="mission-rail">
+        <div class="mission-code">MISSION 05</div>
+        <h2 class="mission-title">PWA COMMERCE<br /><span>/ PRIVATE WEB APP</span></h2>
+        <p class="mission-ko">설치형 웹 경험으로 전환된 커머스</p>
+        <p class="mission-lead">공개 웹사이트 형태를 넘어, 모바일 최적화·설치형 경험·멤버십형 접근까지 연결한 <strong>Private Web App</strong> 구축 사례입니다. 브랜드명은 비공개로 처리합니다.</p>
+        <ul class="mission-tags">
+          <li>PWA</li><li>Installable</li><li>Responsive</li>
+          <li>Membership UX</li><li>Mobile First</li>
+        </ul>
+      </div>
+      <div class="mission-stage">
+        <div class="pwa-panel">
+          <div class="pwa-device">
+            <div class="pwa-notch"></div>
+            <div class="pwa-screen">
+              <div class="pwa-status-row">
+                <span>PWA</span><span class="ready">INSTALLED</span>
+              </div>
+              <div class="pwa-hero-block">
+                <span class="tiny">PRIVATE SURFACE</span>
+                <strong>APP-LIKE<br />WEB EXPERIENCE</strong>
+              </div>
+              <ul class="pwa-features">
+                <li><span>HOME SCREEN</span><b>READY</b></li>
+                <li><span>OFFLINE SHELL</span><b>READY</b></li>
+                <li><span>PUSH CAPABLE</span><b>READY</b></li>
+                <li><span>MEMBER GATE</span><b>READY</b></li>
+              </ul>
+            </div>
+          </div>
+          <div class="pwa-spec">
+            <div class="spec-row"><span>MODE</span><b>STANDALONE</b></div>
+            <div class="spec-row"><span>TARGET</span><b>MOBILE COMMERCE</b></div>
+            <div class="spec-row"><span>UX</span><b>NATIVE-LIKE</b></div>
+            <div class="spec-row"><span>ACCESS</span><b>CONTROLLED</b></div>
+            <p>브라우저 탭이 아니라, 손에 쥐는 업무/판매용 앱처럼 동작하도록 설계합니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAPABILITIES -->
+    <section class="capabilities" id="capabilities" data-mission="--" data-status="SYSTEM MAP">
+      <div class="section-label">
+        <span>CAPABILITY MAP</span>
+        <span>NO PLATFORM LIMITS</span>
+      </div>
+      <h2 class="section-title">ONE SYSTEM.<br />NO PLATFORM LIMITS.</h2>
+      <p class="section-desc">특정 솔루션에 맞추지 않습니다. 비즈니스에 필요한 방식에 맞춰 기술을 선택합니다.</p>
+
+      <div class="cap-grid">
+        <article class="cap-panel">
+          <h3>COMMERCE</h3>
+          <ul>
+            <li>Cafe24</li><li>Godomall</li><li>Imweb</li>
+            <li>Naver SmartStore</li><li>Custom Commerce</li>
+            <li>POD Commerce</li><li>Commerce Integration</li>
+          </ul>
+        </article>
+        <article class="cap-panel">
+          <h3>DEVELOPMENT</h3>
+          <ul>
+            <li>Custom Web</li><li>Web Application</li><li>PWA</li>
+            <li>Mobile Web</li><li>JavaScript</li><li>PHP</li>
+            <li>API Integration</li><li>Automation</li>
+            <li>Admin System</li><li>Custom Editor</li>
+          </ul>
+        </article>
+        <article class="cap-panel">
+          <h3>DESIGN</h3>
+          <ul>
+            <li>UI / UX</li><li>Web Design</li><li>Product Planning</li>
+            <li>Package Design</li><li>Commerce Contents</li>
+            <li>Detail Page</li><li>Brand Experience</li>
+          </ul>
+        </article>
+        <article class="cap-panel">
+          <h3>BUSINESS DIGITIZATION</h3>
+          <ul>
+            <li>Offline → Online</li><li>Local → E-commerce</li>
+            <li>Sales Channel Setup</li><li>Commerce Flow Design</li>
+            <li>Product Registration</li><li>Operation Training</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- CONTACT / ENDING -->
+    <section class="ending" id="contact" data-mission="END" data-status="AWAITING INPUT">
+      <div class="ending-frame">
+        <div class="ending-meta">
+          <span class="pulse"></span>
+          FINAL APPROACH
+        </div>
+        <h2 class="ending-title">HAVE A BUSINESS PROBLEM?<br /><span>LET'S BUILD THE SYSTEM.</span></h2>
+        <p class="ending-ko">필요한 것이 정해져 있지 않아도 됩니다.<br />문제부터 함께 정의하고, 필요한 형태로 구현합니다.</p>
+
+        <div class="ending-actions">
+          <a class="btn btn-primary" href="mailto:saveasme1@gmail.com">PROJECT REQUEST</a>
+          <a class="btn btn-ghost" href="https://instagram.com/saveasme1" target="_blank" rel="noopener">INSTAGRAM</a>
+        </div>
+
+        <dl class="contact-board">
+          <div>
+            <dt>COMMS</dt>
+            <dd><a href="mailto:saveasme1@gmail.com">saveasme1@gmail.com</a></dd>
+          </div>
+          <div>
+            <dt>SIGNAL</dt>
+            <dd><a href="https://instagram.com/saveasme1" target="_blank" rel="noopener">@saveasme1</a></dd>
+          </div>
+          <div>
+            <dt>DOMAIN</dt>
+            <dd>save-as.me</dd>
+          </div>
+          <div>
+            <dt>MODE</dt>
+            <dd>ENTERPRISE / LOCAL / PRODUCT</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>© SaveAs For Biz</span>
+    <span>세이브애즈 포 비즈</span>
+    <span>CONTROL CENTER FOR BUSINESS SYSTEMS</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>
