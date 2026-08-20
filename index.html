@@ -76,7 +76,11 @@
         <div><span>HDG</span><b id="gHdg">086°</b></div>
       </div>
 
-      <button type="button" class="ui-action ghost" id="viewReset">정면으로</button>
+      <div class="look-snaps" role="group" aria-label="화면 보기">
+        <button type="button" class="snap-btn" id="lookLeft" data-look="left">좌측 화면</button>
+        <button type="button" class="snap-btn is-on" id="viewReset" data-look="center">정면</button>
+        <button type="button" class="snap-btn" id="lookRight" data-look="right">우측 화면</button>
+      </div>
       <button type="button" class="ui-action" id="viewSystem">시스템 보기</button>
       <button type="button" class="ui-action ghost" id="viewContact">프로젝트 문의</button>
     </div>

@@ -98,6 +98,8 @@ const state = {
   tZoom: 0.28,
   zoomSide: 0,
   tZoomSide: 0,
+  snapLift: 0,
+  lookSnap: "center",
   _sunEl: 34,
   _sunAz: 168,
   _mfdPhase: 0,
@@ -570,13 +572,19 @@ for (let i = 0; i < nCloud; i++) {
   clouds.push(s);
 }
 
-/* ========== GMP → USN cruise-altitude satellite corridor ========== */
+/* ========== GMP → USN real corridor (not random) ========== */
 const ROUTE = {
-  from: { name: "GMP", lat: 37.5583, lon: 126.7906 },
-  to: { name: "USN", lat: 35.5935, lon: 129.3519 },
-  /* z≈8 = cruise altitude look (cities/coast/mountains), not field-green closeup */
-  zoom: 8,
-  samples: isMobile() ? 8 : 12,
+  /* explicit airway-ish samples: Gimpo → Seoul basin → inland → Daegu → Ulsan coast */
+  waypoints: [
+    { name: "GMP", lat: 37.5583, lon: 126.7906 },
+    { name: "SEL", lat: 37.46, lon: 127.02 },
+    { name: "ICN-E", lat: 37.2, lon: 127.35 },
+    { name: "CJJ", lat: 36.72, lon: 127.5 },
+    { name: "TAE", lat: 35.9, lon: 128.55 },
+    { name: "USN", lat: 35.5935, lon: 129.3519 },
+  ],
+  zoom: 9,
+  samples: isMobile() ? 10 : 14,
   cols: isMobile() ? 3 : 5,
 };
 
@@ -589,9 +597,17 @@ function lonLatToTile(lon, lat, z) {
 }
 
 function lerpRoute(t) {
+  const pts = ROUTE.waypoints;
+  const clamped = THREE.MathUtils.clamp(t, 0, 0.9999);
+  const f = clamped * (pts.length - 1);
+  const i = Math.floor(f);
+  const u = f - i;
+  const a = pts[i];
+  const b = pts[Math.min(i + 1, pts.length - 1)];
   return {
-    lat: ROUTE.from.lat + (ROUTE.to.lat - ROUTE.from.lat) * t,
-    lon: ROUTE.from.lon + (ROUTE.to.lon - ROUTE.from.lon) * t,
+    lat: a.lat + (b.lat - a.lat) * u,
+    lon: a.lon + (b.lon - a.lon) * u,
+    name: u < 0.5 ? a.name : b.name,
   };
 }
 
@@ -611,14 +627,14 @@ function loadTileImage(z, x, y) {
 }
 
 function gradeAerialCanvas(ctx, w, h) {
-  /* Cheap haze overlay — avoid per-pixel getImageData stutter */
-  const haze = ctx.createLinearGradient(0, 0, 0, h);
-  haze.addColorStop(0, "rgba(170,200,230,0.32)");
-  haze.addColorStop(0.45, "rgba(160,190,220,0.1)");
-  haze.addColorStop(1, "rgba(40,55,70,0.2)");
-  ctx.fillStyle = haze;
+  /* mute forest greens + cool haze so urban/coast read better */
+  ctx.fillStyle = "rgba(120,140,160,0.18)";
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = "rgba(90,110,120,0.12)";
+  const haze = ctx.createLinearGradient(0, 0, 0, h);
+  haze.addColorStop(0, "rgba(175,205,235,0.38)");
+  haze.addColorStop(0.4, "rgba(160,185,210,0.12)");
+  haze.addColorStop(1, "rgba(50,65,80,0.22)");
+  ctx.fillStyle = haze;
   ctx.fillRect(0, 0, w, h);
 }
 
@@ -662,10 +678,13 @@ async function buildGmpUsnTerrain() {
   await Promise.all(jobs);
   gradeAerialCanvas(ctx, canvas.width, canvas.height);
 
-  ctx.fillStyle = "rgba(255,230,120,0.92)";
-  ctx.font = "bold 26px sans-serif";
-  ctx.fillText("GMP · SEOUL", 20, 36);
-  ctx.fillText("USN · ULSAN", 20, canvas.height - 20);
+  ctx.fillStyle = "rgba(255,230,120,0.95)";
+  ctx.font = "bold 24px sans-serif";
+  ctx.fillText("GMP · SEOUL GIMPO", 16, 32);
+  ctx.fillText("USN · ULSAN", 16, canvas.height - 18);
+  ctx.font = "16px monospace";
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillText("ROUTE GMP→SEL→CJJ→TAE→USN", 16, 56);
   ctx.strokeStyle = "rgba(255, 220, 90, 0.55)";
   ctx.lineWidth = 3;
   ctx.setLineDash([10, 8]);
@@ -695,7 +714,7 @@ async function buildGmpUsnTerrain() {
   state._terrain = { strip, tex, mat };
   state._routeReady = true;
   const label = document.getElementById("routeLabel");
-  if (label) label.textContent = "GMP → USN · CRUISE MAP";
+  if (label) label.textContent = "GMP → USN · REAL ROUTE";
 }
 
 buildGmpUsnTerrain().catch((err) => console.warn("terrain", err));
@@ -774,7 +793,7 @@ function paintMfdScreens() {
     if (projectIndex < 0) {
       projectIndex = (phase + i) % PROJECTS.length;
     } else {
-      projectIndex = (projectIndex + phase) % PROJECTS.length;
+      projectIndex = projectIndex % PROJECTS.length;
     }
     const highlight = state.project === projectIndex;
     const tex = makeProjectPreview(PROJECTS[projectIndex], projectIndex, highlight);
@@ -787,39 +806,66 @@ function paintMfdScreens() {
 }
 
 function installMfdScreens(root) {
-  const box = new THREE.Box3().setFromObject(root);
-  const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-  const baseY = box.min.y + size.y * 0.48;
-  const baseZ = center.z - size.z * 0.18;
+  /*
+    Project plates seated on the main-panel DU bezel band under the glare shield.
+    (IDG model has no separate LCD meshes — overlays match the black DU windows.)
+  */
+  root.updateMatrixWorld(true);
+  let glareY = 0.784;
+  let glareZ = -1.188;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const names = mats.map((m) => String(m?.name || "").toLowerCase()).join("|");
+    if (!names.includes("brightness_panel_glare")) return;
+    const c = new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3());
+    glareY = c.y;
+    glareZ = c.z;
+  });
+
+  const faceY = glareY - 0.168;
+  const faceZ = glareZ + 0.038;
+  const tilt = -0.3;
+  const duW = 0.2;
+  const duH = 0.19;
+  const step = 0.222;
   const slots = [
-    { x: -0.72, y: baseY + 0.08, z: baseZ + 0.02, w: 0.34, h: 0.26, projectIndex: 0 },
-    { x: -0.34, y: baseY + 0.08, z: baseZ, w: 0.34, h: 0.26, projectIndex: 1 },
-    { x: 0.06, y: baseY + 0.1, z: baseZ - 0.02, w: 0.32, h: 0.24, projectIndex: 2 },
-    { x: 0.44, y: baseY + 0.08, z: baseZ, w: 0.34, h: 0.26, projectIndex: 3 },
-    { x: 0.82, y: baseY + 0.08, z: baseZ + 0.02, w: 0.34, h: 0.26, projectIndex: 4 },
-    { x: 0.06, y: baseY - 0.18, z: baseZ + 0.06, w: 0.38, h: 0.22, projectIndex: -1 },
+    { x: -step * 2, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 0 },
+    { x: -step, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 1 },
+    { x: 0, y: faceY + 0.01, z: faceZ, w: duW * 0.95, h: duH * 0.9, projectIndex: 2 },
+    { x: step, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 3 },
+    { x: step * 2, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 4 },
+    { x: 0, y: faceY - 0.185, z: faceZ + 0.01, w: duW * 0.95, h: duH * 0.76, projectIndex: -1 },
   ];
+
   const group = new THREE.Group();
-  group.name = "mfdPreviews";
+  group.name = "mfdPanelScreens";
   state._mfdScreens = [];
   slots.forEach((s) => {
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       emissive: 0xffffff,
-      emissiveIntensity: 0.9,
-      roughness: 0.35,
-      metalness: 0.05,
+      emissiveIntensity: 1.4,
+      roughness: 0.3,
+      metalness: 0.02,
+      polygonOffset: true,
+      polygonOffsetFactor: -12,
+      polygonOffsetUnits: -12,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.h), mat);
     mesh.position.set(s.x, s.y, s.z);
+    mesh.rotation.set(tilt, 0, 0);
     mesh.userData.mfd = true;
     group.add(mesh);
     state._mfdScreens.push({ mesh, projectIndex: s.projectIndex, liveIndex: 0 });
   });
   cockpit.add(group);
   state._mfdGroup = group;
+  state._focusMfd = null;
   paintMfdScreens();
+  console.info(
+    "[mfd-panel] " + JSON.stringify({ faceY: +faceY.toFixed(3), faceZ: +faceZ.toFixed(3) })
+  );
 }
 
 
@@ -919,17 +965,21 @@ function fitCockpitView(root) {
 new GLTFLoader().load(
   "assets/models/a320-cockpit.glb",
   (gltf) => {
-    const root = gltf.scene;
-    prepareCockpitMaterials(root);
-    cockpit.add(root);
-    fitCockpitView(root);
-    installMfdScreens(root);
-    const fill = new THREE.HemisphereLight(0xffe2c4, 0x2a3038, 0.85);
-    cockpit.add(fill);
-    const key = new THREE.DirectionalLight(0xfff0dd, 1.35);
-    key.position.set(0.4, 2.2, 1.2);
-    cockpit.add(key);
-    document.body.classList.add("is-cockpit-ready");
+    try {
+      const root = gltf.scene;
+      prepareCockpitMaterials(root);
+      cockpit.add(root);
+      fitCockpitView(root);
+      installMfdScreens(root);
+      const fill = new THREE.HemisphereLight(0xffe2c4, 0x2a3038, 0.85);
+      cockpit.add(fill);
+      const key = new THREE.DirectionalLight(0xfff0dd, 1.35);
+      key.position.set(0.4, 2.2, 1.2);
+      cockpit.add(key);
+      document.body.classList.add("is-cockpit-ready");
+    } catch (err) {
+      console.error("A320 cockpit init failed", err);
+    }
   },
   undefined,
   (err) => {
@@ -1091,7 +1141,7 @@ window.addEventListener(
     state.velocity = Math.min(1.6, Math.abs(e.deltaY) / 70);
     state.tSpeed = 1 + Math.min(0.8, state.velocity * 0.6);
     /* scroll = move toward / away from captain panel (zoom/dolly) */
-    state.tZoom = THREE.MathUtils.clamp(state.tZoom - Math.sign(e.deltaY) * 0.055, 0, 1);
+    state.tZoom = THREE.MathUtils.clamp(state.tZoom - Math.sign(e.deltaY) * 0.055, 0, 0.72);
   },
   { passive: false }
 );
@@ -1114,15 +1164,13 @@ window.addEventListener("keydown", (e) => {
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
 function tryOpenMfdAt(clientX, clientY) {
-  if (!state._mfdScreens?.length) return false;
+  const targets = (state._mfdScreens || []).map((s) => s.mesh);
+  if (!targets.length) return false;
   const rect = renderer.domElement.getBoundingClientRect();
   pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
   pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointerNdc, camera);
-  const hits = raycaster.intersectObjects(
-    state._mfdScreens.map((s) => s.mesh),
-    false
-  );
+  const hits = raycaster.intersectObjects(targets, false);
   if (!hits.length) return false;
   const slot = state._mfdScreens.find((s) => s.mesh === hits[0].object);
   if (!slot) return false;
@@ -1157,10 +1205,17 @@ canvasEl.addEventListener("pointermove", (e) => {
   const dy = e.clientY - dragLastY;
   dragLastX = e.clientX;
   dragLastY = e.clientY;
-  if (Math.hypot(e.clientX - dragDownX, e.clientY - dragDownY) > 8) state.dragMoved = true;
-  const sens = isMobile() ? 0.005 : 0.0038;
-  state.yaw = THREE.MathUtils.clamp(state.yaw - dx * sens, -1.15, 1.15);
-  state.pitch = THREE.MathUtils.clamp(state.pitch - dy * sens, -0.48, 0.42);
+  if (Math.hypot(e.clientX - dragDownX, e.clientY - dragDownY) > 8) {
+    state.dragMoved = true;
+    state.lookSnap = null;
+  }
+  const sens = isMobile() ? 0.0036 : 0.0028;
+  /* keep look inside the windscreen — no fuselage/exterior peek */
+  const yawMax = THREE.MathUtils.clamp(0.34 - state.zoom * 0.12, 0.2, 0.34);
+  const pitchMin = -0.18;
+  const pitchMax = 0.08;
+  state.yaw = THREE.MathUtils.clamp(state.yaw - dx * sens, -yawMax, yawMax);
+  state.pitch = THREE.MathUtils.clamp(state.pitch - dy * sens, pitchMin, pitchMax);
   state.tYaw = state.yaw;
   state.tPitch = state.pitch;
 });
@@ -1172,30 +1227,47 @@ function endDrag(e) {
   try {
     canvasEl.releasePointerCapture(e.pointerId);
   } catch (_) {}
-  /* tap (no drag) → open MFD under finger */
   if (!state.dragMoved) tryOpenMfdAt(e.clientX, e.clientY);
 }
 canvasEl.addEventListener("pointerup", endDrag);
 canvasEl.addEventListener("pointercancel", endDrag);
 
-function resetView() {
-  state.tYaw = 0;
-  state.tPitch = 0;
-  state.yaw = 0;
-  state.pitch = 0;
-  state.tZoom = 0.28;
-  state.zoomSide = 0;
-  state.tZoomSide = 0;
+/* Aim at captain / FO panel LCDs — no floating focus plates */
+const LOOK_PRESETS = {
+  left: { yaw: 0.26, pitch: -0.08, zoom: 0.58, side: -0.1, lift: 0.02 },
+  center: { yaw: 0, pitch: -0.05, zoom: 0.28, side: 0, lift: 0 },
+  right: { yaw: -0.26, pitch: -0.08, zoom: 0.58, side: 0.1, lift: 0.02 },
+};
+
+function frameSideScreens(side) {
+  const p = LOOK_PRESETS[side] || LOOK_PRESETS.center;
+  state.lookSnap = side;
+  state.tYaw = p.yaw;
+  state.tPitch = p.pitch;
+  state.yaw = p.yaw;
+  state.pitch = p.pitch;
+  state.tZoom = p.zoom;
+  state.zoom = p.zoom;
   state.tRoll = 0;
+  state.roll = 0;
+  state.tZoomSide = p.side;
+  state.zoomSide = p.side;
+  state.snapLift = p.lift;
+  document.querySelectorAll(".snap-btn").forEach((btn) => {
+    btn.classList.toggle("is-on", btn.dataset.look === side);
+  });
 }
-document.getElementById("viewReset")?.addEventListener("click", resetView);
+
+document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
+  btn.addEventListener("click", () => frameSideScreens(btn.dataset.look));
+});
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "화면을 드래그해서 둘러보세요 · 스크롤로 줌";
+hint.textContent = "패널 LCD 탭 → 프로젝트 · 좌측/우측 화면으로 조준 · 드래그 회전";
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
-setTimeout(() => hint.classList.remove("is-on"), 4200);
+setTimeout(() => hint.classList.remove("is-on"), 4500);
 setInterval(() => {
   if (reduce) return;
   state._mfdPhase = (state._mfdPhase + 1) % PROJECTS.length;
@@ -1229,29 +1301,39 @@ function animate(now) {
     state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
-  /* while not dragging, ease toward held pose */
+  /* while not dragging, ease toward held pose — always stay inside windscreen */
+  const yawMax = THREE.MathUtils.clamp(0.34 - state.zoom * 0.12, 0.2, 0.34);
+  state.tYaw = THREE.MathUtils.clamp(state.tYaw, -yawMax, yawMax);
+  state.tPitch = THREE.MathUtils.clamp(state.tPitch, -0.18, 0.08);
   state.yaw += (state.tYaw - state.yaw) * (state.dragging ? 1 : 0.28);
   state.pitch += (state.tPitch - state.pitch) * (state.dragging ? 1 : 0.28);
+  state.yaw = THREE.MathUtils.clamp(state.yaw, -yawMax, yawMax);
+  state.pitch = THREE.MathUtils.clamp(state.pitch, -0.18, 0.08);
   state.roll += (state.tRoll - state.roll) * 0.16;
   state.vibe += dt;
 
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0012;
   const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.0014;
   const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
-  state.zoom += (state.tZoom - state.zoom) * 0.14;
-  /* yaw already screen-correct; side bias follows look */
-  state.tZoomSide = -state.yaw * Math.max(0, state.zoom - 0.22) * (isMobile() ? 1.8 : 2.6);
-  state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.18;
-  const lookBias = (isMobile() ? -0.02 : -0.05) - state.zoom * 0.18;
-  cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw * 0.92, state.roll + vx * 2);
-  const dolly = (state.zoom - 0.28) * (isMobile() ? 0.55 : 0.72);
+  state.zoom += (state.tZoom - state.zoom) * 0.16;
+  /* modest lateral bias only — never slide outside the cabin */
+  if (state.lookSnap !== "left" && state.lookSnap !== "right") {
+    state.tZoomSide = THREE.MathUtils.clamp(-state.yaw * (0.18 + state.zoom * 0.22), -0.18, 0.18);
+    state.snapLift += (0 - state.snapLift) * 0.18;
+  }
+  state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.28;
+  const lookBias = (isMobile() ? -0.02 : -0.04) - state.zoom * 0.08;
+  cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
+  const dolly = (state.zoom - 0.28) * (isMobile() ? 0.38 : 0.45);
   camera.position.set(
-    base.x + vx * 4 + state.zoomSide,
-    base.y + vy * 3 - state.zoom * 0.08,
+    base.x + vx * 3 + state.zoomSide,
+    base.y + vy * 2 - state.zoom * 0.03 + state.snapLift,
     base.z - dolly
   );
-  camera.fov = (isMobile() ? 70 : 72) - state.zoom * 10;
+  const baseFov = isMobile() ? 66 : 68;
+  camera.fov = baseFov - state.zoom * 5 + Math.abs(state.yaw) * 2;
   camera.updateProjectionMatrix();
+
 
   if (state._skyDome) {
     state._skyDome.rotation.y += dt * (0.02 + state.speed * 0.035);
@@ -1291,3 +1373,4 @@ function animate(now) {
 applyProject(-1, { maneuver: false });
 requestAnimationFrame(animate);
 setTimeout(() => document.body.classList.add("is-ready"), 700);
+
