@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -278,11 +279,11 @@ function makePanelNoise() {
   return canvasTex((ctx, w, h) => {
     ctx.fillStyle = "#e2ddd3";
     ctx.fillRect(0, 0, w, h);
-    for (let i = 0; i < 12000; i++) {
-      ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.08})`;
+    for (let i = 0; i < 16000; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.09})`;
       ctx.fillRect(Math.random() * w, Math.random() * h, 1.2, 1.2);
     }
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 50; i++) {
       ctx.strokeStyle = `rgba(80,70,55,${0.04 + Math.random() * 0.05})`;
       ctx.beginPath();
       ctx.moveTo(0, Math.random() * h);
@@ -292,39 +293,101 @@ function makePanelNoise() {
   }, 512, 512);
 }
 
+function makeBumpMap() {
+  return canvasTex((ctx, w, h) => {
+    ctx.fillStyle = "#808080";
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 9000; i++) {
+      const v = 100 + Math.random() * 55;
+      ctx.fillStyle = `rgb(${v},${v},${v})`;
+      ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+  }, 256, 256);
+}
+
+function makeLeather() {
+  return canvasTex((ctx, w, h) => {
+    ctx.fillStyle = "#2e3138";
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < 8000; i++) {
+      ctx.fillStyle = `rgba(${30 + Math.random() * 40},${32 + Math.random() * 40},${38 + Math.random() * 40},${0.35})`;
+      ctx.beginPath();
+      ctx.ellipse(Math.random() * w, Math.random() * h, 2 + Math.random() * 4, 1 + Math.random() * 2, Math.random(), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }, 256, 256);
+}
+
+function makeBrushed() {
+  return canvasTex((ctx, w, h) => {
+    ctx.fillStyle = "#b8bbb6";
+    ctx.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y++) {
+      const a = 0.04 + Math.random() * 0.08;
+      ctx.strokeStyle = Math.random() > 0.5 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y + (Math.random() - 0.5) * 1.5);
+      ctx.stroke();
+    }
+  }, 256, 256);
+}
+
 /* ========== renderer / scene ========== */
 const mount = document.getElementById("webgl");
-const renderer = new THREE.WebGLRenderer({ antialias: !isMobile(), powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.35 : 2));
+const renderer = new THREE.WebGLRenderer({ antialias: !isMobile(), powerPreference: "high-performance", alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.4 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.72;
+renderer.toneMappingExposure = 0.78;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = !isMobile();
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 mount.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.05, 40000);
-camera.position.set(0, 1.28, 0.95);
+const camera = new THREE.PerspectiveCamera(64, window.innerWidth / window.innerHeight, 0.04, 40000);
+camera.position.set(0, 1.22, 0.88);
 
 const cameraRig = new THREE.Group();
 cameraRig.add(camera);
 scene.add(cameraRig);
 
-const hemi = new THREE.HemisphereLight(0xb8d8ff, 0xe8dfd2, 0.85);
+const hemi = new THREE.HemisphereLight(0xc2e0ff, 0xe4d8c8, 0.7);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.2);
 sun.position.set(40, 60, -20);
+sun.castShadow = !isMobile();
+if (sun.castShadow) {
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 80;
+  sun.shadow.camera.left = -8;
+  sun.shadow.camera.right = 8;
+  sun.shadow.camera.top = 8;
+  sun.shadow.camera.bottom = -8;
+  sun.shadow.bias = -0.0004;
+}
 scene.add(sun);
-const cabin = new THREE.PointLight(0xfff4e6, 1.15, 10);
-cabin.position.set(0, 1.55, 0.35);
+const cabin = new THREE.PointLight(0xfff4e6, 1.35, 12);
+cabin.position.set(0, 1.65, 0.45);
 scene.add(cabin);
-const dashLight = new THREE.SpotLight(0xffffff, 0.85, 7, Math.PI / 2.6, 0.45);
-dashLight.position.set(0, 1.9, 0.9);
-dashLight.target.position.set(0, 0.75, -0.7);
+const dashLight = new THREE.SpotLight(0xfff8ef, 1.05, 8, Math.PI / 2.4, 0.5, 1);
+dashLight.position.set(0, 2.05, 1.0);
+dashLight.target.position.set(0, 0.7, -0.55);
 scene.add(dashLight, dashLight.target);
-const screenGlow = new THREE.PointLight(0x6ec8ff, 0.35, 4);
-screenGlow.position.set(0, 0.85, -0.2);
+const screenGlow = new THREE.PointLight(0x6ec8ff, 0.45, 4.5);
+screenGlow.position.set(0, 0.9, -0.15);
 scene.add(screenGlow);
+const windowFillL = new THREE.DirectionalLight(0xb8d8ff, 0.55);
+windowFillL.position.set(-4, 3, -6);
+scene.add(windowFillL);
+const windowFillR = new THREE.DirectionalLight(0xffe8c8, 0.4);
+windowFillR.position.set(5, 2.5, -4);
+scene.add(windowFillR);
+const rim = new THREE.PointLight(0xfff0d8, 0.55, 6);
+rim.position.set(0, 1.8, -0.9);
+scene.add(rim);
 
 /* Procedural sky fill + photoreal equirect dome */
 const sky = new Sky();
@@ -471,206 +534,300 @@ for (let i = 0; i < (isMobile() ? 45 : 120); i++) {
   cityGroup.add(m);
 }
 
-/* ========== DETAILED COCKPIT ========== */
+﻿/* ========== DETAILED COCKPIT ========== */
 const cockpit = new THREE.Group();
 scene.add(cockpit);
 
 const panelNoise = makePanelNoise();
 panelNoise.wrapS = panelNoise.wrapT = THREE.RepeatWrapping;
-panelNoise.repeat.set(2, 2);
+panelNoise.repeat.set(2.5, 2.5);
+const bump = makeBumpMap();
+bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+bump.repeat.set(3, 3);
+const leatherMap = makeLeather();
+leatherMap.wrapS = leatherMap.wrapT = THREE.RepeatWrapping;
+leatherMap.repeat.set(2, 2);
+const brushed = makeBrushed();
+brushed.wrapS = brushed.wrapT = THREE.RepeatWrapping;
 
-const ivory = new THREE.MeshStandardMaterial({
-  color: 0xe8e4db,
-  map: panelNoise,
-  roughness: 0.58,
-  metalness: 0.08,
-  envMapIntensity: 0.55,
+const ivory = new THREE.MeshPhysicalMaterial({
+  color: 0xe9e5dc, map: panelNoise, bumpMap: bump, bumpScale: 0.012,
+  roughness: 0.52, metalness: 0.06, clearcoat: 0.22, clearcoatRoughness: 0.45, envMapIntensity: 0.65,
 });
-const warmGray = new THREE.MeshStandardMaterial({
-  color: 0xcfc9be,
-  map: panelNoise,
-  roughness: 0.5,
-  metalness: 0.14,
-  envMapIntensity: 0.6,
+const warmGray = new THREE.MeshPhysicalMaterial({
+  color: 0xd0cbc0, map: panelNoise, bumpMap: bump, bumpScale: 0.01,
+  roughness: 0.48, metalness: 0.12, clearcoat: 0.15, envMapIntensity: 0.7,
 });
-const aluminum = new THREE.MeshStandardMaterial({
-  color: 0xb4b7b2,
-  roughness: 0.28,
-  metalness: 0.72,
-  envMapIntensity: 1.1,
+const aluminum = new THREE.MeshPhysicalMaterial({
+  color: 0xc0c3be, map: brushed, roughness: 0.22, metalness: 0.85,
+  clearcoat: 0.35, clearcoatRoughness: 0.25, envMapIntensity: 1.25,
 });
-const darkBezel = new THREE.MeshStandardMaterial({ color: 0x17191d, roughness: 0.4, metalness: 0.35, envMapIntensity: 0.4 });
-const seatMat = new THREE.MeshStandardMaterial({ color: 0x363940, roughness: 0.88, metalness: 0.04 });
-const plastic = new THREE.MeshStandardMaterial({ color: 0x2a2d32, roughness: 0.55, metalness: 0.2 });
+const darkBezel = new THREE.MeshPhysicalMaterial({
+  color: 0x141618, roughness: 0.35, metalness: 0.45, clearcoat: 0.4, envMapIntensity: 0.55,
+});
+const seatMat = new THREE.MeshStandardMaterial({
+  color: 0xffffff, map: leatherMap, roughness: 0.82, metalness: 0.04, envMapIntensity: 0.25,
+});
+const plastic = new THREE.MeshPhysicalMaterial({
+  color: 0x2c3036, roughness: 0.48, metalness: 0.18, clearcoat: 0.3, envMapIntensity: 0.45,
+});
+const rubber = new THREE.MeshStandardMaterial({ color: 0x1a1c1f, roughness: 0.92, metalness: 0.02 });
+const ledGreen = new THREE.MeshStandardMaterial({ color: 0x3d9e6f, emissive: 0x1f7a4a, emissiveIntensity: 0.85 });
+const ledAmber = new THREE.MeshStandardMaterial({ color: 0xd4a017, emissive: 0xa87810, emissiveIntensity: 0.7 });
+const carpet = new THREE.MeshStandardMaterial({
+  color: 0x5a5852, map: panelNoise, roughness: 0.95, metalness: 0, envMapIntensity: 0.1,
+});
 
 function mesh(geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
   const m = new THREE.Mesh(geo, mat);
   m.position.set(x, y, z);
   m.rotation.set(rx, ry, rz);
+  m.castShadow = !isMobile();
+  m.receiveShadow = !isMobile();
   cockpit.add(m);
   return m;
 }
 function box(w, h, d, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
   return mesh(new THREE.BoxGeometry(w, h, d), mat, x, y, z, rx, ry, rz);
 }
-function cyl(rTop, rBot, h, mat, x, y, z, rx = 0, ry = 0, rz = 0, seg = 16) {
+function rbox(w, h, d, r, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
+  return mesh(new RoundedBoxGeometry(w, h, d, 3, r), mat, x, y, z, rx, ry, rz);
+}
+function cyl(rTop, rBot, h, mat, x, y, z, rx = 0, ry = 0, rz = 0, seg = 20) {
   return mesh(new THREE.CylinderGeometry(rTop, rBot, h, seg), mat, x, y, z, rx, ry, rz);
 }
+function bolt(x, y, z, s = 0.012) {
+  cyl(s, s, s * 0.7, aluminum, x, y, z, Math.PI / 2, 0, 0, 10);
+}
+function toggle(x, y, z, on = false, rx = 0, ry = 0) {
+  rbox(0.028, 0.018, 0.038, 0.004, plastic, x, y, z, rx, ry, 0);
+  box(0.008, 0.028, 0.008, on ? ledGreen : aluminum, x, y + 0.018, z, 0.35 * (on ? 1 : -0.4), ry, 0);
+}
+function knob(x, y, z, r = 0.016) {
+  cyl(r, r * 0.9, 0.014, plastic, x, y, z, Math.PI / 2, 0, 0, 16);
+  cyl(r * 0.35, r * 0.35, 0.01, aluminum, x, y, z + 0.008, Math.PI / 2, 0, 0, 10);
+}
+function rocker(x, y, z) {
+  rbox(0.04, 0.012, 0.055, 0.003, plastic, x, y, z);
+  box(0.036, 0.006, 0.022, darkBezel, x, y + 0.008, z - 0.01, -0.25, 0, 0);
+}
 
-// Floor + footwells
-box(3.4, 0.05, 2.6, warmGray, 0, 0.01, 0.25);
-box(0.9, 0.08, 0.7, darkBezel, -0.7, 0.06, 0.35);
-box(0.9, 0.08, 0.7, darkBezel, 0.7, 0.06, 0.35);
+function pillar(x, y, z, h, rx, ry, thick = 0.1) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  g.rotation.set(rx, ry, 0);
+  const core = new THREE.Mesh(new RoundedBoxGeometry(thick, h, thick * 1.35, 2, 0.018), warmGray);
+  const trim = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.25, h * 0.98, thick * 0.35, 2, 0.01), aluminum);
+  trim.position.z = thick * 0.55;
+  const gasket = new THREE.Mesh(new RoundedBoxGeometry(thick * 1.15, h * 0.96, thick * 0.12, 2, 0.008), rubber);
+  gasket.position.z = thick * 0.85;
+  const rail = new THREE.Mesh(new THREE.CapsuleGeometry(thick * 0.12, h * 0.72, 4, 8), aluminum);
+  rail.position.set(thick * 0.55, 0, 0);
+  [core, trim, gasket, rail].forEach((m) => {
+    m.castShadow = !isMobile();
+    m.receiveShadow = !isMobile();
+    g.add(m);
+  });
+  for (let i = 0; i < 5; i++) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.01, 8), aluminum);
+    b.rotation.x = Math.PI / 2;
+    b.position.set(0, -h * 0.35 + i * (h * 0.18), thick * 0.7);
+    g.add(b);
+  }
+  cockpit.add(g);
+  return g;
+}
 
-// Main glare shield / coaming
-box(2.95, 0.07, 1.05, ivory, 0, 1.12, -0.92, 0.48, 0, 0);
-box(2.98, 0.1, 0.16, aluminum, 0, 1.0, -0.5, 0.12, 0, 0);
-box(2.9, 0.04, 0.08, plastic, 0, 1.06, -0.42);
+function buildYoke(x, y, z, scale = 1) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z);
+  g.scale.setScalar(scale);
+  const col = new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.42, 6, 12), aluminum);
+  col.position.y = 0.05;
+  const hub = new THREE.Mesh(new RoundedBoxGeometry(0.12, 0.05, 0.08, 2, 0.012), darkBezel);
+  hub.position.y = 0.32;
+  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.022, 14, 36, Math.PI * 1.4), rubber);
+  wheel.rotation.set(Math.PI / 2, 0.12, 0);
+  wheel.position.set(0, 0.34, 0.02);
+  const bar = new THREE.Mesh(new RoundedBoxGeometry(0.28, 0.032, 0.04, 2, 0.008), darkBezel);
+  bar.position.set(0, 0.34, 0.02);
+  const gripL = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.05, 4, 8), rubber);
+  gripL.position.set(-0.13, 0.34, 0.02);
+  const gripR = gripL.clone();
+  gripR.position.x = 0.13;
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.012, 10), ledAmber);
+  btn.rotation.x = Math.PI / 2;
+  btn.position.set(0.05, 0.355, 0.04);
+  [col, hub, wheel, bar, gripL, gripR, btn].forEach((m) => {
+    m.castShadow = !isMobile();
+    g.add(m);
+  });
+  cockpit.add(g);
+  return g;
+}
 
-// Instrument panel body (stepped)
-box(2.7, 0.58, 0.22, ivory, 0, 0.74, -0.42, -0.38, 0, 0);
-box(2.65, 0.1, 0.75, ivory, 0, 0.5, -0.32, -0.12, 0, 0);
-box(2.6, 0.05, 0.55, aluminum, 0, 0.44, -0.18);
+function buildSeat(x, z, flip = 1) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  const base = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.12, 0.48, 3, 0.04), seatMat);
+  base.position.set(0, 0.38, 0);
+  const cushion = new THREE.Mesh(new RoundedBoxGeometry(0.46, 0.1, 0.42, 3, 0.045), seatMat);
+  cushion.position.set(0, 0.48, 0.02);
+  const back = new THREE.Mesh(new RoundedBoxGeometry(0.48, 0.72, 0.1, 3, 0.04), seatMat);
+  back.position.set(0, 0.85, 0.22);
+  back.rotation.x = -0.12;
+  const head = new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.16, 0.1, 3, 0.04), seatMat);
+  head.position.set(0, 1.28, 0.18);
+  const arm = new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.05, 0.32, 2, 0.02), plastic);
+  arm.position.set(0.28 * flip, 0.7, 0.02);
+  const rail = new THREE.Mesh(new THREE.CapsuleGeometry(0.012, 0.35, 4, 8), aluminum);
+  rail.position.set(0.28 * flip, 0.55, 0.05);
+  rail.rotation.x = Math.PI / 2;
+  [base, cushion, back, head, arm, rail].forEach((m) => {
+    m.castShadow = !isMobile();
+    m.receiveShadow = !isMobile();
+    g.add(m);
+  });
+  cockpit.add(g);
+}
 
-// Center pedestal + throttles + FMC
-box(0.48, 0.62, 1.25, warmGray, 0, 0.36, 0.28);
-box(0.44, 0.06, 0.95, darkBezel, 0, 0.68, 0.18);
+rbox(3.5, 0.06, 2.7, 0.02, carpet, 0, 0.0, 0.3);
+rbox(0.95, 0.05, 0.75, 0.015, darkBezel, -0.72, 0.05, 0.4);
+rbox(0.95, 0.05, 0.75, 0.015, darkBezel, 0.72, 0.05, 0.4);
+rbox(0.35, 0.04, 0.55, 0.01, rubber, 0, 0.04, 0.55);
+
+rbox(2.95, 0.06, 1.05, 0.025, ivory, 0, 1.14, -0.9, 0.46, 0, 0);
+rbox(2.85, 0.045, 0.55, 0.02, warmGray, 0, 1.22, -0.72, 0.55, 0, 0);
+rbox(3.0, 0.09, 0.14, 0.02, aluminum, 0, 1.02, -0.48, 0.1, 0, 0);
+rbox(2.92, 0.035, 0.07, 0.01, rubber, 0, 1.08, -0.4);
+rbox(2.7, 0.03, 0.12, 0.008, darkBezel, 0, 1.28, -1.15, 0.65, 0, 0);
+[-1.1, -0.55, 0, 0.55, 1.1].forEach((x) => bolt(x, 1.05, -0.42));
+
+rbox(2.75, 0.55, 0.2, 0.03, ivory, 0, 0.76, -0.4, -0.4, 0, 0);
+rbox(2.7, 0.09, 0.72, 0.02, ivory, 0, 0.52, -0.28, -0.1, 0, 0);
+rbox(2.65, 0.045, 0.55, 0.012, aluminum, 0, 0.46, -0.14);
+rbox(2.55, 0.03, 0.5, 0.008, darkBezel, 0, 0.49, -0.12);
+[-0.28, 0.28].forEach((x) => rbox(0.04, 0.42, 0.08, 0.008, plastic, x, 0.82, -0.32, -0.4, 0, 0));
+
+rbox(0.5, 0.58, 1.28, 0.035, warmGray, 0, 0.34, 0.3);
+rbox(0.46, 0.05, 1.0, 0.015, darkBezel, 0, 0.66, 0.2);
+rbox(0.42, 0.04, 0.35, 0.01, plastic, 0, 0.7, 0.55);
 const fmcTex = makeFMC();
 mesh(
-  new THREE.PlaneGeometry(0.36, 0.26),
+  new THREE.PlaneGeometry(0.34, 0.24),
   new THREE.MeshStandardMaterial({
-    map: fmcTex,
-    emissiveMap: fmcTex,
-    emissive: 0xffffff,
-    emissiveIntensity: 0.35,
-    roughness: 0.4,
+    map: fmcTex, emissiveMap: fmcTex, emissive: 0xffffff, emissiveIntensity: 0.4, roughness: 0.35,
   }),
-  0,
-  0.72,
-  0.42,
-  -1.05,
-  0,
-  0
+  0, 0.74, 0.48, -1.05, 0, 0
 );
-// throttle levers with knobs
-[-0.1, 0.1].forEach((x) => {
-  box(0.035, 0.28, 0.035, aluminum, x, 0.82, 0.02, 0.45, 0, 0);
-  cyl(0.028, 0.028, 0.05, darkBezel, x, 0.96, -0.05, 0.45, 0, 0);
-  cyl(0.018, 0.018, 0.04, plastic, x - 0.05, 0.7, 0.2, Math.PI / 2, 0, 0);
-});
-// trim wheels
-cyl(0.07, 0.07, 0.02, plastic, -0.2, 0.55, 0.55, 0, 0, Math.PI / 2, 20);
-cyl(0.07, 0.07, 0.02, plastic, 0.2, 0.55, 0.55, 0, 0, Math.PI / 2, 20);
-
-// Side consoles
-box(0.46, 0.82, 1.5, ivory, -1.32, 0.58, 0.08, 0, 0.2, 0);
-box(0.42, 0.72, 1.35, ivory, 1.35, 0.52, 0.08, 0, -0.18, 0);
-box(0.38, 0.04, 1.1, darkBezel, -1.32, 0.92, 0.0, 0, 0.2, 0);
-box(0.34, 0.04, 1.0, darkBezel, 1.35, 0.85, 0.0, 0, -0.18, 0);
-// side switch rows
-for (let i = 0; i < 10; i++) {
-  box(0.04, 0.03, 0.06, plastic, -1.28, 0.96, -0.35 + i * 0.1, 0, 0.2, 0);
-  cyl(0.012, 0.012, 0.02, i % 3 === 0 ? new THREE.MeshStandardMaterial({ color: 0x3d9e6f, emissive: 0x1a5a3a, emissiveIntensity: 0.6 }) : aluminum, -1.28, 0.99, -0.35 + i * 0.1);
+for (let i = 0; i < 8; i++) {
+  rbox(0.032, 0.012, 0.028, 0.004, plastic, -0.14 + (i % 4) * 0.09, 0.72, 0.62 + Math.floor(i / 4) * 0.06);
 }
+[-0.11, 0.0, 0.11].forEach((x, i) => {
+  const lean = 0.35 + i * 0.04;
+  cyl(0.014, 0.014, 0.32, aluminum, x, 0.84, 0.02, lean, 0, 0, 14);
+  cyl(0.026, 0.022, 0.055, rubber, x, 0.98, -0.04, lean, 0, 0, 14);
+  rbox(0.04, 0.02, 0.03, 0.006, darkBezel, x, 1.01, -0.06, lean, 0, 0);
+});
+box(0.012, 0.18, 0.012, aluminum, -0.2, 0.78, 0.22, 0.55, 0, 0.2);
+box(0.012, 0.18, 0.012, aluminum, 0.2, 0.78, 0.22, 0.55, 0, -0.2);
+cyl(0.018, 0.018, 0.025, ledAmber, -0.2, 0.88, 0.15, Math.PI / 2, 0, 0);
+cyl(0.018, 0.018, 0.025, ledGreen, 0.2, 0.88, 0.15, Math.PI / 2, 0, 0);
+[-0.22, 0.22].forEach((x) => {
+  cyl(0.075, 0.075, 0.018, plastic, x, 0.52, 0.58, 0, 0, Math.PI / 2, 24);
+  cyl(0.02, 0.02, 0.022, aluminum, x, 0.52, 0.58, 0, 0, Math.PI / 2, 12);
+});
+for (let i = 0; i < 6; i++) knob(-0.16 + i * 0.065, 0.69, 0.08, 0.012);
 
-// Window A-pillars (thick airliner)
-box(0.14, 1.7, 0.22, warmGray, -0.68, 1.52, -1.12, 0.14, 0.3, 0);
-box(0.16, 1.8, 0.24, warmGray, 0.05, 1.58, -1.3, 0.12, 0, 0);
-box(0.14, 1.65, 0.22, warmGray, 0.82, 1.5, -1.1, 0.14, -0.34, 0);
-box(0.18, 1.85, 0.26, ivory, -1.42, 1.55, -0.62, 0.06, 0.48, 0);
-box(0.18, 1.75, 0.24, ivory, 1.48, 1.52, -0.58, 0.06, -0.46, 0);
-// sill / brow
-box(3.15, 0.12, 0.22, aluminum, 0, 2.22, -0.9, 0.28, 0, 0);
-box(3.1, 0.55, 0.14, ivory, 0, 2.42, -0.48, 0.18, 0, 0);
-box(3.0, 0.08, 0.1, plastic, 0, 2.08, -0.78, 0.2, 0, 0);
+rbox(0.48, 0.78, 1.55, 0.04, ivory, -1.34, 0.55, 0.1, 0, 0.18, 0);
+rbox(0.44, 0.7, 1.4, 0.035, ivory, 1.36, 0.5, 0.1, 0, -0.16, 0);
+rbox(0.4, 0.035, 1.15, 0.01, darkBezel, -1.34, 0.9, 0.02, 0, 0.18, 0);
+rbox(0.36, 0.035, 1.05, 0.01, darkBezel, 1.36, 0.82, 0.02, 0, -0.16, 0);
+for (let i = 0; i < 12; i++) {
+  toggle(-1.3, 0.94, -0.4 + i * 0.09, i % 4 === 0, 0, 0.18);
+  rocker(1.32, 0.86, -0.35 + i * 0.09);
+}
+for (let i = 0; i < 5; i++) knob(-1.28, 0.88, 0.55 + i * 0.08, 0.014);
+cyl(0.015, 0.015, 1.1, aluminum, -1.55, 1.15, 0.05, 0, 0, Math.PI / 2, 12);
+cyl(0.015, 0.015, 1.0, aluminum, 1.58, 1.1, 0.05, 0, 0, Math.PI / 2, 12);
 
-// Overhead panel + physical switches
-box(1.95, 0.1, 1.2, warmGray, 0, 2.22, 0.2, 0.92, 0, 0);
+pillar(-0.72, 1.55, -1.08, 1.55, 0.12, 0.28, 0.09);
+pillar(0.02, 1.6, -1.26, 1.65, 0.1, 0, 0.1);
+pillar(0.78, 1.52, -1.06, 1.5, 0.12, -0.32, 0.09);
+pillar(-1.45, 1.55, -0.55, 1.7, 0.05, 0.5, 0.11);
+pillar(1.5, 1.52, -0.52, 1.6, 0.05, -0.48, 0.11);
+rbox(2.9, 0.08, 0.22, 0.02, aluminum, 0, 0.95, -1.05, 0.15, 0, 0);
+rbox(2.85, 0.05, 0.12, 0.015, ivory, 0, 0.9, -0.95);
+rbox(3.2, 0.11, 0.2, 0.025, aluminum, 0, 2.28, -0.85, 0.25, 0, 0);
+rbox(3.15, 0.5, 0.12, 0.03, ivory, 0, 2.48, -0.42, 0.15, 0, 0);
+rbox(3.05, 0.06, 0.09, 0.015, plastic, 0, 2.12, -0.72, 0.18, 0, 0);
+rbox(0.55, 0.02, 0.35, 0.008, darkBezel, -0.85, 2.05, -0.95, 0.4, 0.15, 0);
+rbox(0.55, 0.02, 0.35, 0.008, darkBezel, 0.9, 2.05, -0.95, 0.4, -0.15, 0);
+cyl(0.02, 0.02, 0.08, aluminum, -0.35, 1.0, -1.15, 0.8, 0, 0);
+cyl(0.02, 0.02, 0.08, aluminum, 0.4, 1.0, -1.15, 0.8, 0, 0);
+
+rbox(2.05, 0.09, 1.25, 0.03, warmGray, 0, 2.28, 0.22, 0.95, 0, 0);
 mesh(
-  new THREE.PlaneGeometry(1.7, 0.95),
-  new THREE.MeshStandardMaterial({ map: makeOverhead(), roughness: 0.65, metalness: 0.05, envMapIntensity: 0.3 }),
-  0,
-  2.1,
-  0.25,
-  0.95,
-  0,
-  0
+  new THREE.PlaneGeometry(1.75, 1.0),
+  new THREE.MeshStandardMaterial({ map: makeOverhead(), roughness: 0.6, metalness: 0.05, envMapIntensity: 0.35 }),
+  0, 2.14, 0.28, 0.98, 0, 0
 );
-if (!isMobile()) {
-  for (let row = 0; row < 4; row++) {
-    for (let col = 0; col < 12; col++) {
-      const x = -0.7 + col * 0.12;
-      const z = -0.15 + row * 0.14;
-      box(0.035, 0.04, 0.02, plastic, x, 2.0 - row * 0.02, z, 0.95, 0, 0);
-    }
+const ohRows = isMobile() ? 3 : 5;
+const ohCols = isMobile() ? 8 : 14;
+for (let row = 0; row < ohRows; row++) {
+  for (let col = 0; col < ohCols; col++) {
+    const x = -0.78 + col * 0.115;
+    const z = -0.2 + row * 0.13;
+    const y = 2.02 - row * 0.015;
+    if ((col + row) % 5 === 0) knob(x, y, z, 0.011);
+    else if ((col + row) % 3 === 0) rocker(x, y, z);
+    else toggle(x, y, z, (col + row) % 7 === 0, 0.95, 0);
   }
 }
+cyl(0.012, 0.012, 0.55, aluminum, 0, 1.95, 0.55, 0, 0, Math.PI / 2);
+cyl(0.018, 0.018, 0.04, plastic, -0.28, 1.95, 0.55, Math.PI / 2, 0, 0);
+cyl(0.018, 0.018, 0.04, plastic, 0.28, 1.95, 0.55, Math.PI / 2, 0, 0);
 
-// Glass windshield panes
 const glassMat = new THREE.MeshPhysicalMaterial({
-  color: 0xffffff,
-  transmission: 0.96,
-  transparent: true,
-  opacity: 0.08,
-  roughness: 0.04,
-  metalness: 0,
-  thickness: 0.2,
-  ior: 1.2,
-  depthWrite: false,
-  envMapIntensity: 1.2,
+  color: 0xdfefff, transmission: 0.94, transparent: true, opacity: 0.12,
+  roughness: 0.02, metalness: 0, thickness: 0.25, ior: 1.25,
+  depthWrite: false, envMapIntensity: 1.4, clearcoat: 1, clearcoatRoughness: 0.05,
 });
-mesh(new THREE.PlaneGeometry(1.2, 1.2), glassMat, -1.0, 1.55, -1.05, 0.08, 0.42, 0.04);
-mesh(new THREE.PlaneGeometry(1.55, 1.28), glassMat, 0.02, 1.6, -1.28, 0.12, 0, 0);
-mesh(new THREE.PlaneGeometry(1.1, 1.15), glassMat, 1.1, 1.52, -1.02, 0.08, -0.48, -0.04);
-mesh(new THREE.PlaneGeometry(0.9, 0.95), glassMat, -1.58, 1.4, -0.05, 0.05, Math.PI / 2.1, 0);
+mesh(new THREE.PlaneGeometry(1.18, 1.18), glassMat, -1.02, 1.58, -1.02, 0.08, 0.4, 0.04);
+mesh(new THREE.PlaneGeometry(1.52, 1.26), glassMat, 0.02, 1.62, -1.24, 0.12, 0, 0);
+mesh(new THREE.PlaneGeometry(1.08, 1.12), glassMat, 1.08, 1.55, -1.0, 0.08, -0.45, -0.04);
+mesh(new THREE.PlaneGeometry(0.95, 0.9), glassMat, -1.62, 1.42, 0.0, 0.05, Math.PI / 2.05, 0);
+mesh(new THREE.PlaneGeometry(0.9, 0.85), glassMat, 1.65, 1.38, 0.05, 0.05, -Math.PI / 2.05, 0);
 
 function screen(tex, w, h, x, y, z, rx) {
-  box(w + 0.05, h + 0.05, 0.035, darkBezel, x, y, z, rx, 0, 0);
+  rbox(w + 0.055, h + 0.055, 0.04, 0.01, darkBezel, x, y, z, rx, 0, 0);
+  rbox(w + 0.02, h + 0.02, 0.01, 0.004, plastic, x, y, z + 0.012, rx, 0, 0);
   return mesh(
     new THREE.PlaneGeometry(w, h),
     new THREE.MeshStandardMaterial({
-      map: tex,
-      emissiveMap: tex,
-      emissive: 0xffffff,
-      emissiveIntensity: 0.7,
-      roughness: 0.3,
-      metalness: 0.08,
+      map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0.85, roughness: 0.25, metalness: 0.05,
     }),
-    x,
-    y,
-    z + 0.022,
-    rx,
-    0,
-    0
+    x, y, z + 0.025, rx, 0, 0
   );
 }
-screen(makePFD(), 0.52, 0.46, -0.58, 0.86, -0.28, -0.52);
-screen(makeND(), 0.52, 0.46, 0.0, 0.86, -0.3, -0.52);
-screen(makeEICAS(), 0.46, 0.52, 0.58, 0.84, -0.26, -0.52);
-screen(makeND(), 0.3, 0.24, -0.35, 0.56, -0.05, -0.72);
-screen(makePFD(), 0.3, 0.24, 0.35, 0.56, -0.05, -0.72);
+screen(makePFD(), 0.5, 0.44, -0.58, 0.88, -0.26, -0.5);
+screen(makeND(), 0.5, 0.44, 0.0, 0.88, -0.28, -0.5);
+screen(makeEICAS(), 0.44, 0.5, 0.58, 0.86, -0.24, -0.5);
+screen(makeND(), 0.28, 0.22, -0.35, 0.58, -0.02, -0.7);
+screen(makePFD(), 0.28, 0.22, 0.35, 0.58, -0.02, -0.7);
+for (let i = 0; i < 10; i++) {
+  knob(-0.9 + i * 0.2, 0.55, -0.05, 0.013);
+  if (i % 2 === 0) toggle(-0.8 + i * 0.2, 0.52, 0.05, i % 4 === 0);
+}
 
-// Control yoke (FO side)
-box(0.055, 0.62, 0.055, aluminum, 0.58, 0.58, 0.4);
-mesh(new THREE.TorusGeometry(0.17, 0.028, 12, 28, Math.PI * 1.35), aluminum, 0.58, 0.95, 0.38, Math.PI / 2, 0, 0.15);
-box(0.26, 0.035, 0.045, darkBezel, 0.58, 0.95, 0.38);
-box(0.04, 0.08, 0.03, plastic, 0.48, 0.95, 0.38);
-box(0.04, 0.08, 0.03, plastic, 0.68, 0.95, 0.38);
-// Captain yoke (partial, behind)
-box(0.05, 0.55, 0.05, aluminum, -0.55, 0.55, 0.45);
-mesh(new THREE.TorusGeometry(0.15, 0.025, 10, 24, Math.PI * 1.3), aluminum, -0.55, 0.9, 0.42, Math.PI / 2, 0, -0.1);
+buildYoke(0.58, 0.42, 0.42, 1);
+buildYoke(-0.55, 0.4, 0.48, 0.92);
+buildSeat(-0.58, 0.98, -1);
+buildSeat(0.58, 0.98, 1);
 
-// Seats
-box(0.52, 0.58, 0.48, seatMat, -0.58, 0.48, 0.95);
-box(0.52, 0.78, 0.12, seatMat, -0.58, 0.92, 1.12);
-box(0.48, 0.12, 0.35, seatMat, -0.58, 1.22, 1.05);
-box(0.52, 0.58, 0.48, seatMat, 0.58, 0.48, 0.95);
-box(0.52, 0.78, 0.12, seatMat, 0.58, 0.92, 1.12);
-box(0.48, 0.12, 0.35, seatMat, 0.58, 1.22, 1.05);
-// armrests
-box(0.08, 0.06, 0.35, plastic, -0.3, 0.72, 0.9);
-box(0.08, 0.06, 0.35, plastic, 0.3, 0.72, 0.9);
-
+rbox(3.2, 2.2, 0.12, 0.04, warmGray, 0, 1.4, 1.65);
+rbox(1.2, 0.8, 0.08, 0.03, ivory, 0, 1.5, 1.58);
+cyl(0.04, 0.04, 0.5, aluminum, -1.2, 1.8, 1.5, 0, 0, Math.PI / 2);
 /* ========== UI ========== */
 function show(card) {
   [el.hero, el.project, el.system, el.contact].forEach((c) => c.classList.add("is-hidden"));
@@ -787,8 +944,8 @@ window.addEventListener(
     if (reduce) return;
     const nx = (e.clientX / window.innerWidth) * 2 - 1;
     const ny = (e.clientY / window.innerHeight) * 2 - 1;
-    state.tYaw = nx * (isMobile() ? 0.055 : 0.11);
-    state.tPitch = -ny * (isMobile() ? 0.03 : 0.05);
+    state.tYaw = nx * (isMobile() ? 0.28 : 0.62);
+    state.tPitch = -ny * (isMobile() ? 0.12 : 0.22);
     if (el.flightUi) {
       el.flightUi.style.setProperty("--ui-x", `${nx * 5}px`);
       el.flightUi.style.setProperty("--ui-y", `${ny * 3}px`);
@@ -850,15 +1007,15 @@ function animate(now) {
     state.velocity = 0;
     state.tSpeed += (1 - state.tSpeed) * 0.035;
   }
-  state.yaw += (state.tYaw - state.yaw) * 0.07;
-  state.pitch += (state.tPitch - state.pitch) * 0.07;
-  state.roll += (state.tRoll - state.roll) * 0.08;
+  state.yaw += (state.tYaw - state.yaw) * 0.14;
+  state.pitch += (state.tPitch - state.pitch) * 0.12;
+  state.roll += (state.tRoll - state.roll) * 0.1;
   state.vibe += dt;
 
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0018;
   const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.002;
-  cameraRig.rotation.set(state.pitch + vy * 2 - 0.08, state.yaw, state.roll + vx * 2);
-  camera.position.set(vx * 5, 1.28 + vy * 4, 0.95);
+  cameraRig.rotation.set(state.pitch + vy * 2 - 0.06, state.yaw, state.roll + vx * 2);
+  camera.position.set(vx * 5, 1.22 + vy * 4, 0.88);
 
   if (state._skyDome) {
     state._skyDome.rotation.y += dt * (0.015 + state.speed * 0.025);
