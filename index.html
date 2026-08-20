@@ -69,22 +69,6 @@
       </button>
     </nav>
 
-    <div class="stick-deck" id="stickDeck" aria-label="시야 조작">
-      <div class="look-pad" role="group" aria-label="시야 회전">
-        <button type="button" class="stick-btn look-left" data-hold="left" aria-label="왼쪽 보기">↺ 좌</button>
-        <button type="button" class="stick-btn look-stop" id="stickReset" aria-label="시야 정지">정지</button>
-        <button type="button" class="stick-btn look-right" data-hold="right" aria-label="오른쪽 보기">우 ↻</button>
-      </div>
-      <div class="tilt-pad" role="group" aria-label="고개">
-        <button type="button" class="stick-btn" data-hold="up" aria-label="고개 들기">고개↑</button>
-        <button type="button" class="stick-btn" data-hold="down" aria-label="고개 숙이기">고개↓</button>
-      </div>
-      <div class="zoom-pad" role="group" aria-label="줌">
-        <button type="button" class="stick-btn zoom-in" data-hold="zin" aria-label="가까이">가까이</button>
-        <button type="button" class="stick-btn zoom-out" data-hold="zout" aria-label="멀리">멀리</button>
-      </div>
-    </div>
-
     <div class="ui-actions-wrap">
       <div class="gauges">
         <div><span>ALT</span><b id="gAlt">12,400</b></div>
@@ -92,6 +76,7 @@
         <div><span>HDG</span><b id="gHdg">086°</b></div>
       </div>
 
+      <button type="button" class="ui-action ghost" id="viewReset">정면으로</button>
       <button type="button" class="ui-action" id="viewSystem">시스템 보기</button>
       <button type="button" class="ui-action ghost" id="viewContact">프로젝트 문의</button>
     </div>
@@ -160,8 +145,8 @@
   <footer class="hud-bottom">
     <span id="liveClock">00:00:00</span>
     <span id="routeLabel">GMP → USN</span>
-    <span>SCROLL · ZOOM</span>
-    <span>MOVE · LOOK</span>
+    <span>드래그 · 회전</span>
+    <span>스크롤 · 줌</span>
     <span class="hud-credit">Map © Esri · Cockpit © IDG-A32X</span>
   </footer>
 

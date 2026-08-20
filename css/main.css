@@ -187,59 +187,23 @@ img { max-width: 100%; display: block; }
 .route-item.is-active em { color: var(--amber); }
 .route-item:active { transform: translateY(1px); }
 
-/* Look / zoom controls under left panel */
-.stick-deck {
-  display: grid;
-  grid-template-columns: 1.4fr 0.7fr 0.7fr;
-  gap: 0.4rem;
-  align-items: stretch;
-  margin: 0.75rem 0 0.85rem;
-  padding: 0.5rem;
-  border-radius: 14px;
-  background: rgba(28, 29, 31, 0.72);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-}
-.look-pad,
-.tilt-pad,
-.zoom-pad {
-  display: grid;
-  gap: 0.28rem;
-}
-.look-pad { grid-template-columns: 1fr 0.85fr 1fr; }
-.tilt-pad,
-.zoom-pad { grid-template-rows: 1fr 1fr; }
-.stick-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.2rem;
-  padding: 0.25rem 0.35rem;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #3a3d42, #232529);
-  color: #f3efe6;
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 3px 0 #111, inset 0 1px 0 rgba(255,255,255,0.12);
-  font-family: var(--font-b);
+.view-hint {
+  position: fixed;
+  z-index: 7;
+  left: 50%;
+  bottom: max(3.6rem, calc(3.2rem + env(safe-area-inset-bottom)));
+  transform: translateX(-50%);
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(20, 22, 26, 0.55);
+  color: rgba(245, 242, 235, 0.88);
   font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  user-select: none;
-  touch-action: none;
-  -webkit-tap-highlight-color: transparent;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
 }
-.stick-btn:active,
-.stick-btn.is-held {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 #111, inset 0 2px 6px rgba(0,0,0,0.45);
-  background: linear-gradient(180deg, #2a2d32, #1a1c1f);
-  color: var(--amber);
-}
-.look-stop {
-  background: linear-gradient(180deg, #5a3a2a, #2c1810);
-  color: #ffd39a;
-  font-size: 0.78rem;
-}
+.view-hint.is-on { opacity: 1; }
 
 .gauges {
   display: grid;
@@ -290,6 +254,12 @@ img { max-width: 100%; display: block; }
   color: var(--ink);
   border: 1px solid rgba(28,29,31,0.2);
   margin-top: 0.45rem;
+}
+#viewReset {
+  margin-top: 0.35rem;
+  margin-bottom: 0.15rem;
+  border-color: rgba(212,138,26,0.45);
+  color: #8a5a12;
 }
 
 .stage {
@@ -619,30 +589,7 @@ body.is-ready .boot {
     overflow: hidden;
   }
 
-  /* One bottom dock: look + gauges + actions */
-  .stick-deck {
-    position: fixed;
-    left: max(0.45rem, env(safe-area-inset-left));
-    right: max(0.45rem, env(safe-area-inset-right));
-    bottom: calc(4.55rem + env(safe-area-inset-bottom));
-    z-index: 28;
-    margin: 0;
-    max-width: none;
-    width: auto;
-    grid-template-columns: 1.5fr 0.7fr 0.7fr;
-    gap: 0.3rem;
-    padding: 0.35rem;
-    border-radius: 12px;
-    background: rgba(20, 22, 26, 0.82);
-  }
-  .stick-btn {
-    min-height: 2rem;
-    font-size: 0.62rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 0 #0a0a0a;
-  }
-  .look-stop { font-size: 0.68rem; }
-
+  /* One bottom dock: gauges + actions */
   .ui-actions-wrap {
     position: fixed;
     left: max(0.45rem, env(safe-area-inset-left));
@@ -667,6 +614,7 @@ body.is-ready .boot {
   .gauges div { padding: 0.22rem 0.1rem; border-radius: 8px; }
   .gauges span { font-size: 0.45rem; }
   .gauges b { font-size: 0.62rem; margin-top: 0.1rem; }
+  #viewReset { grid-column: 1 / -1; min-height: 34px; }
   .ui-action {
     min-height: 36px;
     font-size: 0.72rem;
@@ -679,10 +627,14 @@ body.is-ready .boot {
     left: 0.55rem;
     right: 0.55rem;
     top: calc(max(0.4rem, env(safe-area-inset-top)) + 5.3rem);
-    bottom: calc(9.6rem + env(safe-area-inset-bottom));
+    bottom: calc(7.2rem + env(safe-area-inset-bottom));
     align-items: flex-start;
     justify-content: flex-end;
     padding-top: 0;
+  }
+  .view-hint {
+    bottom: calc(7.6rem + env(safe-area-inset-bottom));
+    font-size: 0.65rem;
   }
   .hero-card,
   .project-card,

@@ -105,6 +105,8 @@ const state = {
   flightT: 0,
   padActive: false,
   pad: { yaw: 0, pitch: 0, zoom: 0 },
+  dragging: false,
+  dragMoved: false,
 };
 
 const el = {
@@ -1070,15 +1072,12 @@ document.getElementById("closeSystem")?.addEventListener("click", () => {
 window.addEventListener(
   "pointermove",
   (e) => {
-    if (reduce || state.padActive) return;
-    const nx = (e.clientX / window.innerWidth) * 2 - 1;
-    const ny = (e.clientY / window.innerHeight) * 2 - 1;
-    /* mouse right → look right (camera Y rotation inverted from screen X) */
-    state.tYaw = -nx * (isMobile() ? 0.38 : 0.85);
-    state.tPitch = -ny * (isMobile() ? 0.14 : 0.24);
-    if (el.flightUi) {
-      el.flightUi.style.setProperty("--ui-x", `${nx * 5}px`);
-      el.flightUi.style.setProperty("--ui-y", `${ny * 3}px`);
+    /* UI panels: never steer the view — only drag on canvas does */
+    if (el.flightUi && !isMobile()) {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1;
+      const ny = (e.clientY / window.innerHeight) * 2 - 1;
+      el.flightUi.style.setProperty("--ui-x", `${nx * 4}px`);
+      el.flightUi.style.setProperty("--ui-y", `${ny * 2}px`);
       el.flightUi.classList.add("is-tilted");
     }
   },
@@ -1114,68 +1113,89 @@ window.addEventListener("keydown", (e) => {
 
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
-function onMfdPointer(e) {
-  if (!state._mfdScreens?.length) return;
+function tryOpenMfdAt(clientX, clientY) {
+  if (!state._mfdScreens?.length) return false;
   const rect = renderer.domElement.getBoundingClientRect();
-  pointerNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  pointerNdc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNdc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointerNdc, camera);
   const hits = raycaster.intersectObjects(
     state._mfdScreens.map((s) => s.mesh),
     false
   );
-  if (!hits.length) return;
+  if (!hits.length) return false;
   const slot = state._mfdScreens.find((s) => s.mesh === hits[0].object);
-  if (!slot) return;
+  if (!slot) return false;
   applyProject(slot.liveIndex ?? 0);
+  return true;
 }
-renderer.domElement.addEventListener("pointerdown", onMfdPointer);
-renderer.domElement.style.cursor = "grab";
 
-/* Arcade stick: hold to look / zoom */
-const padHold = { left: false, right: false, up: false, down: false, zin: false, zout: false };
-function syncPadFromHold() {
-  /* left → look left (+Y rot), right → look right (-Y rot) */
-  state.pad.yaw = (padHold.left ? 1 : 0) + (padHold.right ? -1 : 0);
-  state.pad.pitch = (padHold.up ? 1 : 0) + (padHold.down ? -1 : 0);
-  state.pad.zoom = (padHold.zin ? 1 : 0) + (padHold.zout ? -1 : 0);
-  state.padActive = !!(state.pad.yaw || state.pad.pitch || state.pad.zoom);
-}
-function bindStickHold(btn, key) {
-  const start = (e) => {
-    e.preventDefault();
-    padHold[key] = true;
-    btn.classList.add("is-held");
-    syncPadFromHold();
-  };
-  const end = () => {
-    padHold[key] = false;
-    btn.classList.remove("is-held");
-    syncPadFromHold();
-  };
-  btn.addEventListener("pointerdown", start);
-  btn.addEventListener("pointerup", end);
-  btn.addEventListener("pointerleave", end);
-  btn.addEventListener("pointercancel", end);
-}
-document.querySelectorAll(".stick-btn[data-hold]").forEach((btn) => {
-  bindStickHold(btn, btn.dataset.hold);
+/* 360-style orbit: drag canvas to look, release keeps pose (Naver car-view pattern) */
+let dragLastX = 0;
+let dragLastY = 0;
+let dragDownX = 0;
+let dragDownY = 0;
+const canvasEl = renderer.domElement;
+canvasEl.style.cursor = "grab";
+canvasEl.style.touchAction = "none";
+
+canvasEl.addEventListener("pointerdown", (e) => {
+  if (e.button != null && e.button !== 0) return;
+  state.dragging = true;
+  state.dragMoved = false;
+  dragLastX = dragDownX = e.clientX;
+  dragLastY = dragDownY = e.clientY;
+  try {
+    canvasEl.setPointerCapture(e.pointerId);
+  } catch (_) {}
+  canvasEl.style.cursor = "grabbing";
 });
-document.getElementById("stickReset")?.addEventListener("click", () => {
+
+canvasEl.addEventListener("pointermove", (e) => {
+  if (!state.dragging || reduce) return;
+  const dx = e.clientX - dragLastX;
+  const dy = e.clientY - dragLastY;
+  dragLastX = e.clientX;
+  dragLastY = e.clientY;
+  if (Math.hypot(e.clientX - dragDownX, e.clientY - dragDownY) > 8) state.dragMoved = true;
+  const sens = isMobile() ? 0.005 : 0.0038;
+  state.yaw = THREE.MathUtils.clamp(state.yaw - dx * sens, -1.15, 1.15);
+  state.pitch = THREE.MathUtils.clamp(state.pitch - dy * sens, -0.48, 0.42);
+  state.tYaw = state.yaw;
+  state.tPitch = state.pitch;
+});
+
+function endDrag(e) {
+  if (!state.dragging) return;
+  state.dragging = false;
+  canvasEl.style.cursor = "grab";
+  try {
+    canvasEl.releasePointerCapture(e.pointerId);
+  } catch (_) {}
+  /* tap (no drag) → open MFD under finger */
+  if (!state.dragMoved) tryOpenMfdAt(e.clientX, e.clientY);
+}
+canvasEl.addEventListener("pointerup", endDrag);
+canvasEl.addEventListener("pointercancel", endDrag);
+
+function resetView() {
   state.tYaw = 0;
   state.tPitch = 0;
-  state.tZoom = 0.28;
   state.yaw = 0;
   state.pitch = 0;
+  state.tZoom = 0.28;
   state.zoomSide = 0;
   state.tZoomSide = 0;
-  Object.keys(padHold).forEach((k) => {
-    padHold[k] = false;
-  });
-  document.querySelectorAll(".stick-btn.is-held").forEach((b) => b.classList.remove("is-held"));
-  syncPadFromHold();
-});
+  state.tRoll = 0;
+}
+document.getElementById("viewReset")?.addEventListener("click", resetView);
 
+const hint = document.createElement("div");
+hint.className = "view-hint";
+hint.textContent = "화면을 드래그해서 둘러보세요 · 스크롤로 줌";
+document.body.appendChild(hint);
+requestAnimationFrame(() => hint.classList.add("is-on"));
+setTimeout(() => hint.classList.remove("is-on"), 4200);
 setInterval(() => {
   if (reduce) return;
   state._mfdPhase = (state._mfdPhase + 1) % PROJECTS.length;
@@ -1209,19 +1229,9 @@ function animate(now) {
     state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
-  if (state.padActive) {
-    const maxYaw = isMobile() ? 0.55 : 0.9;
-    const maxPitch = isMobile() ? 0.22 : 0.32;
-    state.tYaw = state.pad.yaw * maxYaw;
-    state.tPitch = state.pad.pitch * maxPitch;
-    if (state.pad.zoom) {
-      state.tZoom = THREE.MathUtils.clamp(state.tZoom + state.pad.zoom * dt * 0.9, 0, 1);
-      state.tSpeed = 1.35;
-    }
-  }
-
-  state.yaw += (state.tYaw - state.yaw) * 0.22;
-  state.pitch += (state.tPitch - state.pitch) * 0.2;
+  /* while not dragging, ease toward held pose */
+  state.yaw += (state.tYaw - state.yaw) * (state.dragging ? 1 : 0.28);
+  state.pitch += (state.tPitch - state.pitch) * (state.dragging ? 1 : 0.28);
   state.roll += (state.tRoll - state.roll) * 0.16;
   state.vibe += dt;
 
