@@ -69,6 +69,21 @@
       </button>
     </nav>
 
+    <div class="stick-deck" id="stickDeck" aria-label="시야 조작">
+      <div class="stick-pad">
+        <button type="button" class="stick-btn stick-up" data-hold="up" aria-label="위를 보기">▲</button>
+        <button type="button" class="stick-btn stick-left" data-hold="left" aria-label="왼쪽">◀</button>
+        <button type="button" class="stick-btn stick-center" id="stickReset" aria-label="중앙 리셋">◎</button>
+        <button type="button" class="stick-btn stick-right" data-hold="right" aria-label="오른쪽">▶</button>
+        <button type="button" class="stick-btn stick-down" data-hold="down" aria-label="아래">▼</button>
+      </div>
+      <div class="zoom-pad">
+        <button type="button" class="stick-btn zoom-in" data-hold="zin" aria-label="줌 인">＋</button>
+        <button type="button" class="stick-btn zoom-out" data-hold="zout" aria-label="줌 아웃">－</button>
+        <span class="zoom-label">ZOOM</span>
+      </div>
+    </div>
+
     <div class="ui-actions-wrap">
       <div class="gauges">
         <div><span>ALT</span><b id="gAlt">12,400</b></div>

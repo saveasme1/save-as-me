@@ -103,6 +103,8 @@ const state = {
   _mfdPhase: 0,
   _mfdScreens: [],
   flightT: 0,
+  padActive: false,
+  pad: { yaw: 0, pitch: 0, zoom: 0 },
 };
 
 const el = {
@@ -573,19 +575,21 @@ for (let i = 0; i < nCloud; i++) {
   clouds.push(s);
 }
 
-/* ========== GMP → USN compressed satellite corridor (Esri World Imagery) ========== */
+/* ========== GMP → USN cruise-altitude satellite corridor ========== */
 const ROUTE = {
   from: { name: "GMP", lat: 37.5583, lon: 126.7906 },
   to: { name: "USN", lat: 35.5935, lon: 129.3519 },
-  zoom: isMobile() ? 10 : 11,
-  samples: isMobile() ? 12 : 18,
+  /* z≈8 = cruise altitude look (cities/coast/mountains), not field-green closeup */
+  zoom: isMobile() ? 8 : 8,
+  samples: isMobile() ? 14 : 20,
+  cols: isMobile() ? 5 : 7,
 };
 
 function lonLatToTile(lon, lat, z) {
   const n = 2 ** z;
-  const x = Math.floor(((lon + 180) / 360) * n);
+  const x = ((lon + 180) / 360) * n;
   const latRad = (lat * Math.PI) / 180;
-  const y = Math.floor(((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n);
+  const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
   return { x, y, n };
 }
 
@@ -611,8 +615,39 @@ function loadTileImage(z, x, y) {
   });
 }
 
+function gradeAerialCanvas(ctx, w, h) {
+  /* Cruise-window grade: less neon green, more haze / urban contrast */
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i];
+    let g = d[i + 1];
+    let b = d[i + 2];
+    /* pull excess greens toward muted olive/gray */
+    if (g > r + 12 && g > b + 8) {
+      g = r * 0.42 + g * 0.38 + b * 0.2;
+      r = r * 0.9 + 18;
+      b = b * 0.95 + 22;
+    }
+    /* slight cool haze */
+    r = r * 0.88 + 28;
+    g = g * 0.9 + 34;
+    b = b * 0.96 + 48;
+    d[i] = Math.min(255, r);
+    d[i + 1] = Math.min(255, g);
+    d[i + 2] = Math.min(255, b);
+  }
+  ctx.putImageData(img, 0, 0);
+  const haze = ctx.createLinearGradient(0, 0, 0, h);
+  haze.addColorStop(0, "rgba(170,200,230,0.28)");
+  haze.addColorStop(0.45, "rgba(160,190,220,0.08)");
+  haze.addColorStop(1, "rgba(40,55,70,0.18)");
+  ctx.fillStyle = haze;
+  ctx.fillRect(0, 0, w, h);
+}
+
 const terrainGroup = new THREE.Group();
-terrainGroup.position.set(0, -2.4, -18);
+terrainGroup.position.set(0, -3.8, -28);
 scene.add(terrainGroup);
 state._terrain = null;
 state._routeReady = false;
@@ -620,13 +655,14 @@ state._routeReady = false;
 async function buildGmpUsnTerrain() {
   const z = ROUTE.zoom;
   const tileSize = 256;
-  const cols = 3;
+  const cols = ROUTE.cols;
+  const half = Math.floor(cols / 2);
   const rows = ROUTE.samples;
   const canvas = document.createElement("canvas");
   canvas.width = tileSize * cols;
   canvas.height = tileSize * rows;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#3a5a3a";
+  ctx.fillStyle = "#6a8498";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const jobs = [];
@@ -634,8 +670,12 @@ async function buildGmpUsnTerrain() {
     const t = i / Math.max(1, rows - 1);
     const { lat, lon } = lerpRoute(t);
     const tile = lonLatToTile(lon, lat, z);
+    const cx = Math.floor(tile.x);
+    const cy = Math.floor(tile.y);
     jobs.push(
-      Promise.all([-1, 0, 1].map((dx) => loadTileImage(z, tile.x + dx, tile.y))).then((imgs) => {
+      Promise.all(
+        Array.from({ length: cols }, (_, ci) => loadTileImage(z, cx + (ci - half), cy))
+      ).then((imgs) => {
         imgs.forEach((img, ci) => {
           if (!img) return;
           ctx.drawImage(img, ci * tileSize, i * tileSize, tileSize, tileSize);
@@ -644,18 +684,20 @@ async function buildGmpUsnTerrain() {
     );
   }
   await Promise.all(jobs);
+  gradeAerialCanvas(ctx, canvas.width, canvas.height);
 
-  ctx.fillStyle = "rgba(255,220,80,0.9)";
-  ctx.font = "bold 28px sans-serif";
-  ctx.fillText("GMP · SEOUL", 24, 40);
-  ctx.fillText("USN · ULSAN", 24, canvas.height - 24);
-
-  ctx.strokeStyle = "rgba(255, 210, 70, 0.7)";
-  ctx.lineWidth = 4;
+  ctx.fillStyle = "rgba(255,230,120,0.92)";
+  ctx.font = "bold 26px sans-serif";
+  ctx.fillText("GMP · SEOUL", 20, 36);
+  ctx.fillText("USN · ULSAN", 20, canvas.height - 20);
+  ctx.strokeStyle = "rgba(255, 220, 90, 0.55)";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([10, 8]);
   ctx.beginPath();
-  ctx.moveTo(canvas.width * 0.5, 8);
-  ctx.lineTo(canvas.width * 0.5, canvas.height - 8);
+  ctx.moveTo(canvas.width * 0.5, 10);
+  ctx.lineTo(canvas.width * 0.5, canvas.height - 10);
   ctx.stroke();
+  ctx.setLineDash([]);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -668,20 +710,16 @@ async function buildGmpUsnTerrain() {
     toneMapped: false,
     fog: false,
   });
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(90, 220, 1, rows), mat);
-  strip.rotation.x = -Math.PI / 2.15;
-  strip.position.set(0, 0, -40);
+  /* Distant horizon ribbon — cruise window, not close-up field */
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(160, 280, 1, rows), mat);
+  strip.rotation.x = -Math.PI / 2.55;
+  strip.position.set(0, 0, -55);
   terrainGroup.add(strip);
 
-  const near = new THREE.Mesh(new THREE.PlaneGeometry(70, 90), mat);
-  near.rotation.x = -Math.PI / 2.35;
-  near.position.set(0, 0.6, -8);
-  terrainGroup.add(near);
-
-  state._terrain = { strip, near, tex, mat };
+  state._terrain = { strip, tex, mat };
   state._routeReady = true;
   const label = document.getElementById("routeLabel");
-  if (label) label.textContent = "GMP → USN · LIVE MAP";
+  if (label) label.textContent = "GMP → USN · CRUISE MAP";
 }
 
 buildGmpUsnTerrain().catch((err) => console.warn("terrain", err));
@@ -1058,7 +1096,7 @@ document.getElementById("closeSystem")?.addEventListener("click", () => {
 window.addEventListener(
   "pointermove",
   (e) => {
-    if (reduce) return;
+    if (reduce || state.padActive) return;
     const nx = (e.clientX / window.innerWidth) * 2 - 1;
     const ny = (e.clientY / window.innerHeight) * 2 - 1;
     state.tYaw = nx * (isMobile() ? 0.38 : 0.85);
@@ -1119,6 +1157,47 @@ function onMfdPointer(e) {
 renderer.domElement.addEventListener("pointerdown", onMfdPointer);
 renderer.domElement.style.cursor = "grab";
 
+/* Arcade stick: hold to look / zoom */
+const padHold = { left: false, right: false, up: false, down: false, zin: false, zout: false };
+function syncPadFromHold() {
+  state.pad.yaw = (padHold.right ? 1 : 0) + (padHold.left ? -1 : 0);
+  state.pad.pitch = (padHold.up ? 1 : 0) + (padHold.down ? -1 : 0);
+  state.pad.zoom = (padHold.zin ? 1 : 0) + (padHold.zout ? -1 : 0);
+  state.padActive = !!(state.pad.yaw || state.pad.pitch || state.pad.zoom);
+}
+function bindStickHold(btn, key) {
+  const start = (e) => {
+    e.preventDefault();
+    padHold[key] = true;
+    btn.classList.add("is-held");
+    syncPadFromHold();
+  };
+  const end = () => {
+    padHold[key] = false;
+    btn.classList.remove("is-held");
+    syncPadFromHold();
+  };
+  btn.addEventListener("pointerdown", start);
+  btn.addEventListener("pointerup", end);
+  btn.addEventListener("pointerleave", end);
+  btn.addEventListener("pointercancel", end);
+}
+document.querySelectorAll(".stick-btn[data-hold]").forEach((btn) => {
+  bindStickHold(btn, btn.dataset.hold);
+});
+document.getElementById("stickReset")?.addEventListener("click", () => {
+  state.tYaw = 0;
+  state.tPitch = 0;
+  state.tZoom = 0.28;
+  state.yaw = 0;
+  state.pitch = 0;
+  Object.keys(padHold).forEach((k) => {
+    padHold[k] = false;
+  });
+  document.querySelectorAll(".stick-btn.is-held").forEach((b) => b.classList.remove("is-held"));
+  syncPadFromHold();
+});
+
 setInterval(() => {
   if (reduce) return;
   state._mfdPhase = (state._mfdPhase + 1) % PROJECTS.length;
@@ -1150,6 +1229,18 @@ function animate(now) {
     state.velocity = 0;
     state.tSpeed += (1 - state.tSpeed) * 0.035;
   }
+
+  if (state.padActive) {
+    const maxYaw = isMobile() ? 0.55 : 0.9;
+    const maxPitch = isMobile() ? 0.22 : 0.32;
+    state.tYaw = state.pad.yaw * maxYaw;
+    state.tPitch = state.pad.pitch * maxPitch;
+    if (state.pad.zoom) {
+      state.tZoom = THREE.MathUtils.clamp(state.tZoom + state.pad.zoom * dt * 0.55, 0, 1);
+      state.tSpeed = 1.25;
+    }
+  }
+
   state.yaw += (state.tYaw - state.yaw) * 0.14;
   state.pitch += (state.tPitch - state.pitch) * 0.12;
   state.roll += (state.tRoll - state.roll) * 0.1;
