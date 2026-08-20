@@ -52,6 +52,8 @@ const PROJECTS = [
     tags: ["Cafe24", "TEXT", "IMAGE", "CUTLINE", "미리보기"],
     link: null,
     linkLabel: null,
+    images: {
+      editor: "assets/missions/03-makerbridge/editor.webp",
       product: "assets/missions/03-makerbridge/product-edit.webp",
       cutline: "assets/missions/03-makerbridge/cutline.webp",
       dash: "assets/missions/03-makerbridge/dashboard.webp",
