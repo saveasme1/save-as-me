@@ -1,0 +1,52 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#12161f"/>
+      <stop offset="100%" stop-color="#1c2433"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="800" height="500" fill="url(#bg)"/>
+  <text x="40" y="42" fill="#7a8799" font-family="ui-monospace,monospace" font-size="13" letter-spacing="4">FLOW · LOCAL → ONLINE</text>
+  <g filter="url(#glow)">
+    <rect x="48" y="90" width="150" height="100" rx="12" fill="#1a2230" stroke="#4db8c9" stroke-width="2"/>
+    <circle cx="88" cy="130" r="18" fill="#2a3a48" stroke="#4db8c9"/>
+    <rect x="118" y="118" width="60" height="8" rx="2" fill="#3a4a5a"/>
+    <rect x="118" y="136" width="44" height="8" rx="2" fill="#2a3a48"/>
+    <text x="123" y="172" fill="#9ad4de" font-family="system-ui,sans-serif" font-size="14" font-weight="600">매장</text>
+  </g>
+  <path d="M210 140 H250" stroke="#d4a017" stroke-width="2.5"/>
+  <polygon points="250,134 262,140 250,146" fill="#d4a017"/>
+  <g>
+    <rect x="270" y="90" width="150" height="100" rx="12" fill="#1a2230" stroke="#d4a017" stroke-width="2"/>
+    <rect x="295" y="115" width="100" height="50" rx="6" fill="#241c10" stroke="#d4a017"/>
+    <text x="345" y="147" text-anchor="middle" fill="#f0c45a" font-family="system-ui,sans-serif" font-size="14" font-weight="600">패키지</text>
+  </g>
+  <path d="M432 140 H472" stroke="#d4a017" stroke-width="2.5"/>
+  <polygon points="472,134 484,140 472,146" fill="#d4a017"/>
+  <g>
+    <rect x="492" y="90" width="150" height="100" rx="12" fill="#1a2230" stroke="#3d9e6f" stroke-width="2"/>
+    <rect x="512" y="112" width="110" height="14" rx="3" fill="#243830"/>
+    <rect x="512" y="136" width="90" height="10" rx="2" fill="#1e2e28"/>
+    <rect x="512" y="154" width="70" height="10" rx="2" fill="#1e2e28"/>
+    <text x="567" y="182" text-anchor="middle" fill="#7dcea6" font-family="system-ui,sans-serif" font-size="13">상세페이지</text>
+  </g>
+  <g>
+    <rect x="90" y="260" width="280" height="160" rx="16" fill="#151c28" stroke="#4db8c9" stroke-width="2"/>
+    <rect x="110" y="282" width="120" height="18" rx="4" fill="#4db8c9" opacity="0.9"/>
+    <text x="120" y="295" fill="#0a1018" font-family="ui-monospace,monospace" font-size="12" font-weight="700">SMARTSTORE</text>
+    <rect x="110" y="318" width="200" height="12" rx="3" fill="#2a3344"/>
+    <rect x="110" y="342" width="160" height="12" rx="3" fill="#2a3344"/>
+    <rect x="110" y="366" width="180" height="12" rx="3" fill="#2a3344"/>
+    <rect x="110" y="390" width="80" height="18" rx="6" fill="#3d9e6f"/>
+  </g>
+  <g>
+    <rect x="430" y="260" width="280" height="160" rx="16" fill="#151c28" stroke="#e07a3a" stroke-width="2"/>
+    <rect x="450" y="282" width="90" height="18" rx="4" fill="#e07a3a"/>
+    <text x="460" y="295" fill="#1a1008" font-family="ui-monospace,monospace" font-size="12" font-weight="700">COUPANG</text>
+    <rect x="450" y="318" width="200" height="12" rx="3" fill="#2a3344"/>
+    <rect x="450" y="342" width="160" height="12" rx="3" fill="#2a3344"/>
+    <rect x="450" y="366" width="180" height="12" rx="3" fill="#2a3344"/>
+    <rect x="450" y="390" width="80" height="18" rx="6" fill="#d4a017"/>
+  </g>
+</svg>

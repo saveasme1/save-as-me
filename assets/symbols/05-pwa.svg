@@ -1,0 +1,25 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" fill="none">
+  <rect width="800" height="500" fill="#0d1118"/>
+  <text x="36" y="40" fill="#7a8799" font-family="ui-monospace,monospace" font-size="13" letter-spacing="3">PWA · INSTALLABLE WEB</text>
+  <rect x="220" y="70" width="200" height="360" rx="28" fill="#1a2030" stroke="#3a4558" stroke-width="3"/>
+  <rect x="240" y="100" width="160" height="280" rx="8" fill="#0a0e16"/>
+  <circle cx="320" cy="130" r="28" fill="#121820" stroke="#85B9E6" stroke-width="2"/>
+  <path d="M308 130 h24 M320 118 v24" stroke="#85B9E6" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="320" y="185" text-anchor="middle" fill="#e8e6e1" font-size="14" font-family="system-ui,sans-serif" font-weight="600">Add to Home</text>
+  <rect x="260" y="210" width="120" height="36" rx="10" fill="#3d9e6f"/>
+  <text x="320" y="233" text-anchor="middle" fill="#e8e6e1" font-size="13" font-family="system-ui,sans-serif" font-weight="600">Install</text>
+  <rect x="270" y="270" width="100" height="10" rx="3" fill="#2a3344"/>
+  <rect x="280" y="290" width="80" height="10" rx="3" fill="#2a3344"/>
+  <circle cx="320" cy="400" r="14" stroke="#3a4558" stroke-width="2"/>
+  <g transform="translate(480,120)">
+    <rect width="240" height="280" rx="16" fill="#151c28" stroke="#4db8c9" stroke-width="1.5"/>
+    <text x="24" y="40" fill="#9ad4de" font-size="13" font-family="ui-monospace,monospace">CAPABILITIES</text>
+    <g fill="#a8b0bc" font-size="15" font-family="system-ui,sans-serif">
+      <circle cx="28" cy="80" r="5" fill="#3d9e6f"/><text x="48" y="85">홈 화면 추가</text>
+      <circle cx="28" cy="120" r="5" fill="#3d9e6f"/><text x="48" y="125">오프라인 캐시</text>
+      <circle cx="28" cy="160" r="5" fill="#3d9e6f"/><text x="48" y="165">앱처럼 실행</text>
+      <circle cx="28" cy="200" r="5" fill="#3d9e6f"/><text x="48" y="205">푸시 / 알림</text>
+      <circle cx="28" cy="240" r="5" fill="#d4a017"/><text x="48" y="245">스토어 없이 배포</text>
+    </g>
+  </g>
+</svg>

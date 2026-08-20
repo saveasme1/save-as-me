@@ -1,0 +1,33 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" fill="none">
+  <rect width="800" height="500" fill="#0d1118"/>
+  <text x="36" y="40" fill="#7a8799" font-family="ui-monospace,monospace" font-size="13" letter-spacing="3">CURSOR MOBILE · CONTINUITY</text>
+  <g>
+    <rect x="70" y="100" width="280" height="180" rx="14" fill="#1a2030" stroke="#4db8c9" stroke-width="2"/>
+    <rect x="90" y="120" width="240" height="120" rx="6" fill="#0a0e16"/>
+    <rect x="105" y="135" width="100" height="8" rx="2" fill="#3d9e6f"/>
+    <rect x="105" y="155" width="180" height="6" rx="2" fill="#2a3344"/>
+    <rect x="105" y="172" width="160" height="6" rx="2" fill="#2a3344"/>
+    <rect x="105" y="189" width="140" height="6" rx="2" fill="#2a3344"/>
+    <text x="210" y="260" text-anchor="middle" fill="#9ad4de" font-size="13" font-family="ui-monospace,monospace">DESKTOP</text>
+  </g>
+  <path d="M370 190 H430" stroke="#d4a017" stroke-width="2.5"/>
+  <polygon points="430,184 442,190 430,196" fill="#d4a017"/>
+  <g>
+    <rect x="460" y="90" width="120" height="220" rx="18" fill="#1a2030" stroke="#d4a017" stroke-width="2"/>
+    <rect x="475" y="115" width="90" height="150" rx="8" fill="#0a0e16"/>
+    <rect x="490" y="135" width="60" height="6" rx="2" fill="#3d9e6f"/>
+    <rect x="490" y="150" width="50" height="5" rx="2" fill="#2a3344"/>
+    <rect x="490" y="164" width="55" height="5" rx="2" fill="#2a3344"/>
+    <circle cx="520" cy="285" r="10" stroke="#3a4558" stroke-width="2"/>
+    <text x="520" y="330" text-anchor="middle" fill="#f0c45a" font-size="12" font-family="ui-monospace,monospace">MOBILE</text>
+  </g>
+  <path d="M600 200 H650" stroke="#d4a017" stroke-width="2.5"/>
+  <polygon points="650,194 662,200 650,206" fill="#d4a017"/>
+  <g>
+    <ellipse cx="720" cy="200" rx="55" ry="36" fill="#1a2030" stroke="#85B9E6" stroke-width="2"/>
+    <ellipse cx="720" cy="200" rx="30" ry="18" fill="#0a0e16" stroke="#4db8c9"/>
+    <text x="720" y="270" text-anchor="middle" fill="#9ad4de" font-size="12" font-family="ui-monospace,monospace">CLOUD</text>
+  </g>
+  <rect x="70" y="360" width="660" height="70" rx="12" fill="#151c28" stroke="#2a3344"/>
+  <text x="400" y="402" text-anchor="middle" fill="#a8b0bc" font-size="16" font-family="system-ui,sans-serif">PC → Phone → Cloud — 작업이 끊기지 않습니다</text>
+</svg>

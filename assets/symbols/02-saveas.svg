@@ -1,0 +1,23 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" fill="none">
+  <rect width="800" height="500" fill="#10141c"/>
+  <text x="36" y="40" fill="#7a8799" font-family="ui-monospace,monospace" font-size="13" letter-spacing="3">SAVEAS · CUSTOM POD</text>
+  <rect x="60" y="70" width="420" height="360" rx="18" fill="#1a2030" stroke="#3a4558" stroke-width="2"/>
+  <rect x="80" y="95" width="380" height="240" rx="10" fill="#0c1018"/>
+  <rect x="140" y="130" width="180" height="180" rx="8" fill="#e8e4dc" stroke="#4db8c9" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="230" y="225" text-anchor="middle" fill="#2a2d32" font-family="Georgia,serif" font-size="28">SAVEAS</text>
+  <circle cx="280" cy="160" r="22" fill="#85B9E6" opacity="0.85"/>
+  <rect x="80" y="350" width="70" height="28" rx="6" fill="#2a3344" stroke="#4db8c9"/>
+  <text x="115" y="369" text-anchor="middle" fill="#9ad4de" font-size="11" font-family="ui-monospace,monospace">TEXT</text>
+  <rect x="160" y="350" width="70" height="28" rx="6" fill="#2a3344"/>
+  <text x="195" y="369" text-anchor="middle" fill="#a8b0bc" font-size="11" font-family="ui-monospace,monospace">IMAGE</text>
+  <rect x="240" y="350" width="80" height="28" rx="6" fill="#2a3344"/>
+  <text x="280" y="369" text-anchor="middle" fill="#a8b0bc" font-size="11" font-family="ui-monospace,monospace">COLOR</text>
+  <rect x="520" y="90" width="220" height="320" rx="20" fill="#1a2030" stroke="#d4a017" stroke-width="2"/>
+  <rect x="545" y="120" width="170" height="170" rx="12" fill="#e8e4dc"/>
+  <text x="630" y="215" text-anchor="middle" fill="#2a2d32" font-family="Georgia,serif" font-size="22">SAVEAS</text>
+  <circle cx="670" cy="150" r="16" fill="#85B9E6"/>
+  <rect x="545" y="310" width="170" height="14" rx="3" fill="#2a3344"/>
+  <rect x="545" y="336" width="120" height="14" rx="3" fill="#2a3344"/>
+  <rect x="545" y="362" width="90" height="28" rx="8" fill="#3d9e6f"/>
+  <text x="590" y="381" text-anchor="middle" fill="#e8e6e1" font-size="12" font-family="system-ui,sans-serif" font-weight="600">ORDER</text>
+</svg>

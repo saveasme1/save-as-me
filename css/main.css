@@ -91,6 +91,12 @@ img { max-width: 100%; display: block; }
   align-items: center;
   margin-bottom: 0.95rem;
 }
+.ui-brand img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #111;
+}
 .ui-brand strong {
   display: block;
   font-family: var(--font-m);

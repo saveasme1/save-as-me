@@ -1,0 +1,25 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" fill="none">
+  <rect width="800" height="500" fill="#0e1219"/>
+  <text x="36" y="40" fill="#7a8799" font-family="ui-monospace,monospace" font-size="13" letter-spacing="3">MAKERBRIDGE · CAFE24 EDITOR</text>
+  <rect x="50" y="70" width="700" height="380" rx="16" fill="#161c28" stroke="#2a3344" stroke-width="2"/>
+  <rect x="70" y="95" width="160" height="330" rx="10" fill="#0f141e" stroke="#2a3344"/>
+  <rect x="90" y="120" width="120" height="120" rx="8" fill="#e8e4dc"/>
+  <text x="150" y="185" text-anchor="middle" fill="#2a2d32" font-size="16" font-family="system-ui,sans-serif" font-weight="700">PRODUCT</text>
+  <rect x="90" y="260" width="120" height="10" rx="2" fill="#2a3344"/>
+  <rect x="90" y="280" width="90" height="10" rx="2" fill="#2a3344"/>
+  <rect x="90" y="300" width="100" height="10" rx="2" fill="#2a3344"/>
+  <rect x="250" y="95" width="480" height="330" rx="10" fill="#0a0e16" stroke="#4db8c9" stroke-width="1.5"/>
+  <rect x="280" y="130" width="280" height="200" rx="6" fill="#1a2030" stroke="#3a4558" stroke-dasharray="8 6"/>
+  <text x="420" y="235" text-anchor="middle" fill="#e8e6e1" font-size="28" font-family="Georgia,serif">SAVEAS</text>
+  <circle cx="500" cy="170" r="20" fill="#85B9E6" opacity="0.9"/>
+  <g transform="translate(280,360)">
+    <rect width="72" height="32" rx="6" fill="#4db8c9"/>
+    <text x="36" y="21" text-anchor="middle" fill="#0a1018" font-size="12" font-family="ui-monospace,monospace" font-weight="700">TEXT</text>
+    <rect x="84" y="0" width="72" height="32" rx="6" fill="#2a3344"/>
+    <text x="120" y="21" text-anchor="middle" fill="#a8b0bc" font-size="12" font-family="ui-monospace,monospace">IMAGE</text>
+    <rect x="168" y="0" width="88" height="32" rx="6" fill="#2a3344"/>
+    <text x="212" y="21" text-anchor="middle" fill="#a8b0bc" font-size="12" font-family="ui-monospace,monospace">CUTLINE</text>
+    <rect x="268" y="0" width="72" height="32" rx="6" fill="#2a3344"/>
+    <text x="304" y="21" text-anchor="middle" fill="#a8b0bc" font-size="12" font-family="ui-monospace,monospace">ALIGN</text>
+  </g>
+</svg>
