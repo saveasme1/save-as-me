@@ -35,6 +35,7 @@ body {
   font-weight: 400;
   line-height: 1.55;
   overflow-x: hidden;
+  max-width: 100%;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -42,6 +43,11 @@ img { max-width: 100%; height: auto; display: block; }
 a { color: inherit; text-decoration: none; }
 strong { font-weight: 600; }
 button { font: inherit; background: none; border: 0; color: inherit; cursor: pointer; }
+
+main, .hero, .hero-frame, .mission, .capabilities, .ending-frame {
+  max-width: 100%;
+  min-width: 0;
+}
 
 .noise {
   pointer-events: none;
@@ -239,6 +245,7 @@ body.has-pointer .crosshair { opacity: 0.55; }
   font-size: 0.68rem;
   letter-spacing: 0.14em;
   color: var(--muted);
+  max-width: 100%;
 }
 .pulse {
   width: 7px; height: 7px;
@@ -371,9 +378,11 @@ body.has-pointer .crosshair { opacity: 0.55; }
   margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2.4rem, 6vw, 5rem);
+  font-size: clamp(2.2rem, 6vw, 5rem);
   line-height: 0.95;
   letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 .section-desc {
   margin: 1rem 0 0;
@@ -432,6 +441,13 @@ body.has-pointer .crosshair { opacity: 0.55; }
   padding: 5rem var(--pad);
   border-top: 1px solid var(--line);
 }
+@media (min-width: 1101px) {
+  .mission-sticky .mission-rail {
+    position: sticky;
+    top: 5.5rem;
+    align-self: start;
+  }
+}
 .mission-code {
   font-family: var(--font-mono);
   font-size: 0.68rem;
@@ -443,9 +459,11 @@ body.has-pointer .crosshair { opacity: 0.55; }
   margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2.2rem, 5vw, 4.2rem);
+  font-size: clamp(2rem, 5vw, 4.2rem);
   line-height: 0.95;
   letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 .mission-title span { color: var(--muted); }
 .mission-ko {
@@ -832,9 +850,11 @@ body.has-pointer .crosshair { opacity: 0.55; }
   margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2.2rem, 6vw, 4.6rem);
+  font-size: clamp(2rem, 6vw, 4.6rem);
   line-height: 0.98;
   letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 .ending-title span { color: var(--amber); }
 .ending-ko {
@@ -921,10 +941,19 @@ body.has-pointer .crosshair { opacity: 0.55; }
 }
 
 @media (max-width: 560px) {
-  .hero-title { font-size: clamp(2.6rem, 14vw, 3.4rem); }
+  :root { --pad: 1rem; }
+  .hero { padding-left: var(--pad); padding-right: var(--pad); }
+  .hero-title {
+    font-size: clamp(2.35rem, 12vw, 3.1rem);
+    word-break: keep-all;
+  }
+  .hero-title .line { max-width: 100%; }
+  .capability-matrix { width: 100%; max-width: 100%; }
+  .cm-list li { font-size: 0.6rem; gap: 0.35rem; }
   .contact-board { grid-template-columns: 1fr; }
   .instrument .inst-gauge { display: none; }
   .hero-cta .btn { width: 100%; }
+  .platform-strip span { font-size: 0.52rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
