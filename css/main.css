@@ -31,8 +31,29 @@ button { background: none; border: 0; cursor: pointer; }
 a { text-decoration: none; }
 img { max-width: 100%; display: block; }
 
-#webgl { position: fixed; inset: 0; z-index: 0; }
-#webgl canvas { display: block; width: 100% !important; height: 100% !important; }
+#webgl {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: #ff8a3a;
+}
+#webgl::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: center / cover no-repeat url("../assets/tex/cockpit-ref.jpg");
+  filter: saturate(1.45) contrast(1.12) brightness(1.06);
+  pointer-events: none;
+}
+#webgl canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent;
+}
 
 .vignette {
   position: fixed;
