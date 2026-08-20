@@ -481,29 +481,50 @@ scene.background = null;
 
 const loader = new THREE.TextureLoader();
 
-/* Extra depth plate on camera (CSS bg already shows photoreal sunset through window) */
-function placeSunsetVista(tex) {
+/* Rotating photoreal sky dome — continuous flight motion */
+const skyDome = new THREE.Mesh(
+  new THREE.SphereGeometry(1200, 64, 32),
+  new THREE.MeshBasicMaterial({
+    color: 0xffb070,
+    side: THREE.BackSide,
+    depthWrite: false,
+    toneMapped: false,
+  })
+);
+scene.add(skyDome);
+state._skyDome = skyDome;
+state._skyScroll = 0;
+
+loader.load("assets/tex/cockpit-ref.jpg", (tex) => {
   tex.colorSpace = THREE.SRGBColorSpace;
-  if (state._farCloud) state._farCloud.parent?.remove(state._farCloud);
-  const far = new THREE.Mesh(
-    new THREE.PlaneGeometry(24, 14),
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  skyDome.material.map = tex;
+  skyDome.material.color.set(0xffffff);
+  skyDome.material.needsUpdate = true;
+});
+
+/* Soft scrolling cloud veil (same sunset warmth — no mountain plate) */
+loader.load("assets/tex/cockpit-ref.jpg", (tex) => {
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.repeat.set(1.35, 1);
+  const layer = new THREE.Mesh(
+    new THREE.PlaneGeometry(140, 70),
     new THREE.MeshBasicMaterial({
       map: tex,
-      depthTest: true,
+      transparent: true,
+      opacity: 0.38,
       depthWrite: false,
       toneMapped: false,
-      fog: false,
-      transparent: true,
-      opacity: 0.92,
     })
   );
-  far.position.set(0, 0.45, -8.5);
-  camera.add(far);
-  state._farCloud = far;
-}
-loader.load("assets/tex/cockpit-ref.jpg", placeSunsetVista);
-
-state._skyDome = null;
+  layer.position.set(0, 5, -48);
+  scene.add(layer);
+  state._cloudLayer = layer;
+  state._farCloud = null;
+});
 
 new RGBELoader().load("assets/sky/khronos-env.hdr", (hdr) => {
   hdr.mapping = THREE.EquirectangularReflectionMapping;
@@ -775,10 +796,25 @@ cyl(0.015, 0.015, 1.1, aluminum, -1.55, 1.15, 0.05, 0, 0, Math.PI / 2, 12);
 cyl(0.015, 0.015, 1.0, aluminum, 1.58, 1.1, 0.05, 0, 0, Math.PI / 2, 12);
 
 rbox(2.9, 0.08, 0.22, 0.02, aluminum, 0, 0.95, -1.05, 0.15, 0, 0);
-rbox(3.2, 0.11, 0.2, 0.025, aluminum, 0, 2.28, -0.85, 0.25, 0, 0);
-rbox(3.15, 0.45, 0.12, 0.03, ivory, 0, 2.45, -0.4, 0.15, 0, 0);
+/* Windshield frame as one assembly — post shares Z with sill + header */
+(() => {
+  const z = -1.1;
+  const ySill = 1.0;
+  const yHead = 2.5;
+  const postH = yHead - ySill;
+  const postY = (ySill + yHead) / 2;
+  rbox(3.45, 0.12, 0.24, 0.025, aluminum, 0, ySill, z, 0.08, 0, 0);
+  rbox(3.45, 0.16, 0.28, 0.03, aluminum, 0, yHead, z, 0.12, 0, 0);
+  /* Roof mass: header → overhead, no crack of sky above the post */
+  rbox(3.4, 0.55, 0.95, 0.04, ivory, 0, 2.48, -0.35, 0.55, 0, 0);
+  rbox(3.35, 0.2, 0.55, 0.03, warmGray, 0, 2.42, -0.7, 0.4, 0, 0);
+  rbox(0.07, postH + 0.08, 0.16, 0.018, ivory, 0, postY + 0.02, z, 0.04, 0, 0);
+  rbox(0.09, postH, 0.06, 0.014, aluminum, 0, postY, z + 0.07, 0.04, 0, 0);
+  rbox(0.7, 0.12, 0.2, 0.025, aluminum, 0, yHead, z + 0.04, 0.1, 0, 0);
+  rbox(0.65, 0.1, 0.18, 0.02, aluminum, 0, ySill, z + 0.04, 0.08, 0, 0);
+})();
 
-rbox(2.05, 0.09, 1.25, 0.03, warmGray, 0, 2.28, 0.22, 0.95, 0, 0);
+rbox(2.35, 0.1, 1.45, 0.03, warmGray, 0, 2.32, -0.05, 0.88, 0, 0);
 mesh(
   new THREE.PlaneGeometry(1.75, 1.0),
   new THREE.MeshStandardMaterial({ map: makeOverhead(), roughness: 0.55, metalness: 0.05, envMapIntensity: 0.35 }),
@@ -813,10 +849,8 @@ const glassMat = new THREE.MeshStandardMaterial({
   envMapIntensity: 0.25,
 });
 
-// Open windshield: ONE thin center pillar only — single continuous glass L/R
-pillar(0.0, 1.52, -1.18, 1.48, 0.04, 0, 0.042);
-mesh(new THREE.PlaneGeometry(2.7, 1.5), glassMat, -1.15, 1.55, -1.14, 0.04, 0.06, 0);
-mesh(new THREE.PlaneGeometry(2.7, 1.5), glassMat, 1.15, 1.55, -1.14, 0.04, -0.06, 0);
+// One continuous glass pane + single center post already built into header/sill
+mesh(new THREE.PlaneGeometry(5.1, 1.6), glassMat, 0, 1.72, -1.13, 0.04, 0, 0);
 mesh(new THREE.PlaneGeometry(1.1, 1.0), glassMat, -1.78, 1.38, 0.08, 0.03, Math.PI / 2.05, 0);
 mesh(new THREE.PlaneGeometry(1.05, 0.95), glassMat, 1.8, 1.36, 0.1, 0.03, -Math.PI / 2.05, 0);
 
@@ -1073,11 +1107,18 @@ function animate(now) {
   camera.position.set(vx * 5, camY + vy * 4, camZ);
 
   if (state._skyDome) {
-    state._skyDome.rotation.y += dt * (0.01 + state.speed * 0.018);
+    state._skyDome.rotation.y += dt * (0.03 + state.speed * 0.045);
   }
-  if (state._farCloud) {
-    state._farCloud.position.x = state.yaw * -22;
-    state._farCloud.position.y = 22 + state.pitch * 10;
+  state._skyScroll = (state._skyScroll || 0) + dt * (1.1 + state.speed * 1.6);
+  mount.style.setProperty("--sky-x", `${50 + state.yaw * -28 - state._skyScroll * 3.2}%`);
+  mount.style.setProperty("--sky-y", `${42 + state.pitch * 22 + Math.sin(state.vibe * 0.35) * 1.5}%`);
+
+  if (state._cloudLayer) {
+    state._cloudLayer.position.x = state.yaw * -14;
+    state._cloudLayer.position.y = 5 + state.pitch * 5;
+    if (state._cloudLayer.material.map) {
+      state._cloudLayer.material.map.offset.x += dt * (0.045 + state.speed * 0.07);
+    }
   }
 
   for (const s of clouds) {
