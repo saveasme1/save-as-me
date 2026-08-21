@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=lookqmt37jg0f";
+import { createCesiumWorld } from "./cesium-world.js?v=mfdltrmt38gjgi";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=lookqmt37jg0f";
+} from "./gmp-usn-route.js?v=mfdltrmt38gjgi";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -663,6 +663,28 @@ function syncMfdCamera() {
   camera.updateMatrixWorld(true);
 }
 
+
+function assignProjectsLeftToRight(centers) {
+  return (centers || [])
+    .slice()
+    .sort((a, b) => a.px - b.px)
+    .slice(0, 5)
+    .map((c, i) => ({ ...c, projectIndex: i }));
+}
+
+function centersFromSeatNorm(w, h) {
+  const norm = state._mfdSeatNorm;
+  if (!norm || norm.length !== 5) return null;
+  return norm.map((n, i) => ({
+    projectIndex: i,
+    px: Math.round(n.fx * w),
+    py: Math.round(n.fy * h),
+    wPx: Math.max(18, Math.round(n.fw * w)),
+    hPx: Math.max(18, Math.round(n.fh * h)),
+    n: 100,
+  }));
+}
+
 function measureBlackDuCenters(root, w, h) {
   const black = collectBlackMeshes(root);
   if (!black.length) return [];
@@ -740,11 +762,13 @@ function measureBlackDuCenters(root, w, h) {
       }),
     }).catch(() => {});
     // #endregion
-    if (fromRuns.length === 5) return fromRuns;
+    if (fromRuns.length === 5) return assignProjectsLeftToRight(fromRuns);
   }
 
-  const seeds = [0.339, 0.406, 0.5, 0.589, 0.656];
-  const snapMax = Math.floor(w * (mobile ? 0.14 : 0.05));
+  const seeds = mobile
+    ? [0.22, 0.36, 0.5, 0.64, 0.78]
+    : [0.339, 0.406, 0.5, 0.589, 0.656];
+  const snapMax = Math.floor(w * (mobile ? 0.1 : 0.05));
   const out = [];
   for (let i = 0; i < seeds.length; i++) {
     let sx = Math.floor(w * seeds[i]);
@@ -768,7 +792,7 @@ function measureBlackDuCenters(root, w, h) {
     if (!found) {
       if (mobile) {
         const gap = measureByGapSplit(hits, w, h);
-        if (gap.length === 5) return gap;
+        if (gap.length === 5) return assignProjectsLeftToRight(gap);
       }
       return [];
     }
@@ -777,13 +801,13 @@ function measureBlackDuCenters(root, w, h) {
     if (!grown) {
       if (mobile) {
         const gap = measureByGapSplit(hits, w, h);
-        if (gap.length === 5) return gap;
+        if (gap.length === 5) return assignProjectsLeftToRight(gap);
       }
       return [];
     }
     out.push({ ...grown, projectIndex: i });
   }
-  return out;
+  return assignProjectsLeftToRight(out);
 }
 
 function growDuRect(hitAt, w, h, sx, sy, mobile) {
@@ -821,48 +845,55 @@ function growDuRect(hitAt, w, h, sx, sy, mobile) {
 }
 
 function measureByBlackRuns(hitAt, w, h, modeY, x0, x1) {
-  const runs = [];
-  let start = null;
-  for (let px = x0; px <= x1; px += 2) {
-    if (hitAt(px, modeY)) {
-      if (start == null) start = px;
-    } else if (start != null) {
-      runs.push({ min: start, max: px - 2 });
-      start = null;
-    }
-  }
-  if (start != null) runs.push({ min: start, max: x1 });
-  const dus = runs
-    .map((r) => ({ ...r, w: r.max - r.min }))
-    .filter((r) => r.w >= Math.max(18, Math.floor(w * 0.028)))
-    .sort((a, b) => a.min - b.min);
-  if (dus.length < 5) return [];
-  /* pick 5: if more than 5, keep widest / most central cluster of 5 */
-  let pick = dus;
-  if (dus.length > 5) {
-    let best = null;
-    let bestScore = -1;
-    for (let i = 0; i <= dus.length - 5; i++) {
-      const slice = dus.slice(i, i + 5);
-      const span = slice[4].max - slice[0].min;
-      const mid = (slice[0].min + slice[4].max) / 2;
-      const score = 1000 - Math.abs(mid - w * 0.5) - span * 0.02;
-      if (score > bestScore) {
-        bestScore = score;
-        best = slice;
+  const tryY = [modeY, modeY - 6, modeY + 6, modeY - 12, modeY + 12, modeY - 20, modeY + 20];
+  let best = null;
+  let bestScore = -1e9;
+  for (const y of tryY) {
+    if (y < 8 || y > h - 8) continue;
+    const runs = [];
+    let start = null;
+    for (let px = x0; px <= x1; px += 2) {
+      if (hitAt(px, y)) {
+        if (start == null) start = px;
+      } else if (start != null) {
+        runs.push({ min: start, max: px - 2 });
+        start = null;
       }
     }
-    pick = best || dus.slice(0, 5);
+    if (start != null) runs.push({ min: start, max: x1 });
+    const dus = runs
+      .map((r) => ({ ...r, w: r.max - r.min }))
+      .filter((r) => r.w >= Math.max(16, Math.floor(w * 0.022)))
+      .sort((a, b) => a.min - b.min);
+    if (dus.length < 5) continue;
+    /* prefer 5 consecutive runs with similar widths that include screen center */
+    for (let i = 0; i <= dus.length - 5; i++) {
+      const slice = dus.slice(i, i + 5);
+      const widths = slice.map((r) => r.w);
+      const mean = widths.reduce((a, b) => a + b, 0) / 5;
+      const varW = widths.reduce((a, b) => a + (b - mean) * (b - mean), 0) / 5;
+      const mid = (slice[0].min + slice[4].max) / 2;
+      const coversCenter = slice[0].min <= w * 0.5 && slice[4].max >= w * 0.5;
+      if (!coversCenter) continue;
+      /* reward leftmost captain DU near ~22–38% on mobile */
+      const leftBias = -Math.abs(slice[0].min / w - 0.18) * 40;
+      const score = 500 - varW * 0.02 - Math.abs(mid - w * 0.5) * 0.05 + leftBias + mean * 0.01;
+      if (score > bestScore) {
+        bestScore = score;
+        best = { y, slice };
+      }
+    }
   }
+  if (!best) return [];
   const out = [];
   for (let i = 0; i < 5; i++) {
-    const r = pick[i];
+    const r = best.slice[i];
     const sx = Math.round((r.min + r.max) / 2);
-    const grown = growDuRect(hitAt, w, h, sx, modeY, true);
+    const grown = growDuRect(hitAt, w, h, sx, best.y, true);
     if (!grown) return [];
     out.push({ ...grown, projectIndex: i });
   }
-  return out;
+  return assignProjectsLeftToRight(out);
 }
 
 function measureByGapSplit(hits, w, h) {
@@ -912,13 +943,22 @@ function measureByGapSplit(hits, w, h) {
 }
 
 function findBlackDuCenters(w, h) {
-  const expect = [
-    { fx: 0.339, fy: 0.685 },
-    { fx: 0.406, fy: 0.685 },
-    { fx: 0.5, fy: 0.685 },
-    { fx: 0.589, fy: 0.685 },
-    { fx: 0.656, fy: 0.685 },
-  ];
+  const mobile = isMobile();
+  const expect = mobile
+    ? [
+        { fx: 0.22, fy: 0.7 },
+        { fx: 0.36, fy: 0.7 },
+        { fx: 0.5, fy: 0.7 },
+        { fx: 0.64, fy: 0.7 },
+        { fx: 0.78, fy: 0.7 },
+      ]
+    : [
+        { fx: 0.339, fy: 0.685 },
+        { fx: 0.406, fy: 0.685 },
+        { fx: 0.5, fy: 0.685 },
+        { fx: 0.589, fy: 0.685 },
+        { fx: 0.656, fy: 0.685 },
+      ];
   const wPx = Math.floor(w * 0.078);
   const hPx = Math.floor(h * 0.08);
   return expect.map((e, i) => ({
@@ -1008,13 +1048,55 @@ function placeMfdOnBlackDus(root, opts = {}) {
 
   const prev = (state._mfdScreens || []).slice();
 
-  let centers = measureBlackDuCenters(root, w, h);
-  const measuredN = centers.length;
+  let centers = null;
+  /* resize: reuse locked NDC seats so project order never reshuffles */
+  if (force && state._mfdSeatNorm && state._mfdSeatNorm.length === 5 && !opts.remeasure) {
+    centers = centersFromSeatNorm(w, h);
+  }
+  if (!centers || centers.length < 5) {
+    centers = measureBlackDuCenters(root, w, h);
+  }
   if (centers.length < 5) centers = findBlackDuCenters(w, h);
   if (centers.length < 5) {
     return false;
   }
-  centers = centers.slice(0, 5);
+  centers = assignProjectsLeftToRight(centers);
+
+  const leftFx = centers[0].px / w;
+  const midFx = centers[2].px / w;
+  const seatOk = leftFx < 0.38 && midFx > 0.4 && midFx < 0.6;
+  if (!seatOk && !opts.remeasure) {
+    state._mfdSeatNorm = null;
+    return placeMfdOnBlackDus(root, { force: true, remeasure: true });
+  }
+
+  // #region agent log
+  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+    body: JSON.stringify({
+      sessionId: "88eb62",
+      runId: "mfd-ltr",
+      hypothesisId: "LTR",
+      location: "flight.js:placeMfd",
+      message: "centers_ltr",
+      data: {
+        w,
+        h,
+        mobile: isMobile(),
+        usedNorm: !!(state._mfdSeatNorm && opts.force && !opts.remeasure),
+        centers: centers.map((c) => ({
+          i: c.projectIndex,
+          px: c.px,
+          py: c.py,
+          wPx: c.wPx,
+          hPx: c.hPx,
+        })),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const black = collectBlackMeshes(root);
   if (!black.length) {
@@ -1030,7 +1112,6 @@ function placeMfdOnBlackDus(root, opts = {}) {
   for (const c0 of centers) {
     let hit = null;
     let c = c0;
-    /* x+y neighborhood — log: index4 center sat in FO gap */
     outer: for (let dx = 0; dx <= 28; dx += 2) {
       for (const sx of dx === 0 ? [0] : [dx, -dx]) {
         for (let dy = 0; dy <= 24; dy += 2) {
@@ -1049,7 +1130,6 @@ function placeMfdOnBlackDus(root, opts = {}) {
       }
     }
     if (!hit?.face && isMobile()) {
-      /* last chance: scan full column near seed fx */
       for (let py = Math.floor(h * 0.45); py <= Math.floor(h * 0.95); py += 3) {
         for (const ox of [0, 6, -6, 12, -12, 18, -18]) {
           const px = c0.px + ox;
@@ -1072,7 +1152,7 @@ function placeMfdOnBlackDus(root, opts = {}) {
         headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
         body: JSON.stringify({
           sessionId: "88eb62",
-          runId: "mo5",
+          runId: "mfd-ltr",
           hypothesisId: "C",
           location: "flight.js:placeMfd",
           message: "fail_ray_miss",
@@ -1083,8 +1163,30 @@ function placeMfdOnBlackDus(root, opts = {}) {
       // #endregion
       return false;
     }
+    /* re-grow size at final hit px for tight LCD fit */
+    const grown = growDuRect(
+      (px, py) => {
+        if (px < 0 || py < 0 || px >= w || py >= h) return false;
+        raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
+        return raycaster.intersectObjects(black, false).length > 0;
+      },
+      w,
+      h,
+      c.px,
+      c.py,
+      isMobile()
+    );
+    if (grown) {
+      c = { ...c, ...grown, projectIndex: c0.projectIndex };
+    }
     sized.push({ c, hit });
   }
+
+  /* final LTR by actual hit px — 01 always leftmost */
+  sized.sort((a, b) => a.c.px - b.c.px);
+  sized.forEach((item, i) => {
+    item.c.projectIndex = i;
+  });
 
   prev.forEach((slot) => {
     if (slot.el) slot.el.remove();
@@ -1107,8 +1209,8 @@ function placeMfdOnBlackDus(root, opts = {}) {
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    /* fill grown black rect (~full LCD); avoid 0.195 hard inflate */
-    const fill = isMobile() ? 1.14 : 0.98;
+    /* seat flush in black LCD — no oversize inflate */
+    const fill = 1.0;
     const duW = worldH * aspect * (c.wPx / w) * fill;
     const duH = worldH * (c.hPx / h) * fill;
 
@@ -1154,6 +1256,8 @@ function placeMfdOnBlackDus(root, opts = {}) {
       detect: {
         px: Math.round(c.px),
         py: Math.round(c.py),
+        wPx: Math.round(c.wPx),
+        hPx: Math.round(c.hPx),
         parent: parent.name,
         side: +duW.toFixed(3),
         h: +duH.toFixed(3),
@@ -1167,6 +1271,14 @@ function placeMfdOnBlackDus(root, opts = {}) {
   cockpit.add(group);
   state._mfdGroup = group;
   state._mfdSeated = state._mfdScreens.length >= 5;
+  if (state._mfdSeated) {
+    state._mfdSeatNorm = state._mfdScreens.map((slot) => ({
+      fx: slot.detect.px / w,
+      fy: slot.detect.py / h,
+      fw: slot.detect.wPx / w,
+      fh: slot.detect.hPx / h,
+    }));
+  }
   if (typeof applyProject === "function") applyProject(-1, { maneuver: false });
   paintMfdScreens();
   tickMfdPop();
@@ -1177,15 +1289,17 @@ function placeMfdOnBlackDus(root, opts = {}) {
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "mo-mfd",
+      runId: "mfd-ltr",
       hypothesisId: "D",
       location: "flight.js:placeMfd",
       message: "place_ok",
       data: {
         n: state._mfdScreens.length,
         mobile: isMobile(),
+        order: state._mfdScreens.map((s) => s.projectIndex),
+        px: state._mfdScreens.map((s) => s.detect.px),
+        sizes: state._mfdScreens.map((s) => ({ w: s.detect.wPx, h: s.detect.hPx })),
         vw: window.innerWidth,
-        detect: state._mfdScreens.map((s) => s.detect),
       },
       timestamp: Date.now(),
     }),
@@ -1198,6 +1312,7 @@ function installMfdScreens(root) {
   root.updateMatrixWorld(true);
   state._mfdScreens = [];
   state._mfdSeated = false;
+  state._mfdSeatNorm = null;
   state._mfdGroup = new THREE.Group();
   state._mfdGroup.name = "mfdPanelScreens";
   cockpit.add(state._mfdGroup);
@@ -1776,19 +1891,13 @@ function frameSideScreens(side) {
   document.querySelectorAll(".snap-btn").forEach((btn) => {
     btn.classList.toggle("is-on", btn.dataset.look === side);
   });
-  if (state._mfdRoot) {
-    setTimeout(() => placeMfdOnBlackDus(state._mfdRoot, { force: true }), 200);
-  }
+  /* MFDs stay on LCD parents — never remeasure on look (was reshuffling 01↔05) */
 }
 
 document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
   btn.addEventListener("click", () => {
     frameSideScreens(btn.dataset.look);
-    if (btn.dataset.look === "center" && state._mfdRoot) {
-      requestAnimationFrame(() => {
-        setTimeout(() => placeMfdOnBlackDus(state._mfdRoot, { force: true }), 120);
-      });
-    }
+    /* keep seated order on center snap */
   });
 });
 
@@ -1886,7 +1995,7 @@ window.addEventListener("resize", () => {
     window.clearTimeout(window.__mfdResizeT);
     window.__mfdResizeT = window.setTimeout(() => {
       state._mfdSeated = false;
-      placeMfdOnBlackDus(state._mfdRoot, { force: true });
+      placeMfdOnBlackDus(state._mfdRoot, { force: true, remeasure: false });
     }, 280);
   }
 });
