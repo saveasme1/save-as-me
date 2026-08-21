@@ -168,7 +168,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     userYawOffset: 0,
     userPitchOffset: 0,
     userAltitudeOffset: 0,
-    routeHeading: 136,
+    routeHeading: 145,
     _heldAtEnd: false,
     _ready: false,
     totalDistM: path.totalDistM,
