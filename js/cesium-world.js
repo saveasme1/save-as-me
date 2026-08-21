@@ -2,6 +2,7 @@ import {
   ARRIVAL_TRANSITION,
   DEPARTURE_TRANSITION,
   FLIGHT_DURATION_SEC,
+  GMP_ELEV_M,
   altitudeEnvelopeM,
   bearingDeg,
   buildFlightPath,
@@ -76,10 +77,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   }
 
   viewer.scene.globe.enableLighting = false;
-  viewer.scene.globe.depthTestAgainstTerrain = true;
+  /* depthTestAgainstTerrain causes flicker/pop while tiles stream in */
+  viewer.scene.globe.depthTestAgainstTerrain = false;
   if (viewer.scene.fog) {
     viewer.scene.fog.enabled = true;
-    viewer.scene.fog.density = 0.00025;
+    viewer.scene.fog.density = 0.00018;
   }
   if (viewer.scene.skyBox && typeof viewer.scene.skyBox === "object") viewer.scene.skyBox.show = true;
   if (viewer.scene.sun && typeof viewer.scene.sun === "object") viewer.scene.sun.show = true;
@@ -87,13 +89,13 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   if (viewer.scene.skyAtmosphere && typeof viewer.scene.skyAtmosphere === "object") {
     viewer.scene.skyAtmosphere.show = true;
   }
-  viewer.resolutionScale = mobile ? 0.65 : Math.min(1, window.devicePixelRatio > 1.5 ? 0.85 : 1);
-  viewer.scene.globe.maximumScreenSpaceError = mobile ? 4 : 2;
-  if ("tileCacheSize" in viewer.scene.globe) viewer.scene.globe.tileCacheSize = mobile ? 80 : 160;
+  /* sharper tiles near airports; cruise can loosen later */
+  viewer.resolutionScale = mobile ? 0.75 : 1;
+  viewer.scene.globe.maximumScreenSpaceError = mobile ? 2 : 1.15;
+  if ("tileCacheSize" in viewer.scene.globe) viewer.scene.globe.tileCacheSize = mobile ? 120 : 220;
+  viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.screenSpaceCameraController.enableInputs = false;
   if (viewer.cesiumWidget?.creditContainer) viewer.cesiumWidget.creditContainer.style.display = "";
-
-  /* default ion imagery when token present — do not force map labels */
 
   const path = buildFlightPath();
   console.info(
@@ -107,8 +109,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     latitude: DEPARTURE_TRANSITION[0].lat,
     longitude: DEPARTURE_TRANSITION[0].lon,
     terrainHeight: 0,
-    altitudeAMSL: 18,
-    altitudeAGL: 18,
+    altitudeAMSL: GMP_ELEV_M + 140,
+    altitudeAGL: 140,
     heading: 136,
     pitch: 0,
     roll: 0,
@@ -118,11 +120,10 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     phase: "departure",
     userYawOffset: 0,
     userAltitudeOffset: 0,
-    /* geographic autopilot attitude — never rewritten by keyboard */
     routeHeading: 136,
     _yawTarget: 0,
     _altTarget: 0,
-    _prevAlt: 18,
+    _prevAlt: GMP_ELEV_M + 140,
     _heldAtEnd: false,
     _ready: false,
     totalDistM: path.totalDistM,
@@ -130,45 +131,65 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     publishedNm: path.totalDistM / 1852,
   };
 
-  state._ready = false;
+  function waitTilesIdle(maxMs = 6000, needIdle = 4) {
+    return new Promise((resolve) => {
+      let idle = 0;
+      let remove = null;
+      const finish = () => {
+        try {
+          if (typeof remove === "function") remove();
+        } catch (_) {}
+        resolve();
+      };
+      const timer = setTimeout(finish, maxMs);
+      try {
+        remove = viewer.scene.globe.tileLoadProgressEvent.addEventListener((queued) => {
+          if (queued === 0) idle += 1;
+          else idle = 0;
+          if (idle >= needIdle) {
+            clearTimeout(timer);
+            finish();
+          }
+        });
+      } catch (_) {
+        clearTimeout(timer);
+        finish();
+      }
+    });
+  }
+
+  function setCam(lon, lat, height, headingDeg, pitchDeg) {
+    viewer.camera.setView({
+      destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+      orientation: {
+        heading: Cesium.Math.toRadians(headingDeg),
+        pitch: Cesium.Math.toRadians(pitchDeg),
+        roll: 0,
+      },
+    });
+  }
+
+  /* Multi-pass Gimpo preload so windshield is not muddy LOD sludge */
+  const g0 = DEPARTURE_TRANSITION[0];
+  const g1 = DEPARTURE_TRANSITION[Math.min(2, DEPARTURE_TRANSITION.length - 1)];
   document.body.classList.remove("is-cesium-ready");
+  const bootEm = document.querySelector("#boot em");
+  if (bootEm) bootEm.textContent = "Gimpo terrain loading…";
 
-  /* preload Gimpo runway area before flight clock starts */
-  viewer.camera.setView({
-    destination: Cesium.Cartesian3.fromDegrees(
-      DEPARTURE_TRANSITION[0].lon,
-      DEPARTURE_TRANSITION[0].lat,
-      180
-    ),
-    orientation: {
-      heading: Cesium.Math.toRadians(136),
-      pitch: Cesium.Math.toRadians(-28),
-      roll: 0,
-    },
-  });
+  setCam(g0.lon, g0.lat, 900, 136, -35);
+  await waitTilesIdle(5000, 3);
+  setCam(g0.lon, g0.lat, 320, 136, -14);
+  await waitTilesIdle(5000, 4);
+  setCam(g1.lon, g1.lat, 280, 136, -12);
+  await waitTilesIdle(4000, 3);
+  /* final departure pose: along runway, sky + field readable */
+  setCam(g0.lon, g0.lat, 160, 136, -11);
+  await waitTilesIdle(3500, 3);
 
-  await new Promise((resolve) => {
-    let settled = false;
-    const done = () => {
-      if (settled) return;
-      settled = true;
-      state._ready = true;
-      document.body.classList.add("is-cesium-ready");
-      resolve();
-    };
-    const timeout = setTimeout(done, 8000);
-    try {
-      viewer.scene.globe.tileLoadProgressEvent.addEventListener((queued) => {
-        if (queued === 0) {
-          clearTimeout(timeout);
-          setTimeout(done, 400);
-        }
-      });
-    } catch (_) {
-      clearTimeout(timeout);
-      done();
-    }
-  });
+  state._ready = true;
+  document.body.classList.add("is-cesium-ready");
+  if (bootEm) bootEm.textContent = "Opening cockpit…";
+  document.body.classList.add("is-ready");
 
   let debugEl = null;
   if (debug || new URLSearchParams(location.search).has("flightDebug")) {
@@ -307,11 +328,32 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       state.altitudeAMSL + state.userAltitudeOffset
     );
     let horizonBias = -6;
-    if (u < 0.1) horizonBias = -26; /* look down at Gimpo field */
-    else if (u < 0.18) horizonBias = -14;
-    else if (u > 0.92) horizonBias = -22; /* look down at Ulsan airport */
-    else if (u > 0.86) horizonBias = -12;
+    /* mild look-down — steep pitch fills windshield with muddy low-LOD ground */
+    if (u < 0.1) horizonBias = -11;
+    else if (u < 0.18) horizonBias = -9;
+    else if (u > 0.92) horizonBias = -14;
+    else if (u > 0.86) horizonBias = -10;
     else if (state.phase === "cruise") horizonBias = -9;
+
+    /* phase-aware tile quality: sharp near fields, lighter at cruise */
+    if (u < 0.15 || u > 0.88) {
+      viewer.scene.globe.maximumScreenSpaceError = mobile ? 1.8 : 1.05;
+    } else if (state.phase === "cruise") {
+      viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.8 : 1.8;
+    } else {
+      viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.2 : 1.35;
+    }
+
+    /* preload tiles ahead of aircraft */
+    try {
+      const pre = sampleAhead(path, distM, Math.max(lookM, 8000));
+      viewer.scene.camera.moveForward; /* no-op keep ref */
+      void pre;
+      if ((Math.floor(state.elapsedSeconds * 2) % 5) === 0) {
+        const carto = Cesium.Cartographic.fromDegrees(pre.lon, pre.lat);
+        viewer.scene.globe.getHeight(carto);
+      }
+    } catch (_) {}
 
     const viewHdg = (state.routeHeading + state.userYawOffset + 360) % 360;
     const pitchCesium = Cesium.Math.toRadians(-state.pitch + horizonBias);

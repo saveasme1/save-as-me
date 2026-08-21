@@ -126,9 +126,9 @@ export function altitudeEnvelopeM(u) {
   const t = Math.max(0, Math.min(1, u));
   /* Stay low near Gimpo / Ulsan so airports read in the windshield */
   const keys = [
-    [0.0, GMP_ELEV_M + 55],
-    [0.05, GMP_ELEV_M + 95],
-    [0.09, 220],
+    [0.0, GMP_ELEV_M + 140],
+    [0.05, GMP_ELEV_M + 180],
+    [0.09, 320],
     [0.14, 900],
     [0.22, 3800],
     [0.3, 6000],
@@ -138,9 +138,9 @@ export function altitudeEnvelopeM(u) {
     [0.74, 5000],
     [0.83, 2800],
     [0.9, 900],
-    [0.95, 220],
-    [0.98, USN_ELEV_M + 90],
-    [1.0, USN_ELEV_M + 55],
+    [0.95, 280],
+    [0.98, USN_ELEV_M + 120],
+    [1.0, USN_ELEV_M + 90],
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];

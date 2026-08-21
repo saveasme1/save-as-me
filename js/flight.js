@@ -1449,13 +1449,16 @@ document.addEventListener("visibilitychange", () => {
 createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug") })
   .then((world) => {
     state._cesium = world;
+    document.body.classList.add("is-ready");
     console.info(
       `[cesium] ready routeKm=${world.path.totalDistM / 1000} duration=${world.FLIGHT_DURATION_SEC}s`
     );
   })
-  .catch((err) => console.error("[cesium] init failed", err));
+  .catch((err) => {
+    console.error("[cesium] init failed", err);
+    document.body.classList.add("is-ready");
+  });
 
 applyProject(-1, { maneuver: false });
 requestAnimationFrame(animate);
-setTimeout(() => document.body.classList.add("is-ready"), 700);
 

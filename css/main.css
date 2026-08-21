@@ -36,6 +36,12 @@ img { max-width: 100%; display: block; }
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.1s ease;
+  background: #6fa8d4;
+}
+body.is-cesium-ready #cesiumContainer {
+  opacity: 1;
 }
 #cesiumContainer .cesium-viewer,
 #cesiumContainer .cesium-viewer-cesiumWidgetContainer,
