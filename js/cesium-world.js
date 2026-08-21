@@ -76,6 +76,41 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       .catch((e) => console.warn("[cesium] terrain", e));
   }
 
+  /*
+   * Gimpo RKSS airfield tiles are security-blurred on Bing (Cesium default).
+   * https://community.cesium.com/t/blurred-tiles-gimpo-international-airport/18988
+   * We start over Han River (clear) and use Esri / Sentinel instead of Bing.
+   */
+  try {
+    viewer.imageryLayers.removeAll();
+    let placed = false;
+    try {
+      viewer.imageryLayers.addImageryProvider(
+        new Cesium.UrlTemplateImageryProvider({
+          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+          maximumLevel: 18,
+          credit: "Imagery © Esri",
+        })
+      );
+      placed = true;
+      console.info("[cesium] imagery: Esri World Imagery (Han River corridor — avoids Bing RKSS blur)");
+    } catch (e) {
+      console.warn("[cesium] Esri imagery failed", e);
+    }
+    if (!placed) {
+      try {
+        const sentinel = await Cesium.IonImageryProvider.fromAssetId(3954);
+        viewer.imageryLayers.addImageryProvider(sentinel);
+        placed = true;
+        console.info("[cesium] imagery: Sentinel-2 fallback");
+      } catch (e2) {
+        console.warn("[cesium] Sentinel-2 also failed", e2);
+      }
+    }
+  } catch (e) {
+    console.warn("[cesium] imagery setup failed — keeping viewer default", e);
+  }
+
   viewer.scene.globe.enableLighting = false;
   viewer.scene.globe.depthTestAgainstTerrain = false;
   if (viewer.scene.fog) {
@@ -105,16 +140,16 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     routeProgress: 0,
     latitude: DEPARTURE_TRANSITION[0].lat,
     longitude: DEPARTURE_TRANSITION[0].lon,
-    altitudeAMSL: GMP_ELEV_M + 25,
-    altitudeAGL: 25,
+    altitudeAMSL: 380,
+    altitudeAGL: 360,
     terrainHeight: 0,
-    heading: 136,
+    heading: 145,
     pitch: 4,
     roll: 0,
     phase: "departure",
     activeLegIndex: 0,
-    activeWaypointFrom: "DEP_THR",
-    activeWaypointTo: "DEP_ROLL",
+    activeWaypointFrom: "DEP_HAN",
+    activeWaypointTo: "DEP_GANGSEO",
     quality: "HIGH",
   };
 
@@ -187,13 +222,14 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   const bootEm = document.querySelector("#boot em");
   if (bootEm) bootEm.textContent = "Gimpo terrain loading…";
 
-  /* Preload from overview → runway look-ahead (keep sky in frame — avoid muddy faceplant) */
-  setCam(g0.lon, g0.lat, 1200, 136, -28);
-  await waitTilesIdle(4000, 2);
-  setCam(g0.lon, g0.lat, 450, 136, -14);
+  /* Preload Han River corridor (not blurred RKSS pad) — keep sky + city readable */
+  const startHdg = 145;
+  setCam(g0.lon, g0.lat, 1800, startHdg, -22);
+  await waitTilesIdle(3500, 2);
+  setCam(g0.lon, g0.lat, 700, startHdg, -12);
   await waitTilesIdle(4000, 3);
-  setCam(g0.lon, g0.lat, 80, 136, -8);
-  await waitTilesIdle(3500, 3);
+  setCam(g0.lon, g0.lat, 380, startHdg, -9);
+  await waitTilesIdle(3000, 2);
 
   state._ready = true;
   document.body.classList.add("is-cesium-ready");
@@ -265,7 +301,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state.userPitchOffset = view.pitchOffset;
   }
 
-  let lastHeading = 136;
+  let lastHeading = 145;
   let lastWall = performance.now();
   let lastQuality = "HIGH";
 
@@ -327,7 +363,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const lookM = lookAheadMeters(geo.phase);
     const ahead = sampleAhead(path, distM, lookM);
     let hdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
-    if (elapsed > 95) hdg = 176;
+    if (elapsed > 100) hdg = bearingDeg(sample.lat, sample.lon, ARRIVAL_TRANSITION[ARRIVAL_TRANSITION.length - 1].lat, ARRIVAL_TRANSITION[ARRIVAL_TRANSITION.length - 1].lon);
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
     lastHeading = (lastHeading + dh * Math.min(1, step * (elapsed > 95 ? 2.2 : 1.6)) + 360) % 360;
     geo.heading = lastHeading;
