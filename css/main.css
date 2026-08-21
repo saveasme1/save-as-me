@@ -307,9 +307,11 @@ body.is-cesium-ready #cesiumContainer {
   -webkit-backdrop-filter: blur(10px);
   pointer-events: auto;
   color: #f3efe7;
-  width: max-content;
-  max-width: 7.2rem;
-  min-width: 0;
+  width: 7.6rem;
+  max-width: 7.6rem;
+  min-width: 7.6rem;
+  box-sizing: border-box;
+  align-items: stretch;
 }
 .float-gauges .fg-body {
   pointer-events: none;
@@ -324,11 +326,13 @@ body.is-cesium-ready #cesiumContainer {
   flex-direction: column;
   gap: 0.28rem;
   width: 100%;
-  min-width: 6.4rem;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   pointer-events: auto !important;
   cursor: pointer;
   touch-action: none;
-  padding: 0.35rem 0.1rem 0.45rem;
+  padding: 0.28rem 0 0.36rem;
   margin: 0;
   border-radius: 8px;
   position: relative;
@@ -741,10 +745,40 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   text-align: center;
 }
 .boot-en .boot-outline {
-  color: rgba(7, 16, 24, 0.42);
-  -webkit-text-fill-color: rgba(7, 16, 24, 0.42);
+  position: relative;
+  display: block;
+  color: transparent;
+  isolation: isolate;
   -webkit-text-stroke: 0;
-  font-weight: 700;
+}
+.boot-en .boot-outline-rim,
+.boot-en .boot-outline-cut {
+  display: block;
+  white-space: nowrap;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: inherit;
+  text-align: center;
+}
+.boot-en .boot-outline-rim {
+  color: #071018;
+  -webkit-text-fill-color: #071018;
+  -webkit-text-stroke: 0;
+  font-weight: 800;
+}
+.boot-en .boot-outline-cut {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.905);
+  transform-origin: center center;
+  color: #000;
+  -webkit-text-fill-color: #000;
+  mix-blend-mode: destination-out;
+  pointer-events: none;
+  user-select: none;
+  font-weight: 800;
 }
 .boot-en .boot-solid {
   color: #071018;
@@ -931,14 +965,16 @@ body.is-ready .boot {
   }
   .float-gauges {
     left: max(0.45rem, env(safe-area-inset-left));
-    top: max(4.2rem, calc(env(safe-area-inset-top) + 3.6rem));
+    top: 56%;
     bottom: auto;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 0.28rem;
     padding: 0.38rem 0.45rem;
-    max-width: 6.6rem;
-    min-width: 0;
+    width: 7.4rem;
+    max-width: 7.4rem;
+    min-width: 7.4rem;
+    box-sizing: border-box;
   }
   .float-gauges .fg-body {
     flex-direction: column;
