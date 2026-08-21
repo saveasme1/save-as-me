@@ -19,29 +19,31 @@ export const PUBLISHED_AIRWAY = [
 ];
 
 /**
- * Cinematic departure — NOT on Gimpo airfield tiles.
- * Bing/Cesium ion deliberately blurs RKSS (KR security). Ref:
- * https://community.cesium.com/t/blurred-tiles-gimpo-international-airport/18988
- * Start over Han River / Gangseo (readable imagery) then merge toward SEL.
+ * Cinematic departure — virtual SAVEAS Field (stand-in for blurred RKSS).
+ * Runway heading ~145° over Han River corridor; procedural scenery in virtual-airport.js.
  */
 export const DEPARTURE_TRANSITION = [
-  { id: "DEP_HAN", lat: 37.5685, lon: 126.828, note: "Han River east of Gimpo — visible city/river" },
-  { id: "DEP_GANGSEO", lat: 37.555, lon: 126.845, note: "Gangseo climb outbound" },
-  { id: "DEP_YANGCHEON", lat: 37.535, lon: 126.87, note: "toward Anyang corridor" },
-  { id: "DEP_GWANGMYEONG", lat: 37.49, lon: 126.9, note: "SE toward SEL" },
-  { id: "DEP_TURN", lat: 37.45, lon: 126.915, note: "merge toward SEL" },
+  { id: "DEP_THR", lat: 37.5685, lon: 126.828, note: "virtual RWY threshold" },
+  { id: "DEP_R1", lat: 37.56482, lon: 126.83125, note: "roll" },
+  { id: "DEP_R2", lat: 37.5604, lon: 126.83516, note: "accelerate" },
+  { id: "DEP_ROT", lat: 37.55671, lon: 126.83841, note: "rotate / liftoff" },
+  { id: "DEP_CLB1", lat: 37.55082, lon: 126.84362, note: "initial climb" },
+  { id: "DEP_CLB2", lat: 37.5405, lon: 126.85272, note: "climb outbound" },
+  { id: "DEP_TURN", lat: 37.51692, lon: 126.87352, note: "turn toward SEL" },
 ];
+
+export const DEP_RWY_HEADING = 145;
+export const ARR_RWY_HEADING = 176;
 
 /**
- * Cinematic arrival — prefer Ulsan city/bay over blurred airport pad.
+ * Cinematic arrival — virtual Ulsan Field (stand-in for blurred RKPU pad).
  */
 export const ARRIVAL_TRANSITION = [
-  { id: "ARR_HILLS", lat: 35.64, lon: 129.34, note: "N of Ulsan city" },
-  { id: "ARR_CITY", lat: 35.56, lon: 129.33, note: "Ulsan urban fabric" },
-  { id: "ARR_BAY", lat: 35.53, lon: 129.36, note: "Taehwa / bay" },
-  { id: "ARR_HOLD", lat: 35.545, lon: 129.355, note: "hold over visible Ulsan area" },
+  { id: "ARR_IF", lat: 35.62574, lon: 129.34805, note: "initial approach" },
+  { id: "ARR_FAF", lat: 35.58537, lon: 129.35153, note: "final approach" },
+  { id: "ARR_THR", lat: 35.545, lon: 129.355, note: "virtual RWY threshold" },
+  { id: "ARR_HOLD", lat: 35.54141, lon: 129.35531, note: "touchdown / roll-out" },
 ];
-
 
 export const FLIGHT_DURATION_SEC = 110;
 export const GMP_ELEV_M = 18;
@@ -163,20 +165,22 @@ export function timeToDistanceProgress(elapsed, duration, totalDistM) {
 export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsed));
   const keys = [
-    [0, GMP_ELEV_M + 280],
-    [5, 450],
-    [12, 900],
-    [20, 1800],
-    [25, 3500],
-    [35, 6000],
+    [0, GMP_ELEV_M + 8],
+    [4, GMP_ELEV_M + 8],
+    [8, GMP_ELEV_M + 28],
+    [12, 160],
+    [18, 550],
+    [25, 2200],
+    [35, 5500],
     [45, 7000],
     [55, 7200],
     [70, 6800],
-    [80, 5000],
-    [90, 2800],
-    [100, 1200],
-    [107, 550],
-    [110, 380],
+    [80, 4800],
+    [90, 2200],
+    [98, 700],
+    [104, 180],
+    [108, 55],
+    [110, USN_ELEV_M + 12],
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];
@@ -222,11 +226,16 @@ export function pitchFromAltRate(altRateMps) {
 }
 
 /** Autopilot base pitch by phase (degrees, nose up positive for cinema) */
-export function autopilotPitchDeg(phase, altRateMps) {
-  const rateP = pitchFromAltRate(altRateMps) * 0.4;
-  if (phase === "departure") return 4 + rateP;
-  if (phase === "climb") return 3 + rateP;
-  if (phase === "cruise") return rateP * 0.3;
-  if (phase === "descent") return -2 + rateP;
-  return -1 + rateP;
+export function autopilotPitchDeg(phase, altRateMps, elapsed = 0) {
+  const rateP = pitchFromAltRate(altRateMps) * 0.55;
+  if (phase === "departure") {
+    if (elapsed < 7) return 1.2 + rateP * 0.2; /* ground roll — horizon */
+    if (elapsed < 14) return 10 + rateP; /* rotate */
+    return 6 + rateP;
+  }
+  if (phase === "climb") return 4 + rateP;
+  if (phase === "cruise") return 1.5 + rateP * 0.25;
+  if (phase === "descent") return -1.5 + rateP;
+  if (elapsed > 105) return 1.5 + rateP; /* flare */
+  return -2.5 + rateP;
 }

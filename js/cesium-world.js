@@ -1,8 +1,11 @@
 import {
   ARRIVAL_TRANSITION,
+  ARR_RWY_HEADING,
   DEPARTURE_TRANSITION,
+  DEP_RWY_HEADING,
   FLIGHT_DURATION_SEC,
   GMP_ELEV_M,
+  USN_ELEV_M,
   altitudeAtElapsed,
   autopilotPitchDeg,
   bearingDeg,
@@ -15,6 +18,7 @@ import {
   samplePathByDistance,
   timeToDistanceProgress,
 } from "./gmp-usn-route.js";
+import { addVirtualAirport } from "./virtual-airport.js";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
@@ -135,21 +139,40 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     `[cesium-route] pts=${path.points.length} km=${(path.totalDistM / 1000).toFixed(1)} duration=${FLIGHT_DURATION_SEC}s`
   );
 
+  /* Virtual airports — readable runway when real pads are security-blurred */
+  const depApt = addVirtualAirport(Cesium, viewer, {
+    lat: DEPARTURE_TRANSITION[0].lat,
+    lon: DEPARTURE_TRANSITION[0].lon,
+    heading: DEP_RWY_HEADING,
+    elevM: GMP_ELEV_M,
+    label: "SAVEAS · GMP",
+    runwayLenM: 2800,
+  });
+  const arrApt = addVirtualAirport(Cesium, viewer, {
+    lat: ARRIVAL_TRANSITION[2].lat,
+    lon: ARRIVAL_TRANSITION[2].lon,
+    heading: ARR_RWY_HEADING,
+    elevM: USN_ELEV_M,
+    label: "SAVEAS · USN",
+    runwayLenM: 2400,
+  });
+  console.info("[cesium] virtual airports placed", depApt.heading, arrApt.heading);
+
   /* Geographic autopilot — never written by keyboard */
   const geo = {
     routeProgress: 0,
     latitude: DEPARTURE_TRANSITION[0].lat,
     longitude: DEPARTURE_TRANSITION[0].lon,
-    altitudeAMSL: 380,
-    altitudeAGL: 360,
+    altitudeAMSL: GMP_ELEV_M + 8,
+    altitudeAGL: 8,
     terrainHeight: 0,
-    heading: 145,
-    pitch: 4,
+    heading: DEP_RWY_HEADING,
+    pitch: 2,
     roll: 0,
     phase: "departure",
     activeLegIndex: 0,
-    activeWaypointFrom: "DEP_HAN",
-    activeWaypointTo: "DEP_GANGSEO",
+    activeWaypointFrom: "DEP_THR",
+    activeWaypointTo: "DEP_R1",
     quality: "HIGH",
   };
 
@@ -168,13 +191,13 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     userYawOffset: 0,
     userPitchOffset: 0,
     userAltitudeOffset: 0,
-    routeHeading: 145,
+    routeHeading: DEP_RWY_HEADING,
     _heldAtEnd: false,
     _ready: false,
     totalDistM: path.totalDistM,
     totalDistKm: path.totalDistM / 1000,
     publishedNm: path.totalDistM / 1852,
-    _prevAlt: 380,
+    _prevAlt: GMP_ELEV_M + 8,
     geo,
     view,
   };
@@ -222,14 +245,14 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   const bootEm = document.querySelector("#boot em");
   if (bootEm) bootEm.textContent = "Gimpo terrain loading…";
 
-  /* Preload Han River corridor (not blurred RKSS pad) — keep sky + city readable */
-  const startHdg = 145;
-  setCam(g0.lon, g0.lat, 1800, startHdg, -22);
-  await waitTilesIdle(3500, 2);
-  setCam(g0.lon, g0.lat, 700, startHdg, -12);
-  await waitTilesIdle(4000, 3);
-  setCam(g0.lon, g0.lat, 380, startHdg, -9);
-  await waitTilesIdle(3000, 2);
+  /* Preload virtual runway — stay low, look along strip (not into muddy ground) */
+  const startHdg = DEP_RWY_HEADING;
+  setCam(g0.lon, g0.lat, 900, startHdg, -6);
+  await waitTilesIdle(2800, 2);
+  setCam(g0.lon, g0.lat, 180, startHdg, -4);
+  await waitTilesIdle(3200, 2);
+  setCam(g0.lon, g0.lat, GMP_ELEV_M + 12, startHdg, -2);
+  await waitTilesIdle(2800, 2);
 
   state._ready = true;
   document.body.classList.add("is-cesium-ready");
@@ -301,7 +324,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state.userPitchOffset = view.pitchOffset;
   }
 
-  let lastHeading = 145;
+  let lastHeading = DEP_RWY_HEADING;
   let lastWall = performance.now();
   let lastQuality = "HIGH";
 
@@ -363,7 +386,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const lookM = lookAheadMeters(geo.phase);
     const ahead = sampleAhead(path, distM, lookM);
     let hdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
-    if (elapsed > 100) hdg = bearingDeg(sample.lat, sample.lon, ARRIVAL_TRANSITION[ARRIVAL_TRANSITION.length - 1].lat, ARRIVAL_TRANSITION[ARRIVAL_TRANSITION.length - 1].lon);
+    if (elapsed < 14) hdg = DEP_RWY_HEADING;
+    else if (elapsed > 98) hdg = ARR_RWY_HEADING;
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
     lastHeading = (lastHeading + dh * Math.min(1, step * (elapsed > 95 ? 2.2 : 1.6)) + 360) % 360;
     geo.heading = lastHeading;
@@ -374,8 +398,12 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const terrainH = terrainAtCached(sample.lat, sample.lon);
     geo.terrainHeight = terrainH;
     state.terrainHeight = terrainH;
-    const minClear =
-      geo.phase === "departure" || geo.phase === "approach" ? 30 : geo.phase === "cruise" ? 400 : 120;
+    /* Allow near-ground on virtual runway; keep clearance only in enroute */
+    let minClear = 120;
+    if (geo.phase === "cruise") minClear = 400;
+    else if (geo.phase === "climb" || geo.phase === "descent") minClear = 80;
+    else if (elapsed < 10 || elapsed > 105) minClear = 5;
+    else if (geo.phase === "departure" || geo.phase === "approach") minClear = 20;
     geo.altitudeAMSL = Math.max(autoAlt, terrainH + minClear);
     geo.altitudeAGL = geo.altitudeAMSL - terrainH;
     state.altitudeAMSL = geo.altitudeAMSL;
@@ -383,7 +411,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 
     const altRate = (geo.altitudeAMSL - state._prevAlt) / Math.max(step, 1e-3);
     state._prevAlt = geo.altitudeAMSL;
-    geo.pitch = autopilotPitchDeg(geo.phase, altRate);
+    geo.pitch = autopilotPitchDeg(geo.phase, altRate, elapsed);
     state.pitch = geo.pitch;
     const turnRate = dh / Math.max(step, 1e-3);
     geo.roll = Math.max(-7, Math.min(7, -turnRate * 0.07));
@@ -394,17 +422,18 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
-    /* Camera = autopilot + view offsets only (no alt offset from keys) */
+    /* Camera pitch: Cesium 0=horizon, +up, −down.
+     * Match autopilot nose attitude + light framing bias (was −8…−12 → always looking at dirt). */
     const camH = geo.altitudeAMSL;
-    let horizonBias = -8;
-    if (geo.phase === "departure") horizonBias = -7;
-    else if (geo.phase === "cruise") horizonBias = -12; /* mostly sky ahead */
-    else if (geo.phase === "approach") horizonBias = -10;
-    else if (geo.phase === "descent") horizonBias = -9;
+    let horizonBias = -2.5;
+    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -3.5 : -1.5;
+    else if (geo.phase === "climb") horizonBias = -1.0;
+    else if (geo.phase === "cruise") horizonBias = -2.0;
+    else if (geo.phase === "descent") horizonBias = -3.0;
+    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -5.5 : -4.0;
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    /* Cesium pitch: 0=horizon, negative=look down. Autopilot nose-up → slightly less down. */
-    const renderPitch = -geo.pitch + horizonBias + view.pitchOffset;
+    const renderPitch = geo.pitch + horizonBias + view.pitchOffset;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
