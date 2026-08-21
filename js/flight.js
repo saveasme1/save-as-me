@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fixviewmt365l92";
+import { createCesiumWorld } from "./cesium-world.js?v=seatdumt36a2mb";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fixviewmt365l92";
+} from "./gmp-usn-route.js?v=seatdumt36a2mb";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -842,7 +842,7 @@ function dbgMfd(hypothesisId, location, message, data) {
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "revert-cam",
+      runId: "seat-fix",
       hypothesisId,
       location,
       message,
@@ -912,13 +912,15 @@ function placeMfdOnBlackDus(root) {
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
+  /* small probe only — full-column scan hit DU top (py≈616 vs center≈650) → float above black */
+  const yProbe = [0, 2, -2, 4, -4, 6, -6, 8, -8, 12, -12];
 
   const sized = [];
   for (const c0 of centers) {
     let hit = null;
     let c = c0;
-    /* full-column probe — log proved fixed yProbe ±24 still missed */
-    for (let py = Math.floor(h * 0.4); py <= Math.floor(h * 0.95); py += 3) {
+    for (const dy of yProbe) {
+      const py = c0.py + dy;
       ndc.set((c0.px / w) * 2 - 1, -((py / h) * 2 - 1));
       raycaster.setFromCamera(ndc, camera);
       hit = raycaster.intersectObjects(black, false)[0];
@@ -939,6 +941,16 @@ function placeMfdOnBlackDus(root) {
       // #endregion
       return false;
     }
+    // #region agent log
+    dbgMfd("D", "flight.js:placeMfd", "hit_meta", {
+      i: c0.projectIndex,
+      px: c.px,
+      py: c.py,
+      dist: +hit.distance.toFixed(4),
+      wPx: c.wPx,
+      hPx: c.hPx,
+    });
+    // #endregion
     sized.push({ c, hit });
   }
 
@@ -963,9 +975,9 @@ function placeMfdOnBlackDus(root) {
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    /* fill measured black bezel — slightly under so it stays inside glass */
-    const duW = Math.max(0.035, Math.min(0.14, worldH * aspect * (c.wPx / w) * 0.88));
-    const duH = Math.max(0.03, Math.min(0.13, worldH * (c.hPx / h) * 0.88));
+    /* eacc0b6 fill — no 0.14 hard cap (log showed every DU clamped to 0.14→oversized float) */
+    const duW = Math.min(0.195, worldH * aspect * (c.wPx / w) * 1.22);
+    const duH = Math.min(0.175, worldH * (c.hPx / h) * 1.45);
 
     const parent = hit.object;
     const local = hit.point.clone();
@@ -973,8 +985,7 @@ function placeMfdOnBlackDus(root) {
     let nLocal = hit.face.normal.clone().normalize();
     const nWorld = nLocal.clone().transformDirection(parent.matrixWorld).normalize();
     if (nWorld.dot(toward) < 0) nLocal = nLocal.negate();
-    /* flush on LCD glass */
-    local.addScaledVector(nLocal, 0.00025);
+    local.addScaledVector(nLocal, 0.0003);
 
     const pw = new THREE.Vector3();
     parent.getWorldScale(pw);
@@ -995,7 +1006,7 @@ function placeMfdOnBlackDus(root) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
-    mesh.renderOrder = 20;
+    mesh.renderOrder = 5;
     mesh.userData.mfd = true;
     mesh.visible = true;
     parent.add(mesh);
@@ -1015,6 +1026,7 @@ function placeMfdOnBlackDus(root) {
         h: +duH.toFixed(3),
         n: c.n,
         mode: "lcd3d",
+        dist: +dist.toFixed(4),
       },
     });
   });
