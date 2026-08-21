@@ -629,13 +629,12 @@ function tickMfdPop() {
     slot.mesh.scale.setScalar(sc);
     slot.mesh.visible = true;
     if (slot.mesh.material) {
-      /* always draw above black LCD (transparent Three + Cesium stack) */
-      slot.mesh.material.depthTest = false;
+      slot.mesh.material.depthTest = true;
       slot.mesh.material.depthWrite = false;
       slot.mesh.material.opacity = 1;
       slot.mesh.material.transparent = true;
     }
-    slot.mesh.renderOrder = 20;
+    slot.mesh.renderOrder = 3;
   });
 }
 
@@ -655,11 +654,11 @@ function measureBlackDuCenters(root, w, h) {
   const raycaster = new THREE.Raycaster();
   const hits = [];
   const step = 2;
-  /* Wider belt — camera pitch shifts DU NDC after framing tweaks */
-  const y0 = Math.floor(h * 0.58);
-  const y1 = Math.floor(h * 0.82);
-  const x0 = Math.floor(w * 0.26);
-  const x1 = Math.floor(w * 0.74);
+  /* Doc belt y 66–72% — wider belts reattach to panel body and float into cabin */
+  const y0 = Math.floor(h * 0.66);
+  const y1 = Math.floor(h * 0.72);
+  const x0 = Math.floor(w * 0.29);
+  const x1 = Math.floor(w * 0.71);
   for (let py = y0; py <= y1; py += step) {
     for (let px = x0; px <= x1; px += step) {
       raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
@@ -712,11 +711,11 @@ function measureBlackDuCenters(root, w, h) {
 
 function findBlackDuCenters(w, h) {
   const expect = [
-    { fx: 0.339, fy: 0.7 },
-    { fx: 0.406, fy: 0.7 },
-    { fx: 0.5, fy: 0.7 },
-    { fx: 0.589, fy: 0.7 },
-    { fx: 0.656, fy: 0.7 },
+    { fx: 0.339, fy: 0.685 },
+    { fx: 0.406, fy: 0.685 },
+    { fx: 0.5, fy: 0.685 },
+    { fx: 0.589, fy: 0.685 },
+    { fx: 0.656, fy: 0.685 },
   ];
   const wPx = Math.floor(w * 0.078);
   const hPx = Math.floor(h * 0.08);
@@ -728,12 +727,6 @@ function findBlackDuCenters(w, h) {
     hPx,
     n: 100,
   }));
-}
-
-function hitBlackAt(black, raycaster, ndc, px, py, w, h) {
-  ndc.set((px / w) * 2 - 1, -((py / h) * 2 - 1));
-  raycaster.setFromCamera(ndc, camera);
-  return raycaster.intersectObjects(black, false)[0] || null;
 }
 
 function placeMfdOnBlackDus(root) {
@@ -758,18 +751,12 @@ function placeMfdOnBlackDus(root) {
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
-  const yProbe = [0, 8, -8, 16, -16, 24, -24, 32, -32, 40, -40];
 
   const sized = [];
   centers.forEach((c) => {
-    let hit = null;
-    for (const dy of yProbe) {
-      hit = hitBlackAt(black, raycaster, ndc, c.px, c.py + dy, w, h);
-      if (hit?.face) {
-        c = { ...c, py: c.py + dy };
-        break;
-      }
-    }
+    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObjects(black, false)[0];
     if (!hit || !hit.face) return;
     sized.push({ c, hit });
   });
@@ -814,6 +801,7 @@ function placeMfdOnBlackDus(root) {
     parent.getWorldScale(pw);
     const sx = Math.max(1e-4, Math.abs(pw.x));
     const sy = Math.max(1e-4, Math.abs(pw.y));
+    /* keep nearly uniform — tiny axis scale blows a plane into the cabin */
     const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
     const gw = duW / s;
     const gh = duH / s;
@@ -822,14 +810,14 @@ function placeMfdOnBlackDus(root) {
       map: makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false),
       color: 0xffffff,
       toneMapped: false,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       transparent: true,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
-    mesh.renderOrder = 20;
+    mesh.renderOrder = 5;
     mesh.userData.mfd = true;
     mesh.visible = true;
     parent.add(mesh);
