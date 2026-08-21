@@ -20,6 +20,7 @@ import {
   timeToDistanceProgress,
 } from "./gmp-usn-route.js";
 import { addVirtualAirport } from "./virtual-airport.js";
+import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
@@ -158,6 +159,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     runwayLenM: 2400,
   });
   console.info("[cesium] virtual airports placed", depApt.heading, arrApt.heading);
+
+  const cloudSys = createCesiumCinematicClouds(Cesium, viewer, {
+    mobile,
+    debug: debug || new URLSearchParams(location.search).has("cloudDebug"),
+  });
 
   /* Geographic autopilot — never written by keyboard */
   const geo = {
@@ -458,6 +464,12 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
+    try {
+      cloudSys.update(step, geo);
+    } catch (e) {
+      console.warn("[clouds] update", e);
+    }
+
     /* Camera pitch — restore pre-cloud Cesium framing (afb7ae3), smoothed */
     const camH = geo.altitudeAMSL;
     let horizonBias = -8;
@@ -518,6 +530,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     path,
     tick,
     resize,
+    clouds: cloudSys,
     FLIGHT_DURATION_SEC,
     DEPARTURE_TRANSITION,
     ARRIVAL_TRANSITION,

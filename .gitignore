@@ -4,4 +4,9 @@ js/cesium-token.local.js
 .env.local
 
 _ref_clouds/
+_glb_tool/
+assets/_qa-*
+assets/_glb*
+assets/models/*.pre-gallery.glb
+_qa_*.js
 

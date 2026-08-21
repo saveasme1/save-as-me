@@ -3,7 +3,6 @@ import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { createCesiumWorld } from "./cesium-world.js";
-import { createThreeCinematicClouds } from "./cinematic-clouds-three.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -507,11 +506,7 @@ scene.add(skyDome);
 state._skyDome = skyDome;
 /* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-/* Cinematic towering cumulus — Three world-space mesh clusters (not windshield overlays) */
-const cinematicClouds = createThreeCinematicClouds(scene, {
-  mobile: isMobile(),
-  debug: new URLSearchParams(location.search).has("cloudDebug"),
-});
+/* Clouds: Cesium CloudCollection only (see cesium-cinematic-clouds.js) — no Three windshield sprites */
 const cloudLayers = [];
 const cloudGroup = new THREE.Group();
 cloudGroup.visible = false;
@@ -904,7 +899,11 @@ function prepareCockpitMaterials(root) {
     o.castShadow = false;
     o.receiveShadow = false;
     const meshName = String(o.name || "").toLowerCase();
-    if (meshName === "hud" || meshName.includes("hudscreen")) {
+    if (
+      meshName === "hud" ||
+      meshName.includes("hudscreen") ||
+      meshName.includes("inop")
+    ) {
       o.visible = false;
       return;
     }
@@ -925,28 +924,41 @@ function prepareCockpitMaterials(root) {
         n.includes("gallery") ||
         n.includes("photo") ||
         n.includes("scenery") ||
-        n.includes("cloud") ||
-        n.includes("sky")
+        n === "inop"
       ) {
         const ghost = m.clone();
         ghost.name = `${m.name}_ghost`;
+        ghost.visible = false;
         ghost.transparent = true;
         ghost.opacity = 0;
         ghost.depthWrite = false;
         ghost.colorWrite = false;
         ghost.map = null;
+        ghost.emissiveMap = null;
         ghost.needsUpdate = true;
         return ghost;
       }
-      /* Texture URL hint (PHOTO watermark plates etc.) */
-      const src = String(m.map?.image?.currentSrc || m.map?.image?.src || m.map?.source?.data?.src || "");
-      if (/photo|cloud|gallery|scenery|soft-cloud/i.test(src)) {
+      /* Do NOT match bare "sky"/"cloud" — too broad for cockpit labels */
+      const mapHint = [
+        m.map?.name,
+        m.map?.image?.currentSrc,
+        m.map?.image?.src,
+        m.map?.source?.name,
+        m.name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      if (/front_gallery|gallery_r|gallery_l|photo.?plate|scenery/.test(mapHint)) {
         const ghost = m.clone();
+        ghost.name = `${m.name || "mat"}_ghost`;
+        ghost.visible = false;
         ghost.transparent = true;
         ghost.opacity = 0;
         ghost.depthWrite = false;
         ghost.colorWrite = false;
         ghost.map = null;
+        ghost.emissiveMap = null;
         ghost.needsUpdate = true;
         return ghost;
       }
@@ -996,6 +1008,54 @@ function prepareCockpitMaterials(root) {
       m.needsUpdate = true;
     });
   });
+
+  /* Second pass: zero-out geometry groups using gallery mats + dump names */
+  const allMatNames = new Set();
+  let gallerySlots = 0;
+  let groupsCleared = 0;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => {
+      if (m?.name) allMatNames.add(m.name);
+    });
+    const galleryIdx = new Set();
+    mats.forEach((m, idx) => {
+      if (!m) return;
+      const hint = `${m.name || ""} ${m.map?.name || ""}`.toLowerCase();
+      if (/front_gallery|gallery_r|gallery_l|gallery/.test(hint)) {
+        gallerySlots += 1;
+        galleryIdx.add(idx);
+        m.visible = false;
+        m.colorWrite = false;
+        m.opacity = 0;
+        m.transparent = true;
+        m.depthWrite = false;
+        m.map = null;
+        m.emissiveMap = null;
+        m.needsUpdate = true;
+      }
+    });
+    if (galleryIdx.size && o.geometry?.groups?.length) {
+      for (const g of o.geometry.groups) {
+        if (galleryIdx.has(g.materialIndex)) {
+          g.count = 0;
+          groupsCleared += 1;
+        }
+      }
+    } else if (galleryIdx.size && mats.length === 1) {
+      o.visible = false;
+    }
+  });
+  console.info(`[cockpit] gallery slots=${gallerySlots} groupsCleared=${groupsCleared}`);
+  console.info("[cockpit] materials:", [...allMatNames].sort().join(", "));
+  if (new URLSearchParams(location.search).has("meshDebug")) {
+    const el = document.createElement("pre");
+    el.style.cssText =
+      "position:fixed;right:8px;top:48px;z-index:45;margin:0;padding:8px;font:10px monospace;background:rgba(0,0,0,.55);color:#ffd;max-width:360px;max-height:40vh;overflow:auto";
+    el.textContent = `gallery=${gallerySlots} cleared=${groupsCleared}\n` + [...allMatNames].sort().join("\n");
+    document.body.appendChild(el);
+  }
 }
 
 function fitCockpitView(root) {
@@ -1499,10 +1559,7 @@ function animate(now) {
       const norm = Math.min(1.35, (fs.indicatedAirspeedKt || 0) / 420);
       state.speed += (norm - state.speed) * Math.min(1, dt * 2);
       state.flightHeading = ((fs.heading || 0) * Math.PI) / 180;
-      cinematicClouds.update(dt, fs.phase || "cruise");
     }
-  } else {
-    cinematicClouds.update(dt, "cruise");
   }
 
   tickEnv();
