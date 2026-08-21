@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=dufill2mt319rrk";
+import { createCesiumWorld } from "./cesium-world.js?v=lcd3d2mt32fewl";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=dufill2mt319rrk";
+} from "./gmp-usn-route.js?v=lcd3d2mt32fewl";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -604,16 +604,9 @@ function makeProjectPreview(project, index, highlight = false) {
 function paintMfdScreens() {
   const screens = state._mfdScreens || [];
   screens.forEach((slot) => {
+    if (!slot.mesh?.material) return;
     const projectIndex = slot.liveIndex ?? slot.projectIndex;
     const highlight = state.project === slot.projectIndex;
-    if (slot.el && slot.canvas) {
-      const next = drawMfdClipCanvas(PROJECTS[projectIndex], projectIndex, highlight);
-      next.className = "mfd-clip-canvas";
-      slot.canvas.replaceWith(next);
-      slot.canvas = next;
-      return;
-    }
-    if (!slot.mesh?.material) return;
     const tex = makeProjectPreview(PROJECTS[projectIndex], projectIndex, highlight);
     const prev = slot.mesh.material.map;
     slot.mesh.material.map = tex;
@@ -626,17 +619,19 @@ function tickMfdPop() {
   const screens = state._mfdScreens || [];
   if (!screens.length) return;
   screens.forEach((slot) => {
+    if (!slot.mesh) return;
     const want = state.project === slot.projectIndex ? 1 : 0;
     slot.pop = THREE.MathUtils.lerp(slot.pop || 0, want, 0.18);
-    if (slot.el) {
-      slot.el.style.outline =
-        slot.pop > 0.4 ? "2px solid rgba(240,196,90,0.9)" : "1px solid rgba(120,160,190,0.25)";
-      slot.el.style.transform = "scale(" + (1 + slot.pop * 0.03) + ")";
-      slot.el.style.zIndex = String(10 + Math.round(slot.pop * 5));
+    const sc = 1 + slot.pop * 0.02;
+    slot.mesh.scale.setScalar(sc);
+    slot.mesh.visible = true;
+    if (slot.mesh.material) {
+      slot.mesh.material.depthTest = false;
+      slot.mesh.material.depthWrite = false;
+      slot.mesh.material.opacity = 1;
+      slot.mesh.material.transparent = true;
     }
-    if (slot.mesh) {
-      slot.mesh.visible = false;
-    }
+    slot.mesh.renderOrder = 20;
   });
 }
 
@@ -833,14 +828,23 @@ function drawMfdClipCanvas(project, index, highlight) {
   return c;
 }
 
+function clearMfdClipOverlay() {
+  const layer = document.getElementById("mfdClipLayer");
+  if (layer) layer.remove();
+}
+
 function placeMfdOnBlackDus(root) {
-  const canvas = renderer.domElement;
-  const w = canvas.width;
-  const h = canvas.height;
+  const w = renderer.domElement.width;
+  const h = renderer.domElement.height;
   if (!w || !h) return false;
+
+  /* kill floating HTML overlays — MFDs must be 3D children of black LCD */
+  clearMfdClipOverlay();
 
   syncMfdCamera();
   root.updateMatrixWorld(true);
+
+  const prev = (state._mfdScreens || []).slice();
 
   let centers = measureBlackDuCenters(root, w, h);
   if (centers.length < 5) centers = findBlackDuCenters(w, h);
@@ -850,12 +854,19 @@ function placeMfdOnBlackDus(root) {
   }
   centers = centers.slice(0, 5);
 
-  /* verify black under centers (with y probe) */
   const black = collectBlackMeshes(root);
+  if (!black.length) {
+    console.warn("[mfd-panel] no black LCD");
+    return false;
+  }
+
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  const yProbe = [0, 8, -8, 16, -16, 24, -24, 32, -32];
-  const ok = [];
+  const camPos = camera.getWorldPosition(new THREE.Vector3());
+  const toward = new THREE.Vector3();
+  const yProbe = [0, 4, -4, 8, -8, 12, -12, 16, -16, 24, -24];
+
+  const sized = [];
   for (const c0 of centers) {
     let hit = null;
     let c = c0;
@@ -864,89 +875,97 @@ function placeMfdOnBlackDus(root) {
       ndc.set((c0.px / w) * 2 - 1, -((py / h) * 2 - 1));
       raycaster.setFromCamera(ndc, camera);
       hit = raycaster.intersectObjects(black, false)[0];
-      if (hit) {
+      if (hit?.face) {
         c = { ...c0, py };
         break;
       }
     }
-    if (!hit) continue;
-    ok.push(c);
-  }
-  if (ok.length < 5) {
-    /* measure already sampled black — use centers even if one probe miss */
-    if (centers.length >= 5) {
-      ok.length = 0;
-      centers.forEach((c) => ok.push(c));
-    } else {
-      console.warn("[mfd-panel] clip hits " + ok.length + "/5");
+    if (!hit?.face) {
+      console.warn("[mfd-panel] miss seed", c0.projectIndex);
       return false;
     }
+    sized.push({ c, hit });
   }
 
-  const layer = ensureMfdClipLayer();
-  layer.innerHTML = "";
-  const cssW = canvas.clientWidth || window.innerWidth;
-  const cssH = canvas.clientHeight || window.innerHeight;
-  const sx = cssW / w;
-  const sy = cssH / h;
+  prev.forEach((s) => {
+    if (s.el) s.el.remove();
+    if (!s.mesh) return;
+    if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
+    if (s.mesh.geometry) s.mesh.geometry.dispose();
+    if (s.mesh.material) {
+      if (s.mesh.material.map) s.mesh.material.map.dispose();
+      s.mesh.material.dispose();
+    }
+  });
+  if (state._mfdGroup) cockpit.remove(state._mfdGroup);
 
+  const group = new THREE.Group();
+  group.name = "mfdPanelScreens";
   state._mfdScreens = [];
-  ok.forEach((c, i) => {
-    const wrap = document.createElement("div");
-    wrap.className = "mfd-clip";
-    const minPx = c.minPx ?? c.px - c.wPx / 2;
-    const maxPx = c.maxPx ?? c.px + c.wPx / 2;
-    const minPy = c.minPy ?? c.py - c.hPx / 2;
-    const maxPy = c.maxPy ?? c.py + c.hPx / 2;
-    const bw = Math.max(20, maxPx - minPx);
-    const bh = Math.max(20, maxPy - minPy);
-    /* slight down bias — grow tends to sit high on the bezel lip */
-    const nudgeY = Math.round(bh * 0.06);
-    const minPx2 = minPx;
-    const maxPx2 = maxPx;
-    const minPy2 = minPy + nudgeY;
-    const maxPy2 = maxPy + nudgeY;
-    const bw2 = Math.max(20, maxPx2 - minPx2);
-    const bh2 = Math.max(20, maxPy2 - minPy2);
-    /* tight inset — fill black glass like seated QA */
-    const insetX = Math.max(1, bw2 * 0.02);
-    const insetY = Math.max(1, bh2 * 0.02);
-    const left = (minPx2 + insetX) * sx;
-    const top = (minPy2 + insetY) * sy;
-    const width = Math.max(18, (bw2 - insetX * 2) * sx);
-    const height = Math.max(22, (bh2 - insetY * 2) * sy);
-    wrap.style.left = left + "px";
-    wrap.style.top = top + "px";
-    wrap.style.width = width + "px";
-    wrap.style.height = height + "px";
-    const cv = drawMfdClipCanvas(PROJECTS[c.projectIndex], c.projectIndex, false);
-    cv.className = "mfd-clip-canvas";
-    wrap.appendChild(cv);
-    layer.appendChild(wrap);
+
+  sized.forEach(({ c, hit }) => {
+    toward.subVectors(camPos, hit.point).normalize();
+    const dist = hit.distance;
+    const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+    const aspect = w / h;
+    /* fill measured black bezel — slightly under so it stays inside glass */
+    const duW = Math.max(0.035, Math.min(0.14, worldH * aspect * (c.wPx / w) * 0.88));
+    const duH = Math.max(0.03, Math.min(0.13, worldH * (c.hPx / h) * 0.88));
+
+    const parent = hit.object;
+    const local = hit.point.clone();
+    parent.worldToLocal(local);
+    let nLocal = hit.face.normal.clone().normalize();
+    const nWorld = nLocal.clone().transformDirection(parent.matrixWorld).normalize();
+    if (nWorld.dot(toward) < 0) nLocal = nLocal.negate();
+    /* flush on LCD glass */
+    local.addScaledVector(nLocal, 0.00025);
+
+    const pw = new THREE.Vector3();
+    parent.getWorldScale(pw);
+    const sx = Math.max(1e-4, Math.abs(pw.x));
+    const sy = Math.max(1e-4, Math.abs(pw.y));
+    const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
+    const gw = duW / s;
+    const gh = duH / s;
+
+    const mat = new THREE.MeshBasicMaterial({
+      map: makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false),
+      color: 0xffffff,
+      toneMapped: false,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
+    mesh.position.copy(local);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
+    mesh.renderOrder = 20;
+    mesh.userData.mfd = true;
+    mesh.visible = true;
+    parent.add(mesh);
+
     state._mfdScreens.push({
-      mesh: null,
-      el: wrap,
-      canvas: cv,
+      mesh,
       projectIndex: c.projectIndex,
       liveIndex: c.projectIndex,
+      basePos: local.clone(),
+      popDir: nLocal.clone(),
       pop: 0,
       detect: {
         px: Math.round(c.px),
         py: Math.round(c.py),
-        parent: "clip-overlay",
-        side: +width.toFixed(1),
-        h: +height.toFixed(1),
+        parent: parent.name,
+        side: +duW.toFixed(3),
+        h: +duH.toFixed(3),
         n: c.n,
-        mode: "clip-inset",
+        mode: "lcd3d",
       },
     });
   });
 
-  /* hide any old 3D planes */
-  root.traverse((o) => {
-    if (o.userData?.mfd && o.parent) o.parent.remove(o);
-  });
-
+  cockpit.add(group);
+  state._mfdGroup = group;
   if (typeof applyProject === "function") applyProject(-1, { maneuver: false });
   paintMfdScreens();
   tickMfdPop();

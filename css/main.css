@@ -1088,3 +1088,5 @@ body.is-ready .boot {
 body:not(.is-cockpit-ready) #mfdClipLayer {
   display: none;
 }
+
+#mfdClipLayer{display:none!important}
