@@ -402,34 +402,29 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 
     const lookM = lookAheadMeters(geo.phase);
     const ahead = sampleAhead(path, distM, lookM);
-    /* Instant track from actual motion — camera must face the way we slide */
     let trackHdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
     const movedProbe = haversineM(state._prevLat, state._prevLon, sample.lat, sample.lon);
     if (movedProbe > 1.5) {
       trackHdg = bearingDeg(state._prevLat, state._prevLon, sample.lat, sample.lon);
     }
-    const onArrLeg =
-      String(sample.fromId || "").startsWith("ARR_") || String(sample.toId || "").startsWith("ARR_");
+    const onArrLeg = String(sample.fromId || "").startsWith("ARR_");
     let hdg = trackHdg;
     if (elapsed < 28) {
       hdg = DEP_RWY_HEADING;
-    } else if (onArrLeg) {
-      /* Path is runway-aligned — lock heading to motion on centerline */
-      hdg = trackHdg;
-      const toRwy = ((ARR_RWY_HEADING - trackHdg + 540) % 360) - 180;
-      if (Math.abs(toRwy) < 25) hdg = ARR_RWY_HEADING;
-    } else if (elapsed < 88) {
-      const softAhead = sampleAhead(path, distM, Math.max(lookM, 18000));
+    } else if (onArrLeg || distM >= path.totalDistM - 80) {
+      /* Only after ARR_ENTRY — never lock 176 while still joining from TGU */
+      hdg = ARR_RWY_HEADING;
+    } else {
+      const softAhead = sampleAhead(path, distM, Math.max(lookM, 12000));
       hdg = bearingDeg(sample.lat, sample.lon, softAhead.lat, softAhead.lon);
     }
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
-    /* Endgame: snap camera to track so no sideways crab */
-    const maxDegPerSec = elapsed < 40 ? 2 : elapsed >= 85 ? 22 : 4;
+    const maxDegPerSec = elapsed < 40 ? 2.2 : onArrLeg ? 30 : elapsed >= 72 ? 18 : 5;
     const cappedDt = Math.min(step, 0.08);
     const maxStep = maxDegPerSec * cappedDt;
     if (dh > maxStep) dh = maxStep;
     if (dh < -maxStep) dh = -maxStep;
-    const blend = 1 - Math.exp(-cappedDt * (elapsed >= 85 ? 4.5 : 1.1));
+    const blend = 1 - Math.exp(-cappedDt * (onArrLeg ? 7 : elapsed >= 72 ? 3.5 : 1.2));
     lastHeading = (lastHeading + dh * blend + 360) % 360;
     geo.heading = lastHeading;
     state.routeHeading = lastHeading;
@@ -501,21 +496,24 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       console.warn("[clouds] update", e);
     }
 
-    /* Windshield framing: keep ~30% sky in flight (reference shot) — never dirt-only */
+    /* After liftoff: show clear sky band (~40%+). Looking too far down hid clouds too. */
     const camH = geo.altitudeAMSL;
-    let horizonBias = -8.6;
+    let horizonBias = -5.2;
     if (onGround) {
-      horizonBias = -5.2;
+      horizonBias = -4.8;
     } else if (geo.phase === "departure" && elapsed < 8) {
-      horizonBias = -6.2;
-    } else if (geo.phase === "approach" && elapsed > 100) {
-      horizonBias = -7.4;
+      horizonBias = -5.0;
+    } else if (geo.phase === "climb" || geo.phase === "cruise") {
+      horizonBias = -4.6;
+    } else if (geo.phase === "descent") {
+      horizonBias = -5.4;
+    } else if (geo.phase === "approach") {
+      horizonBias = elapsed > 100 ? -6.2 : -5.6;
     }
     if (state._horizonBias == null) state._horizonBias = horizonBias;
-    state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 1.6);
+    state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 1.8);
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    /* Do not fold aircraft pitch into exterior look — that buried the sky on climb/descent */
     const renderPitch = state._horizonBias + view.pitchOffset;
 
     viewer.camera.setView({

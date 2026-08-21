@@ -3,16 +3,16 @@
  */
 export const CLOUD_CONFIG = {
   enabled: true,
-  maxHeroFormations: 3,
-  puffsPerFormation: { desktop: 6, mobile: 4 },
+  maxHeroFormations: 4,
+  puffsPerFormation: { desktop: 7, mobile: 5 },
   density: {
-    departure: 0.15,
-    climb: 0.65,
+    departure: 0.45,
+    climb: 0.95,
     cruise: 1.0,
-    descent: 0.4,
-    approach: 0.1,
+    descent: 0.7,
+    approach: 0.35,
   },
-  cinematicApproachMps: 22,
+  cinematicApproachMps: 20,
   atmTimeScale: 1,
   qualityMode: "auto",
 };

@@ -1,6 +1,5 @@
 /**
- * Cesium world-space cumulus — scale/maximumSize must match (Sandcastle pattern).
- * Previous bug: km-scale `scale` with tiny `maximumSize` → invisible clouds.
+ * Cesium world-space cumulus — close, large, horizon-banded so they read in the windshield.
  */
 import { CLOUD_CONFIG, resolveCloudQuality } from "./cloud-config.js";
 
@@ -51,37 +50,37 @@ export function createCesiumCinematicClouds(Cesium, viewer, { mobile = false, de
     })
   );
 
-  const heroN = Math.min(3, CLOUD_CONFIG.maxHeroFormations);
-  const puffsPer = quality === "low" ? 4 : mobile ? 4 : CLOUD_CONFIG.puffsPerFormation.desktop;
+  const heroN = Math.min(4, CLOUD_CONFIG.maxHeroFormations);
+  const puffsPer = quality === "low" ? 5 : mobile ? 5 : CLOUD_CONFIG.puffsPerFormation.desktop;
 
-  /* Closer band so CloudCollection actually paints in view */
+  /* Close + large + straddling horizon so windshield actually shows them */
   const layouts = [
-    { forwardM: 9000, rightM: -5500, altOffM: 400, bearingBias: -14 },
-    { forwardM: 12000, rightM: 7000, altOffM: 800, bearingBias: 11 },
-    { forwardM: 16000, rightM: -2000, altOffM: 1200, bearingBias: -4 },
+    { forwardM: 2800, rightM: -2200, altOffM: -180, bearingBias: -18 },
+    { forwardM: 4200, rightM: 2600, altOffM: 120, bearingBias: 14 },
+    { forwardM: 6200, rightM: -900, altOffM: 450, bearingBias: -6 },
+    { forwardM: 8500, rightM: 1800, altOffM: 900, bearingBias: 8 },
   ].slice(0, heroN);
 
   const formations = layouts.map((layout, f) => {
     const puffs = [];
     for (let i = 0; i < puffsPer; i++) {
-      /* Sandcastle-compatible sizes: scale ≈ maximumSize (meters) */
-      const w = 280 + hash01(f * 20 + i, 2) * 420;
-      const h = 120 + hash01(f * 20 + i, 3) * 200;
-      const d = 160 + hash01(f * 20 + i, 4) * 220;
+      const w = 520 + hash01(f * 20 + i, 2) * 780;
+      const h = 220 + hash01(f * 20 + i, 3) * 320;
+      const d = 280 + hash01(f * 20 + i, 4) * 360;
       const cloud = collection.add({
         show: true,
         position: Cesium.Cartesian3.ZERO,
         scale: new Cesium.Cartesian2(w, h),
-        maximumSize: new Cesium.Cartesian3(w, h * 0.55, d),
-        slice: 0.35 + hash01(i, 5) * 0.3,
+        maximumSize: new Cesium.Cartesian3(w, h * 0.6, d),
+        slice: 0.28 + hash01(i, 5) * 0.35,
         brightness: 1.0,
       });
       puffs.push({
         cloud,
-        latOffM: (hash01(i, 6) - 0.5) * w * 1.2,
-        lonOffM: (hash01(i, 7) - 0.5) * w * 0.8,
-        upM: (i / puffsPer) * h * 0.9 + hash01(i, 8) * 40,
-        bright: 0.85 + hash01(i, 9) * 0.15,
+        latOffM: (hash01(i, 6) - 0.5) * w * 1.1,
+        lonOffM: (hash01(i, 7) - 0.5) * w * 0.7,
+        upM: (i / puffsPer) * h * 0.55 + hash01(i, 8) * 60,
+        bright: 0.9 + hash01(i, 9) * 0.1,
       });
     }
     return {
@@ -91,8 +90,8 @@ export function createCesiumCinematicClouds(Cesium, viewer, { mobile = false, de
       rightM: layout.rightM,
       altOffM: layout.altOffM,
       bearingBias: layout.bearingBias,
-      fade: 0,
-      approachBias: 0.15 + hash01(f, 10) * 0.25,
+      fade: 0.35,
+      approachBias: 0.2 + hash01(f, 10) * 0.3,
     };
   });
 
@@ -127,29 +126,33 @@ export function createCesiumCinematicClouds(Cesium, viewer, { mobile = false, de
     let distSum = 0;
     for (let fi = 0; fi < formations.length; fi++) {
       const form = formations[fi];
-      const want = dens * (fi === 0 ? 0.9 : fi === 1 ? 1 : 0.75);
-      form.fade += (want - form.fade) * Math.min(1, step * 0.55);
+      const want = Math.max(0.2, dens) * (fi === 0 ? 1 : fi === 1 ? 0.95 : 0.8);
+      form.fade += (want - form.fade) * Math.min(1, step * 0.9);
 
       if (geo.phase === "climb" || geo.phase === "cruise") {
-        const approach = (CLOUD_CONFIG.cinematicApproachMps || 16) * step * form.approachBias * dens;
-        form.forwardM = Math.max(7000, form.forwardM - approach);
+        const approach = (CLOUD_CONFIG.cinematicApproachMps || 18) * step * form.approachBias * dens;
+        form.forwardM = Math.max(2200, form.forwardM - approach);
       } else if (geo.phase === "departure" || geo.phase === "approach") {
-        form.forwardM += (form.homeForwardM - form.forwardM) * Math.min(1, step * 0.12);
+        form.forwardM += (form.homeForwardM - form.forwardM) * Math.min(1, step * 0.15);
       }
 
       const bearing = (geo.heading + form.bearingBias + 360) % 360;
       const rightBearing = (bearing + 90) % 360;
-      const windAlong = Math.sin(atmTime * 0.02 + fi) * 40;
+      const windAlong = Math.sin(atmTime * 0.025 + fi) * 50;
 
       for (const puff of form.puffs) {
         const along = form.forwardM + puff.lonOffM + windAlong;
         const right = form.rightM + puff.latOffM;
-        let p = destPoint(geo.latitude, geo.longitude, bearing, Math.max(4000, along));
+        let p = destPoint(geo.latitude, geo.longitude, bearing, Math.max(1800, along));
         p = destPoint(p.lat, p.lon, rightBearing, right);
-        const alt = Math.max(600, (geo.altitudeAMSL || 500) + form.altOffM + puff.upM);
+        /* Keep band near horizon altitude so a sky-framed view still catches them */
+        const alt = Math.max(
+          400,
+          (geo.altitudeAMSL || 500) + form.altOffM + puff.upM - Math.min(800, (geo.altitudeAMSL || 0) * 0.04)
+        );
         puff.cloud.position = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, alt);
-        puff.cloud.show = form.fade > 0.05;
-        puff.cloud.brightness = Math.min(1.0, Math.max(0.2, puff.bright * form.fade));
+        puff.cloud.show = form.fade > 0.08;
+        puff.cloud.brightness = Math.min(1.0, Math.max(0.35, puff.bright * form.fade));
         distSum += along;
       }
     }

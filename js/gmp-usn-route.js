@@ -51,18 +51,19 @@ function offsetLatLon(lat, lon, bearingDeg, distM) {
 
 /**
  * Straight-in final + ground roll on runway heading (no lateral slide).
- * Approach points sit on the extended centerline opposite ARR_RWY_HEADING.
+ * Every arrival point sits on RWY 176 extended centerline — no LATEP dogleg.
  */
 const ARR_THR = { lat: 35.545, lon: 129.355 };
 const ARR_BACK = (ARR_RWY_HEADING + 180) % 360;
 export const ARRIVAL_TRANSITION = [
+  { id: "ARR_ENTRY", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 28000), note: "long final entry" },
   { id: "ARR_IF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 14000), note: "initial approach" },
   { id: "ARR_FAF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 6500), note: "final approach" },
-  { id: "ARR_SHORT", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 1800), note: "short final" },
+  { id: "ARR_SHORT", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 2000), note: "short final" },
   { id: "ARR_THR", lat: ARR_THR.lat, lon: ARR_THR.lon, note: "virtual RWY threshold" },
-  { id: "ARR_TD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 350), note: "touchdown" },
-  { id: "ARR_ROLL", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 1400), note: "roll-out" },
-  { id: "ARR_HOLD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 2400), note: "end of roll" },
+  { id: "ARR_TD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 400), note: "touchdown" },
+  { id: "ARR_ROLL", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 1500), note: "roll-out" },
+  { id: "ARR_HOLD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 2600), note: "end of roll" },
 ];
 
 export const FLIGHT_DURATION_SEC = 110;
@@ -129,7 +130,7 @@ export function lerpGeo(a, b, t) {
 export function buildFlightPath() {
   const pts = [];
   DEPARTURE_TRANSITION.forEach((p) => pts.push({ ...p, kind: "departure" }));
-  /* Drop KPO/USN/RKPU — those doglegs caused sideways final; hand off to ARR_IF */
+  /* Keep LATEP (near coast), drop KPO/USN/RKPU doglegs */
   PUBLISHED_AIRWAY.slice(1, -3).forEach((p) => pts.push({ ...p, kind: "airway" }));
   ARRIVAL_TRANSITION.forEach((p) => pts.push({ ...p, kind: "arrival" }));
 
@@ -181,24 +182,25 @@ function smoothstep(x) {
 export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsedSeconds));
   if (t <= 18) {
-    return 0.015 * smoothstep(t / 18);
+    return 0.012 * smoothstep(t / 18);
   }
   if (t <= 40) {
     const x = (t - 18) / 22;
-    return 0.015 + 0.08 * smoothstep(x);
+    return 0.012 + 0.07 * smoothstep(x);
   }
-  if (t <= 70) {
-    const x = (t - 40) / 30;
-    return 0.095 + 0.72 * smoothstep(x);
+  if (t <= 72) {
+    /* Reach LATEP (~84%) */
+    const x = (t - 40) / 32;
+    return 0.082 + 0.76 * smoothstep(x);
   }
-  if (t <= 88) {
-    /* Descent into ARR_IF / FAF */
-    const x = (t - 70) / 18;
-    return 0.815 + 0.1 * smoothstep(x);
+  if (t <= 78) {
+    /* Snap onto ARR_ENTRY centerline — do not linger on SE join */
+    const x = (t - 72) / 6;
+    return 0.842 + 0.075 * smoothstep(x);
   }
-  /* Final + touchdown + roll — give landing real path distance */
-  const x = (t - 88) / 22;
-  return 0.915 + 0.085 * smoothstep(x);
+  /* 176° final + touchdown + roll (~91.5% → 100%) */
+  const x = (t - 78) / 32;
+  return 0.917 + 0.083 * smoothstep(x);
 }
 
 export function timeToDistanceProgress(elapsed, duration, totalDistM) {
