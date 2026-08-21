@@ -506,9 +506,56 @@ scene.add(skyDome);
 state._skyDome = skyDome;
 /* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-/* Photo cloud layers — disabled (Cesium exterior only) */
+/* Photo cloud layers (parallax) — windshield atmosphere; soft sprites stay off */
 const cloudLayers = [];
-function addPhotoCloud() {}
+function addPhotoCloud(url, w, h, z, opacity) {
+  loader.load(url, (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        opacity,
+        depthWrite: false,
+        toneMapped: false,
+      })
+    );
+    m.position.set(0, h * 0.08, z);
+    m.renderOrder = -2;
+    scene.add(m);
+    cloudLayers.push({ mesh: m, baseZ: z, speed: 6 + Math.random() * 10, opacity });
+  });
+}
+addPhotoCloud("assets/sky/clouds-front.jpg", 220, 48, -90, 0.22);
+if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 280, 70, -130, 0.18);
+if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 360, 90, -200, 0.14);
+if (!isMobile()) {
+  loader.load("assets/sky/clouds-front.jpg", (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    [-1, 1].forEach((side) => {
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(160, 50),
+        new THREE.MeshBasicMaterial({
+          map: tex.clone(),
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+          toneMapped: false,
+          side: THREE.DoubleSide,
+          depthTest: true,
+        })
+      );
+      m.position.set(side * 90, 30, -80);
+      m.rotation.y = side * -0.55;
+      m.renderOrder = -2;
+      scene.add(m);
+      cloudLayers.push({ mesh: m, baseZ: -80, speed: 5, opacity: 0.22 });
+    });
+  });
+}
 const cloudGroup = new THREE.Group();
 cloudGroup.visible = false;
 scene.add(cloudGroup);
@@ -1038,6 +1085,11 @@ function tickEnv() {
   const night = Math.max(0, 1 - e.elevation / 40);
   hemi.intensity += ((0.95 - night * 0.55) - hemi.intensity) * k;
   sun.intensity += ((2.4 - night * 1.6) - sun.intensity) * k;
+  for (const layer of cloudLayers) {
+    if (!layer.mesh?.material) continue;
+    const want = layer.opacity * (1 - night * 0.75);
+    layer.mesh.material.opacity += (want - layer.mesh.material.opacity) * k;
+  }
 }
 
 function applyProject(index, { maneuver = true } = {}) {
@@ -1109,12 +1161,11 @@ function updateGauges() {
   const fs = state._cesium?.state;
   if (fs) {
     const altFt = Math.round(fs.altitudeAMSL * 3.28084);
-    const spd = Math.round(
-      fs.phase === "cruise" ? 420 : fs.phase === "approach" || fs.phase === "departure" ? 180 : 320
-    );
+    const spd = Math.round(fs.indicatedAirspeedKt || fs.groundSpeedKt || 0);
+    const hdg = ((fs.heading % 360) + 360) % 360;
     el.gAlt.textContent = altFt.toLocaleString("en-US");
     el.gSpd.textContent = String(spd);
-    el.gHdg.textContent = `${String(Math.round(fs.heading)).padStart(3, "0")}°`;
+    el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}°`;
     return;
   }
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];
@@ -1456,6 +1507,21 @@ function animate(now) {
 
   if (state._cesium) {
     state._cesium.tick(dt, state.keys, state._tabVisible);
+    const fs = state._cesium.state;
+    if (fs) {
+      const norm = Math.min(1.35, (fs.indicatedAirspeedKt || 0) / 420);
+      state.speed += (norm - state.speed) * Math.min(1, dt * 2);
+      state.flightHeading = ((fs.heading || 0) * Math.PI) / 180;
+    }
+  }
+
+  for (const layer of cloudLayers) {
+    if (!layer.mesh?.geometry?.parameters) continue;
+    layer.mesh.position.x = Math.sin(-state.flightHeading) * (-8 - layer.speed * 0.6);
+    layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 3;
+    if (layer.mesh.material.map) {
+      layer.mesh.material.map.offset.x -= dt * (0.018 + state.speed * 0.025);
+    }
   }
 
   tickEnv();

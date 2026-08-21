@@ -76,12 +76,6 @@
     </nav>
 
     <div class="ui-actions-wrap">
-      <div class="gauges">
-        <div><span>ALT</span><b id="gAlt">12,400</b></div>
-        <div><span>SPD</span><b id="gSpd">312</b></div>
-        <div><span>HDG</span><b id="gHdg">086°</b></div>
-      </div>
-
       <div class="look-snaps" role="group" aria-label="화면 보기">
         <button type="button" class="snap-btn" id="lookLeft" data-look="left">좌측 화면</button>
         <button type="button" class="snap-btn is-on" id="viewReset" data-look="center">정면</button>
@@ -91,6 +85,12 @@
       <button type="button" class="ui-action ghost" id="viewContact">프로젝트 문의</button>
     </div>
   </aside>
+
+  <div class="float-gauges" id="floatGauges" aria-label="flight instruments">
+    <div><span>ALT</span><b id="gAlt">000</b></div>
+    <div><span>SPD</span><b id="gSpd">000</b></div>
+    <div><span>HDG</span><b id="gHdg">000°</b></div>
+  </div>
 
   <main class="stage" id="stage">
     <section class="hero-card" id="heroCard">

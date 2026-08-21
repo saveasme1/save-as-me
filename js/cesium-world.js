@@ -10,8 +10,8 @@ import {
   autopilotPitchDeg,
   bearingDeg,
   buildFlightPath,
-  cinematicLookPitchDeg,
   getCinematicRouteProgress,
+  haversineM,
   lookAheadMeters,
   phaseFromTime,
   qualityPhase,
@@ -20,7 +20,6 @@ import {
   timeToDistanceProgress,
 } from "./gmp-usn-route.js";
 import { addVirtualAirport } from "./virtual-airport.js";
-import { seedFlightClouds } from "./cesium-clouds.js";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
@@ -159,7 +158,6 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     runwayLenM: 2400,
   });
   console.info("[cesium] virtual airports placed", depApt.heading, arrApt.heading);
-  seedFlightClouds(Cesium, viewer, path, { mobile });
 
   /* Geographic autopilot — never written by keyboard */
   const geo = {
@@ -177,6 +175,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     activeWaypointFrom: "DEP_THR",
     activeWaypointTo: "DEP_R1",
     quality: "HIGH",
+    groundSpeedKt: 0,
+    indicatedAirspeedKt: 0,
   };
 
   /* View offsets only */
@@ -201,6 +201,9 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     totalDistKm: path.totalDistM / 1000,
     publishedNm: path.totalDistM / 1852,
     _prevAlt: GMP_ELEV_M + 8,
+    _prevLat: DEPARTURE_TRANSITION[0].lat,
+    _prevLon: DEPARTURE_TRANSITION[0].lon,
+    _gsSmooth: 0,
     geo,
     view,
   };
@@ -397,6 +400,24 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state.routeHeading = lastHeading;
     state.heading = lastHeading;
 
+    /* Ground speed from geographic motion; IAS from phase envelope */
+    const movedM = haversineM(state._prevLat, state._prevLon, sample.lat, sample.lon);
+    state._prevLat = sample.lat;
+    state._prevLon = sample.lon;
+    const gsInst = step > 1e-4 ? (movedM / step) * 1.94384 : 0;
+    state._gsSmooth += (gsInst - state._gsSmooth) * Math.min(1, step * 2.2);
+    geo.groundSpeedKt = Math.max(0, state._gsSmooth);
+    let iasTarget = 145;
+    if (geo.phase === "departure") iasTarget = elapsed < 8 ? 80 + elapsed * 12 : 175;
+    else if (geo.phase === "climb") iasTarget = 250;
+    else if (geo.phase === "cruise") iasTarget = 445;
+    else if (geo.phase === "descent") iasTarget = 290;
+    else if (geo.phase === "approach") iasTarget = elapsed > 104 ? 135 : 180;
+    geo.indicatedAirspeedKt =
+      (geo.indicatedAirspeedKt || iasTarget) + (iasTarget - (geo.indicatedAirspeedKt || iasTarget)) * Math.min(1, step * 1.4);
+    state.groundSpeedKt = geo.groundSpeedKt;
+    state.indicatedAirspeedKt = geo.indicatedAirspeedKt;
+
     const autoAlt = altitudeAtElapsed(elapsed);
     const terrainH = terrainAtCached(sample.lat, sample.lon);
     geo.terrainHeight = terrainH;
@@ -425,11 +446,17 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
-    /* Camera pitch: autopilot nose + cinematic look (up/down along route) + user keys */
+    /* Camera pitch: stable framing (no cinematic look-up/down sweeps) */
     const camH = geo.altitudeAMSL;
-    const look = cinematicLookPitchDeg(elapsed);
+    let horizonBias = -2.5;
+    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -3.5 : -1.5;
+    else if (geo.phase === "climb") horizonBias = -1.0;
+    else if (geo.phase === "cruise") horizonBias = -2.0;
+    else if (geo.phase === "descent") horizonBias = -3.0;
+    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -5.5 : -4.0;
+
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    const renderPitch = geo.pitch * 0.35 + look + view.pitchOffset;
+    const renderPitch = geo.pitch + horizonBias + view.pitchOffset;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
@@ -456,7 +483,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
         `ROUTE ${(routeU * 100).toFixed(1)}%`,
         `LAT ${geo.latitude.toFixed(4)}  LON ${geo.longitude.toFixed(4)}`,
         `ALT ${Math.round(geo.altitudeAMSL)} m  AGL ${Math.round(geo.altitudeAGL)} m`,
-        `HDG ${geo.heading.toFixed(0)}°  AP_P ${geo.pitch.toFixed(1)}°  LOOK ${look.toFixed(1)}°`,
+        `HDG ${geo.heading.toFixed(0)}°  IAS ${Math.round(geo.indicatedAirspeedKt)}  GS ${Math.round(geo.groundSpeedKt)}`,
         `VIEW yaw ${view.yawOffset.toFixed(1)}°  pitch ${view.pitchOffset.toFixed(1)}°`,
         `FPS ${fpsShow}  DIST ${(path.totalDistM / 1000).toFixed(1)} km`,
       ].join("\n");
