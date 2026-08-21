@@ -1,12 +1,15 @@
-# Generated locally — never commit
-js/cesium-token.local.js
-.env
-.env.local
-
-_ref_clouds/
-_glb_tool/
-assets/_qa-*
-assets/_glb*
-assets/models/*.pre-gallery.glb
-_qa_*.js
-
+node_modules/
+package-lock.json
+_qa-*.png
+_qa-*.mjs
+_fix-*.mjs
+_verify-*.mjs
+_restore.mjs
+_flight_good.js
+_verify-out.txt
+_qa-server.mjs
+_bust.mjs
+_check-boot.mjs
+_strip-bom.mjs
+_patch-*.mjs
+_patch-*.mjs
