@@ -1,27 +1,20 @@
 /**
  * Cinematic cloud configuration (atmosphere only — not geographic route).
- * Inspired by CK42BB procedural-clouds (cumulus profiles) + OpenSkyFlight layering.
  */
 export const CLOUD_CONFIG = {
-  enabled: true,
+  enabled: false,
   maxHeroFormations: 3,
-  puffsPerFormation: { desktop: 12, mobile: 6 },
+  puffsPerFormation: { desktop: 6, mobile: 4 },
   density: {
-    departure: 0.22,
-    climb: 0.55,
-    cruise: 1.0,
-    descent: 0.4,
-    approach: 0.2,
+    departure: 0.1,
+    climb: 0.4,
+    cruise: 0.75,
+    descent: 0.3,
+    approach: 0.1,
   },
-  /** Local ENU distance band (meters) — cinematic towering cumulus */
-  minDistanceM: 16000,
-  maxDistanceM: 48000,
-  puffWidthM: { min: 2800, max: 7800 },
-  puffHeightM: { min: 1400, max: 4200 },
-  windSpeedMps: 12,
-  cinematicApproachMps: 70,
+  cinematicApproachMps: 20,
   atmTimeScale: 1,
-  qualityMode: "auto", // auto | high | medium | low
+  qualityMode: "auto",
 };
 
 export function resolveCloudQuality(mode, mobile) {

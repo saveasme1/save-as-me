@@ -908,18 +908,45 @@ function prepareCockpitMaterials(root) {
       o.visible = false;
       return;
     }
+    /* Hide baked exterior / photo / cloud plates that sit in the windshield */
+    if (
+      /gallery|photo|scenery|exterior|cloud|skybox|backdrop|outside/.test(meshName)
+    ) {
+      o.visible = false;
+      return;
+    }
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const cleaned = mats.map((m) => {
       if (!m) return m;
       const n = String(m.name || "").toLowerCase();
-      /* FG baked exterior gallery blocked the real sky — punch it out */
-      if (n.includes("front_gallery") || n.includes("gallery")) {
+      /* FG baked exterior gallery / photo plates blocked the real sky */
+      if (
+        n.includes("front_gallery") ||
+        n.includes("gallery") ||
+        n.includes("photo") ||
+        n.includes("scenery") ||
+        n.includes("cloud") ||
+        n.includes("sky")
+      ) {
         const ghost = m.clone();
         ghost.name = `${m.name}_ghost`;
         ghost.transparent = true;
         ghost.opacity = 0;
         ghost.depthWrite = false;
         ghost.colorWrite = false;
+        ghost.map = null;
+        ghost.needsUpdate = true;
+        return ghost;
+      }
+      /* Texture URL hint (PHOTO watermark plates etc.) */
+      const src = String(m.map?.image?.currentSrc || m.map?.image?.src || m.map?.source?.data?.src || "");
+      if (/photo|cloud|gallery|scenery|soft-cloud/i.test(src)) {
+        const ghost = m.clone();
+        ghost.transparent = true;
+        ghost.opacity = 0;
+        ghost.depthWrite = false;
+        ghost.colorWrite = false;
+        ghost.map = null;
         ghost.needsUpdate = true;
         return ghost;
       }
@@ -931,7 +958,13 @@ function prepareCockpitMaterials(root) {
     useMats.forEach((m) => {
       if (!m || m.visible === false) return;
       const n = String(m.name || "").toLowerCase();
-      if (n.includes("front_gallery") || n.includes("gallery")) return;
+      if (
+        n.includes("front_gallery") ||
+        n.includes("gallery") ||
+        n.includes("photo") ||
+        n.includes("_ghost")
+      )
+        return;
       const isGlass =
         (n.includes("glass") || n.includes("visor") || /mat\d*gla/i.test(n)) &&
         !n.includes("glare");
@@ -949,7 +982,6 @@ function prepareCockpitMaterials(root) {
         m.color?.set?.(0xffe8d0);
         m.emissive?.set?.(0x000000);
       } else if (n === "black") {
-        /* LCD glass stays for depth/ray hits; project planes paint the pixels */
         m.polygonOffset = true;
         m.polygonOffsetFactor = 2;
         m.polygonOffsetUnits = 2;
