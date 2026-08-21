@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fixcammt35z5h1";
+import { createCesiumWorld } from "./cesium-world.js?v=fixviewmt365l92";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fixcammt35z5h1";
+} from "./gmp-usn-route.js?v=fixviewmt365l92";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1194,7 +1194,7 @@ function fitCockpitView(root) {
   const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  /* Slightly aft of cabin center (eacc0b6) — Math.max(1.25) buried cam in bulkhead */
+  /* Slightly aft of cabin center (eacc0b6) — do not force z>=1.25 (clips into bulkhead) */
   state._camBase = {
     x: center.x,
     y: box.min.y + Math.min(Math.max(size.y * 0.52, 1.05), 1.45),
