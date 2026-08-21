@@ -725,22 +725,14 @@ function placeMfdOnBlackDus(root) {
   if (!w || !h) return false;
 
   const prev = (state._mfdScreens || []).slice();
-  prev.forEach((s) => {
-    if (s.mesh) s.mesh.visible = false;
-  });
-  renderer.render(scene, camera);
+  /* do NOT hide existing screens before success — empty black DUs flash / stick on failure */
 
   let centers = measureBlackDuCenters(root, w, h);
   if (centers.length < 5) centers = findBlackDuCenters(w, h);
   centers.length = 5;
 
   const black = collectBlackMeshes(root);
-  if (!black.length) {
-    prev.forEach((s) => {
-      if (s.mesh) s.mesh.visible = true;
-    });
-    return false;
-  }
+  if (!black.length) return false;
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -751,17 +743,14 @@ function placeMfdOnBlackDus(root) {
   centers.forEach((c) => {
     ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
     raycaster.setFromCamera(ndc, camera);
+    /* non-recursive: hit black LCD only, ignore child MFD planes */
     const hit = raycaster.intersectObjects(black, false)[0];
     if (!hit || !hit.face) return;
     sized.push({ c, hit });
   });
-  if (sized.length < 5) {
-    prev.forEach((s) => {
-      if (s.mesh) s.mesh.visible = true;
-    });
-    return false;
-  }
+  if (sized.length < 5) return false;
 
+  /* success confirmed — only now remove previous screens */
   prev.forEach((s) => {
     if (!s.mesh) return;
     if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
@@ -797,7 +786,6 @@ function placeMfdOnBlackDus(root) {
     parent.getWorldScale(pw);
     const sx = Math.max(1e-4, Math.abs(pw.x));
     const sy = Math.max(1e-4, Math.abs(pw.y));
-    /* keep nearly uniform — tiny axis scale blows a plane into the cabin */
     const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
     const gw = duW / s;
     const gh = duH / s;
