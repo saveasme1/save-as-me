@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=mdfixmt2x743b";
+import { createCesiumWorld } from "./cesium-world.js?v=eaccmfdmt2xxl8d";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=mdfixmt2x743b";
+} from "./gmp-usn-route.js?v=eaccmfdmt2xxl8d";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -629,13 +629,12 @@ function tickMfdPop() {
     slot.mesh.scale.setScalar(sc);
     slot.mesh.visible = true;
     if (slot.mesh.material) {
-      /* always draw above black LCD (transparent Three + Cesium stack) */
-      slot.mesh.material.depthTest = false;
+      slot.mesh.material.depthTest = true;
       slot.mesh.material.depthWrite = false;
       slot.mesh.material.opacity = 1;
       slot.mesh.material.transparent = true;
     }
-    slot.mesh.renderOrder = 20;
+    slot.mesh.renderOrder = 3;
   });
 }
 
@@ -757,7 +756,6 @@ function placeMfdOnBlackDus(root) {
     centers.forEach((c) => {
       ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
       raycaster.setFromCamera(ndc, camera);
-      /* non-recursive: hit black LCD only, ignore child MFD planes */
       const hit = raycaster.intersectObjects(black, false)[0];
       if (!hit || !hit.face) return;
       sized.push({ c, hit });
@@ -765,7 +763,7 @@ function placeMfdOnBlackDus(root) {
     return sized;
   };
 
-  /* MD: measure DU belt; on failure only → fy≈0.685 fallback */
+  /* MD/eacc: measure belt; on failure → fy≈0.685 fallback */
   let centers = measureBlackDuCenters(root, w, h);
   let sized = centers.length >= 5 ? rayHit(centers.slice(0, 5)) : [];
   if (sized.length < 5) {
@@ -773,11 +771,10 @@ function placeMfdOnBlackDus(root) {
     sized = rayHit(centers);
   }
   if (sized.length < 5) {
-    console.warn(`[mfd-panel] black hits ${sized.length}/5 — keep prior screens`);
+    console.warn("[mfd-panel] black hits " + sized.length + "/5 — keep prior screens");
     return false;
   }
 
-  /* success confirmed — only now remove previous screens */
   prev.forEach((s) => {
     if (!s.mesh) return;
     if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
@@ -807,12 +804,14 @@ function placeMfdOnBlackDus(root) {
     let nLocal = hit.face.normal.clone().normalize();
     const nWorld = nLocal.clone().transformDirection(parent.matrixWorld).normalize();
     if (nWorld.dot(toward) < 0) nLocal = nLocal.negate();
-    local.addScaledVector(nLocal, 0.0003);
+    /* sit just in front of black LCD glass (eacc-era depthTest:true seating) */
+    local.addScaledVector(nLocal, 0.004);
 
     const pw = new THREE.Vector3();
     parent.getWorldScale(pw);
     const sx = Math.max(1e-4, Math.abs(pw.x));
     const sy = Math.max(1e-4, Math.abs(pw.y));
+    /* keep nearly uniform — tiny axis scale blows a plane into the cabin */
     const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
     const gw = duW / s;
     const gh = duH / s;
@@ -821,14 +820,17 @@ function placeMfdOnBlackDus(root) {
       map: makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false),
       color: 0xffffff,
       toneMapped: false,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       transparent: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
-    mesh.renderOrder = 20;
+    mesh.renderOrder = 5;
     mesh.userData.mfd = true;
     mesh.visible = true;
     parent.add(mesh);
@@ -1022,13 +1024,7 @@ function prepareCockpitMaterials(root) {
         m.color?.set?.(0xffe8d0);
         m.emissive?.set?.(0x000000);
       } else if (n === "black") {
-        m.visible = true;
-        m.transparent = false;
-        m.opacity = 1;
-        m.colorWrite = true;
-        m.depthWrite = true;
-        m.depthTest = true;
-        m.color?.set?.(0x050505);
+        /* LCD glass stays for depth/ray hits; project planes paint the pixels */
         m.polygonOffset = true;
         m.polygonOffsetFactor = 2;
         m.polygonOffsetUnits = 2;
