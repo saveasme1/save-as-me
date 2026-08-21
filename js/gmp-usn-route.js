@@ -131,17 +131,17 @@ function smoothstep(x) {
  */
 export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsedSeconds));
-  /* Gimpo: first 25s ≈ 4% route — stay local on field/runway */
+  /* Gimpo: first 25s ≈ 2.5% route — stay on field/runway as long as possible */
   if (t <= 25) {
-    return 0.04 * smoothstep(t / 25);
+    return 0.025 * smoothstep(t / 25);
   }
   if (t <= 35) {
     const x = (t - 25) / 10;
-    return 0.04 + 0.1 * smoothstep(x);
+    return 0.025 + 0.095 * smoothstep(x);
   }
   if (t <= 70) {
     const x = (t - 35) / 35;
-    return 0.14 + 0.74 * smoothstep(x);
+    return 0.12 + 0.76 * smoothstep(x);
   }
   if (t <= 80) {
     const x = (t - 70) / 10;
