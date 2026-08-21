@@ -664,155 +664,117 @@ function syncMfdCamera() {
 }
 
 function measureBlackDuCenters(root, w, h) {
+  /* eacc0b6: belt scan + split 5 DU islands by largest x-gaps (no fx seeds) */
   const black = collectBlackMeshes(root);
   if (!black.length) return [];
   syncMfdCamera();
   root.updateMatrixWorld(true);
   const raycaster = new THREE.Raycaster();
-  const hitAt = (px, py) => {
-    if (px < 0 || py < 0 || px >= w || py >= h) return false;
-    raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
-    return raycaster.intersectObjects(black, false).length > 0;
+  const scanBelt = (y0f, y1f) => {
+    const out = [];
+    const step = 2;
+    const y0 = Math.floor(h * y0f);
+    const y1 = Math.floor(h * y1f);
+    const x0 = Math.floor(w * 0.29);
+    const x1 = Math.floor(w * 0.71);
+    for (let py = y0; py <= y1; py += step) {
+      for (let px = x0; px <= x1; px += step) {
+        raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
+        if (!raycaster.intersectObjects(black, false).length) continue;
+        out.push({ px, py });
+      }
+    }
+    return { hits: out, y0, y1 };
   };
-
-  /* find modal DU row — wide belt (close-cam LCD can sit lower) */
-  const hits = [];
-  const step = 3;
-  for (let py = Math.floor(h * 0.45); py <= Math.floor(h * 0.92); py += step) {
-    for (let px = Math.floor(w * 0.28); px <= Math.floor(w * 0.72); px += step) {
-      if (hitAt(px, py)) hits.push({ px, py });
-    }
-  }
+  /* eacc belt first; close-cam (_camBase.z≈0.38) may sit lower — widen once */
+  let scanned = scanBelt(0.66, 0.72);
+  if (scanned.hits.length < 40) scanned = scanBelt(0.6, 0.78);
+  const hits = scanned.hits;
+  const y0 = scanned.y0;
+  const y1 = scanned.y1;
   // #region agent log
-  dbgMfd("A", "flight.js:measure", "scan_hits", { hits: hits.length, w, h });
+  dbgMfd("A", "flight.js:measure", "scan_hits", {
+    hits: hits.length,
+    w,
+    h,
+    camZ: state._camBase?.z,
+    y0,
+    y1,
+  });
   // #endregion
-  if (hits.length < 20) return [];
-  const yHist = new Map();
-  hits.forEach((hh) => {
-    const b = Math.round(hh.py / 4) * 4;
-    yHist.set(b, (yHist.get(b) || 0) + 1);
+  if (hits.length < 40) return [];
+
+  const col = new Map();
+  hits.forEach((hh) => col.set(hh.px, (col.get(hh.px) || 0) + 1));
+  const xs = [...col.keys()].sort((a, b) => a - b);
+  if (xs.length < 10) return [];
+  const gaps = [];
+  for (let i = 1; i < xs.length; i++) {
+    gaps.push({ i, d: xs[i] - xs[i - 1] });
+  }
+  gaps.sort((a, b) => b.d - a.d);
+  const cuts = gaps
+    .slice(0, 4)
+    .map((g) => g.i)
+    .sort((a, b) => a - b);
+  const ranges = [];
+  let start = 0;
+  cuts.forEach((cut) => {
+    ranges.push(xs.slice(start, cut));
+    start = cut;
   });
-  let modeY = 0;
-  let modeN = 0;
-  yHist.forEach((n, y) => {
-    if (n > modeN) {
-      modeN = n;
-      modeY = y;
-    }
-  });
+  ranges.push(xs.slice(start));
+  if (ranges.length !== 5 || ranges.some((r) => r.length < 2)) {
+    // #region agent log
+    dbgMfd("A", "flight.js:measure", "gap_split_fail", {
+      ranges: ranges.length,
+      xs: xs.length,
+    });
+    // #endregion
+    return [];
+  }
 
-  /* eacc0b6 seated fx seeds — grow each into exact black LCD rect */
-  const seeds = [0.339, 0.406, 0.5, 0.589, 0.656];
-  const out = [];
-  for (let i = 0; i < seeds.length; i++) {
-    let sx = Math.floor(w * seeds[i]);
-    let sy = modeY;
-    let found = false;
-    for (let dy = 0; dy <= Math.floor(h * 0.25); dy += 4) {
-      if (hitAt(sx, modeY + dy)) {
-        sy = modeY + dy;
-        found = true;
-        break;
-      }
-      if (dy && hitAt(sx, modeY - dy)) {
-        sy = modeY - dy;
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // #region agent log
-      dbgMfd("A", "flight.js:measure", "seed_miss", { i, sx, modeY });
-      // #endregion
-      return [];
-    }
-
-    let minPx = sx;
-    let maxPx = sx;
-    while (minPx > 8 && hitAt(minPx - 2, sy)) minPx -= 2;
-    while (maxPx < w - 8 && hitAt(maxPx + 2, sy)) maxPx += 2;
-    const cx = Math.round((minPx + maxPx) / 2);
-
-    let minPy = sy;
-    let maxPy = sy;
-    while (minPy > 8 && hitAt(cx, minPy - 2)) minPy -= 2;
-    while (maxPy < h - 8 && hitAt(cx, maxPy + 2)) maxPy += 2;
-
-    let bw = maxPx - minPx;
-    let bh = maxPy - minPy;
-    if (bh > bw * 1.35) {
-      const mid = (minPy + maxPy) / 2;
-      const half = (bw * 1.05) / 2;
-      minPy = Math.round(mid - half);
-      maxPy = Math.round(mid + half);
-      bh = maxPy - minPy;
-    }
-    if (bw < 16 || bh < 16) return [];
-
-    out.push({
+  return ranges.map((isle, i) => {
+    const set = new Set(isle);
+    const g = hits.filter((hh) => set.has(hh.px));
+    const minPx = Math.min(...g.map((hh) => hh.px));
+    const maxPx = Math.max(...g.map((hh) => hh.px));
+    const minPy = Math.min(...g.map((hh) => hh.py));
+    const maxPy = Math.max(...g.map((hh) => hh.py));
+    return {
       projectIndex: i,
-      px: cx,
-      py: Math.round((minPy + maxPy) / 2),
+      px: Math.round((minPx + maxPx) / 2),
+      py: Math.round((minPy + maxPy) / 2) + 12,
       minPx,
       maxPx,
       minPy,
       maxPy,
-      wPx: bw,
-      hPx: bh,
-      n: Math.round((bw * bh) / 4),
-    });
-  }
-  return out;
+      wPx: Math.max(52, maxPx - minPx),
+      hPx: Math.max(56, maxPy - minPy + 18),
+      n: g.length,
+    };
+  });
 }
 
 function findBlackDuCenters(w, h) {
-  /* live modeY from a cheap mid-column black scan — never hardcode 0.74 alone */
-  let modeY = Math.floor(h * 0.74);
-  const black = collectBlackMeshes(state._mfdRoot || cockpit);
-  if (black.length && typeof camera !== "undefined") {
-    const raycaster = new THREE.Raycaster();
-    const yHist = new Map();
-    const cx = Math.floor(w * 0.5);
-    for (let py = Math.floor(h * 0.45); py <= Math.floor(h * 0.92); py += 4) {
-      raycaster.setFromCamera(new THREE.Vector2((cx / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
-      if (!raycaster.intersectObjects(black, false).length) continue;
-      const b = Math.round(py / 4) * 4;
-      yHist.set(b, (yHist.get(b) || 0) + 1);
-    }
-    let best = 0;
-    yHist.forEach((n, y) => {
-      if (n > best) {
-        best = n;
-        modeY = y;
-      }
-    });
-  }
-  const fy = modeY / h;
+  /* eacc0b6 fallback NDC (lookBias 0.02/0.04 − zoom*0.04) */
   const expect = [
-    { fx: 0.339, fy },
-    { fx: 0.406, fy },
-    { fx: 0.5, fy },
-    { fx: 0.589, fy },
-    { fx: 0.656, fy },
+    { fx: 0.339, fy: 0.685 },
+    { fx: 0.406, fy: 0.685 },
+    { fx: 0.5, fy: 0.685 },
+    { fx: 0.589, fy: 0.685 },
+    { fx: 0.656, fy: 0.685 },
   ];
-  const wPx = Math.floor(w * 0.062);
-  const hPx = Math.floor(h * 0.095);
-  return expect.map((e, i) => {
-    const px = Math.floor(w * e.fx);
-    const py = Math.floor(h * e.fy);
-    return {
-      projectIndex: i,
-      px,
-      py,
-      minPx: px - Math.floor(wPx / 2),
-      maxPx: px + Math.floor(wPx / 2),
-      minPy: py - Math.floor(hPx / 2),
-      maxPy: py + Math.floor(hPx / 2),
-      wPx,
-      hPx,
-      n: 100,
-    };
-  });
+  const wPx = Math.floor(w * 0.078);
+  const hPx = Math.floor(h * 0.08);
+  return expect.map((e, i) => ({
+    projectIndex: i,
+    px: Math.floor(w * e.fx),
+    py: Math.floor(h * e.fy),
+    wPx,
+    hPx,
+    n: 100,
+  }));
 }
 
 function ensureMfdClipLayer() {
@@ -880,7 +842,7 @@ function dbgMfd(hypothesisId, location, message, data) {
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "post-fix",
+      runId: "revert-cam",
       hypothesisId,
       location,
       message,
@@ -1232,11 +1194,11 @@ function fitCockpitView(root) {
   const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  /* Slightly aft of cabin center — log-proven: z≈0.38 made NDC miss black LCD */
+  /* Slightly aft of cabin center (eacc0b6) — Math.max(1.25) buried cam in bulkhead */
   state._camBase = {
     x: center.x,
     y: box.min.y + Math.min(Math.max(size.y * 0.52, 1.05), 1.45),
-    z: Math.max(1.25, center.z + size.z * 0.28),
+    z: center.z + size.z * 0.12,
   };
   state._cockpitReady = true;
   console.info("[cockpit]", {
