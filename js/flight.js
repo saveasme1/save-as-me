@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=exactmt2yb6gc";
+import { createCesiumWorld } from "./cesium-world.js?v=seatedmt2yucs1";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=exactmt2yb6gc";
+} from "./gmp-usn-route.js?v=seatedmt2yucs1";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -654,8 +654,8 @@ function measureBlackDuCenters(root, w, h) {
   const raycaster = new THREE.Raycaster();
   const hits = [];
   const step = 2;
-  const y0 = Math.floor(h * 0.66);
-  const y1 = Math.floor(h * 0.72);
+  const y0 = Math.floor(h * 0.72);
+  const y1 = Math.floor(h * 0.8);
   const x0 = Math.floor(w * 0.29);
   const x1 = Math.floor(w * 0.71);
   for (let py = y0; py <= y1; py += step) {
@@ -688,7 +688,7 @@ function measureBlackDuCenters(root, w, h) {
     start = cut;
   });
   ranges.push(xs.slice(start));
-  /* reject fused/tiny islands so MD fallback fy≈0.685 actually runs */
+  /* reject fused/tiny islands so fallback fy actually runs */
   if (ranges.length !== 5 || ranges.some((r) => r.length < 28)) return [];
   const spans = ranges.map((r) => r[r.length - 1] - r[0]);
   if (Math.min(...spans) < 40 || Math.max(...spans) > Math.min(...spans) * 2.2) return [];
@@ -703,24 +703,26 @@ function measureBlackDuCenters(root, w, h) {
     return {
       projectIndex: i,
       px: Math.round((minPx + maxPx) / 2),
-      py: Math.round((minPy + maxPy) / 2) + 12,
+      /* no +12 — that pushed centers off the LCD under current lookBias */
+      py: Math.round((minPy + maxPy) / 2),
       wPx: Math.max(52, maxPx - minPx),
-      hPx: Math.max(56, maxPy - minPy + 18),
+      hPx: Math.max(48, maxPy - minPy),
       n: g.length,
     };
   });
 }
 
 function findBlackDuCenters(w, h) {
+  /* Recalibrated for post-a181b9a lookBias (LCD mid ≈ fy 0.72–0.75). MD 0.685 is for eacc nose-up bias. */
   const expect = [
-    { fx: 0.339, fy: 0.685 },
-    { fx: 0.406, fy: 0.685 },
-    { fx: 0.5, fy: 0.685 },
-    { fx: 0.589, fy: 0.685 },
-    { fx: 0.656, fy: 0.685 },
+    { fx: 0.339, fy: 0.74 },
+    { fx: 0.406, fy: 0.74 },
+    { fx: 0.5, fy: 0.74 },
+    { fx: 0.589, fy: 0.74 },
+    { fx: 0.656, fy: 0.74 },
   ];
-  const wPx = Math.floor(w * 0.078);
-  const hPx = Math.floor(h * 0.08);
+  const wPx = Math.floor(w * 0.065);
+  const hPx = Math.floor(h * 0.055);
   return expect.map((e, i) => ({
     projectIndex: i,
     px: Math.floor(w * e.fx),
@@ -735,6 +737,13 @@ function placeMfdOnBlackDus(root) {
   const w = renderer.domElement.width;
   const h = renderer.domElement.height;
   if (!w || !h) return false;
+
+  /* Match animate() lookBias so NDC rays hit the same LCD band the user sees */
+  const lookBias = (isMobile() ? -0.01 : 0.0) - state.zoom * 0.04;
+  cameraRig.rotation.set(state.pitch + lookBias, state.yaw, state.roll);
+  cameraRig.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+  root.updateMatrixWorld(true);
 
   const prev = (state._mfdScreens || []).slice();
   /* do NOT hide before success — empty black DUs stick on failure */
@@ -763,7 +772,6 @@ function placeMfdOnBlackDus(root) {
     sized.push({ c, hit });
   });
   if (sized.length < 5) {
-    /* measure can return 5 bad islands — force MD fallback */
     const fb = findBlackDuCenters(w, h);
     sized.length = 0;
     fb.forEach((c) => {
@@ -799,8 +807,8 @@ function placeMfdOnBlackDus(root) {
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    const duW = Math.min(0.195, worldH * aspect * (c.wPx / w) * 1.22);
-    const duH = Math.min(0.175, worldH * (c.hPx / h) * 1.45);
+    const duW = Math.min(0.14, worldH * aspect * (c.wPx / w) * 1.0);
+    const duH = Math.min(0.12, worldH * (c.hPx / h) * 1.05);
 
     const parent = hit.object;
     const local = hit.point.clone();
@@ -808,8 +816,8 @@ function placeMfdOnBlackDus(root) {
     let nLocal = hit.face.normal.clone().normalize();
     const nWorld = nLocal.clone().transformDirection(parent.matrixWorld).normalize();
     if (nWorld.dot(toward) < 0) nLocal = nLocal.negate();
-    /* eacc used 0.0003; with Cesium stack that sinks under black LCD — keep depthTest but bias forward */
-    local.addScaledVector(nLocal, 0.006);
+    /* sit just proud of black LCD glass — no cabin lift */
+    local.addScaledVector(nLocal, 0.0015);
 
     const pw = new THREE.Vector3();
     parent.getWorldScale(pw);
@@ -828,8 +836,8 @@ function placeMfdOnBlackDus(root) {
       depthWrite: false,
       transparent: true,
       polygonOffset: true,
-      polygonOffsetFactor: -8,
-      polygonOffsetUnits: -8,
+      polygonOffsetFactor: -4,
+      polygonOffsetUnits: -4,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
