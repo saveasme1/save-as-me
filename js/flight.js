@@ -653,60 +653,55 @@ function loadTileImage(z, x, y) {
 }
 
 function gradeAerialCanvas(ctx, w, h) {
-  /* mute forest greens + cool haze so urban/coast read better */
-  ctx.fillStyle = "rgba(120,140,160,0.18)";
+  /* mute greens — cruise haze, not low forest */
+  ctx.fillStyle = "rgba(100,120,145,0.35)";
   ctx.fillRect(0, 0, w, h);
   const haze = ctx.createLinearGradient(0, 0, 0, h);
-  haze.addColorStop(0, "rgba(175,205,235,0.38)");
-  haze.addColorStop(0.4, "rgba(160,185,210,0.12)");
-  haze.addColorStop(1, "rgba(50,65,80,0.22)");
+  haze.addColorStop(0, "rgba(160,195,230,0.55)");
+  haze.addColorStop(0.45, "rgba(140,170,200,0.28)");
+  haze.addColorStop(1, "rgba(70,90,110,0.35)");
   ctx.fillStyle = haze;
   ctx.fillRect(0, 0, w, h);
 }
 
 const terrainGroup = new THREE.Group();
-terrainGroup.position.set(0, -3.8, 0);
+/* high cruise — green terrain barely on the horizon */
+terrainGroup.position.set(0, -28, 0);
 scene.add(terrainGroup);
 state._terrain = null;
 state._routeReady = false;
 state.flightHeading = 0;
+state.altLift = 28;
 state.keys = { left: false, right: false, up: false, down: false };
 
-/* 360° ground under the ship — side windows see the same world as the nose */
+/* 360° distant ground — muted so it reads as far earth, not a forest trip */
 (function addWorldGround() {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 512;
   const g = c.getContext("2d");
   const rad = g.createRadialGradient(256, 256, 40, 256, 256, 256);
-  rad.addColorStop(0, "#7a9a5e");
-  rad.addColorStop(0.35, "#6a8a52");
-  rad.addColorStop(0.7, "#5a7a62");
-  rad.addColorStop(1, "#4a6a78");
+  rad.addColorStop(0, "#5a6e58");
+  rad.addColorStop(0.4, "#4a5e55");
+  rad.addColorStop(0.75, "#3a4e58");
+  rad.addColorStop(1, "#2a3e52");
   g.fillStyle = rad;
   g.fillRect(0, 0, 512, 512);
-  /* soft patch noise */
-  for (let i = 0; i < 80; i++) {
-    g.fillStyle = `rgba(${90 + Math.random() * 40},${110 + Math.random() * 50},${70 + Math.random() * 30},${0.08 + Math.random() * 0.12})`;
-    g.beginPath();
-    g.arc(Math.random() * 512, Math.random() * 512, 8 + Math.random() * 40, 0, Math.PI * 2);
-    g.fill();
-  }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(14, 14);
+  tex.repeat.set(8, 8);
   const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(1200, 72),
+    new THREE.CircleGeometry(1800, 72),
     new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: true })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.6;
+  ground.position.y = -2;
   terrainGroup.add(ground);
   state._groundTex = tex;
 })();
 
-scene.fog = new THREE.FogExp2(0x87b8e8, 0.00055);
+scene.fog = new THREE.FogExp2(0x87b8e8, 0.00035);
 
 async function buildGmpUsnTerrain() {
   const z = ROUTE.zoom;
@@ -769,10 +764,10 @@ async function buildGmpUsnTerrain() {
     toneMapped: false,
     fog: false,
   });
-  /* Distant horizon ribbon — wide enough for side windows */
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(520, 360, 1, rows), mat);
-  strip.rotation.x = -Math.PI / 2.55;
-  strip.position.set(0, 0.4, -40);
+  /* Distant horizon ribbon — far below cruise altitude */
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(640, 420, 1, rows), mat);
+  strip.rotation.x = -Math.PI / 2.35;
+  strip.position.set(0, -6, -90);
   terrainGroup.add(strip);
 
   state._terrain = { strip, tex, mat };
@@ -804,45 +799,46 @@ for (let i = 0; i < (isMobile() ? 20 : 50); i++) {
 
 
 function makeProjectPreview(project, index, highlight = false) {
+  /* square canvas — matches A320 DU black bezels */
+  const S = 512;
   const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 400;
+  c.width = S;
+  c.height = S;
   const ctx = c.getContext("2d");
-  const g = ctx.createLinearGradient(0, 0, 512, 400);
+  const g = ctx.createLinearGradient(0, 0, S, S);
   g.addColorStop(0, highlight ? "#1a2433" : "#0c121c");
   g.addColorStop(1, highlight ? "#243044" : "#151c28");
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, 512, 400);
-  ctx.strokeStyle = highlight ? "rgba(240,196,90,0.85)" : "rgba(120,160,190,0.35)";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(10, 10, 492, 380);
+  ctx.fillRect(0, 0, S, S);
+  ctx.strokeStyle = highlight ? "rgba(240,196,90,0.9)" : "rgba(120,160,190,0.4)";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(8, 8, S - 16, S - 16);
   ctx.fillStyle = "#f0c45a";
-  ctx.font = "600 22px monospace";
-  ctx.fillText(`PROJECT ${String(index + 1).padStart(2, "0")}`, 28, 48);
+  ctx.font = "600 26px monospace";
+  ctx.fillText(`PROJECT ${String(index + 1).padStart(2, "0")}`, 28, 52);
   ctx.fillStyle = "#e8e6e1";
-  ctx.font = "700 34px sans-serif";
-  const title = (project.name || "").slice(0, 16);
-  ctx.fillText(title, 28, 96);
-  ctx.fillStyle = "#9ad4de";
-  ctx.font = "16px monospace";
-  ctx.fillText("TAP · OPEN MISSION", 28, 360);
+  ctx.font = "700 42px sans-serif";
+  ctx.fillText((project.name || "").slice(0, 14), 28, 110);
   ctx.fillStyle = "rgba(255,255,255,0.08)";
-  ctx.fillRect(28, 120, 456, 210);
+  ctx.fillRect(24, 140, S - 48, 280);
   ctx.fillStyle = "#cfd8e3";
-  ctx.font = "18px sans-serif";
+  ctx.font = "22px sans-serif";
   const plain = project.title.replace(/<br\s*\/?>/gi, " ");
   const words = plain.split(/\s+/);
   let line = "";
-  let y = 160;
+  let y = 185;
   words.forEach((w) => {
     const test = line ? `${line} ${w}` : w;
-    if (ctx.measureText(test).width > 420) {
-      ctx.fillText(line, 40, y);
+    if (ctx.measureText(test).width > S - 70) {
+      ctx.fillText(line, 36, y);
       line = w;
-      y += 28;
+      y += 32;
     } else line = test;
   });
-  if (line) ctx.fillText(line, 40, y);
+  if (line) ctx.fillText(line, 36, y);
+  ctx.fillStyle = "#9ad4de";
+  ctx.font = "18px monospace";
+  ctx.fillText("TAP · OPEN MISSION", 28, S - 36);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -904,6 +900,7 @@ function tickMfdPop() {
 }
 
 function findBlackDuCenters(w, h) {
+  /* square black DU windows — fill the full bezel */
   const expect = [
     { fx: 0.318, fy: 0.652 },
     { fx: 0.383, fy: 0.652 },
@@ -911,12 +908,13 @@ function findBlackDuCenters(w, h) {
     { fx: 0.612, fy: 0.653 },
     { fx: 0.677, fy: 0.654 },
   ];
+  const side = Math.floor(Math.min(w, h) * 0.088);
   return expect.map((e, i) => ({
     projectIndex: i,
     px: Math.floor(w * e.fx),
     py: Math.floor(h * e.fy),
-    wPx: Math.floor(w * 0.064),
-    hPx: Math.floor(h * 0.092),
+    wPx: side,
+    hPx: side,
     n: 100,
   }));
 }
@@ -979,10 +977,11 @@ function placeMfdOnBlackDus(root) {
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    const duW = worldH * aspect * (c.wPx / w) * 0.98;
-    const duH = worldH * (c.hPx / h) * 0.98;
+    const duSide = worldH * Math.min(aspect * (c.wPx / w), c.hPx / h) * 1.35;
+    const duW = duSide;
+    const duH = duSide;
     /* thin projection volume — thick decals look like mid-air slabs */
-    const duD = 0.018;
+    const duD = 0.022;
 
     const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
     if (n.dot(toward) < 0) n.negate();
@@ -1290,7 +1289,7 @@ function applyProject(index, { maneuver = true } = {}) {
 
 function updateGauges() {
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];
-  const alt = p.alt + state.speed * 35 + Math.sin(state.vibe) * 10;
+  const alt = 9800 + state.altLift * 180 + state.speed * 35 + Math.sin(state.vibe) * 10;
   const spd = 240 + state.speed * 90 + state.velocity * 35;
   const hdg = (p.hdg + state.flightHeading * (180 / Math.PI) + state.yaw * 35 + 3600) % 360;
   el.gAlt.textContent = Math.round(alt).toLocaleString("en-US");
@@ -1498,7 +1497,7 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "방향키 ←→ 선회 · ↑↓ 피치 · LCD 탭 프로젝트 · 드래그 시선";
+hint.textContent = "←→ 살짝 선회 · ↑ 상승 · ↓ 하강(한계) · LCD 탭 · 드래그 시선";
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
 setTimeout(() => hint.classList.remove("is-on"), 4500);
@@ -1536,44 +1535,57 @@ function animate(now) {
     state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
-  /* arrow keys: bank + turn (L/R), pitch (U/D) */
+  /* arrow keys: mild bank/turn, climb/descend with floors */
   const k = state.keys || {};
-  const turnRate = 0.55;
-  const pitchRate = 0.4;
-  const rollMax = 0.42;
+  const turnRate = 0.16;
+  const pitchRate = 0.22;
+  const rollMax = 0.16;
+  const headingMax = 0.38;
   if (k.left) {
-    state.tRoll = Math.min(rollMax, state.tRoll + dt * 1.4);
-    state.flightHeading += dt * turnRate * (0.55 + Math.abs(state.roll) * 1.2);
-    state.tYaw = THREE.MathUtils.clamp(state.tYaw + dt * 0.35, -0.45, 0.45);
+    state.tRoll = Math.min(rollMax, state.tRoll + dt * 0.7);
+    state.flightHeading = THREE.MathUtils.clamp(
+      state.flightHeading + dt * turnRate,
+      -headingMax,
+      headingMax
+    );
+    state.tYaw = THREE.MathUtils.clamp(state.tYaw + dt * 0.12, -0.22, 0.22);
   } else if (k.right) {
-    state.tRoll = Math.max(-rollMax, state.tRoll - dt * 1.4);
-    state.flightHeading -= dt * turnRate * (0.55 + Math.abs(state.roll) * 1.2);
-    state.tYaw = THREE.MathUtils.clamp(state.tYaw - dt * 0.35, -0.45, 0.45);
+    state.tRoll = Math.max(-rollMax, state.tRoll - dt * 0.7);
+    state.flightHeading = THREE.MathUtils.clamp(
+      state.flightHeading - dt * turnRate,
+      -headingMax,
+      headingMax
+    );
+    state.tYaw = THREE.MathUtils.clamp(state.tYaw - dt * 0.12, -0.22, 0.22);
   } else if (!state.dragging) {
-    state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3.2);
+    state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3.5);
   }
+  /* ↑ climb / ↓ descend — altitude, not just look pitch */
   if (k.up) {
-    state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate, -0.28, 0.22);
+    state.altLift = Math.min(48, state.altLift + dt * 14);
+    state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate * 0.35, -0.12, 0.1);
   } else if (k.down) {
-    state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate, -0.28, 0.22);
-  } else if (!state.dragging && Math.abs(state.tPitch) > 0.02) {
-    state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.6);
+    /* floor: never drop into the trees */
+    state.altLift = Math.max(18, state.altLift - dt * 11);
+    state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate * 0.35, -0.12, 0.1);
+  } else if (!state.dragging && Math.abs(state.tPitch) > 0.015) {
+    state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
   }
   if (k.left || k.right || k.up || k.down) {
-    state.tSpeed = Math.max(state.tSpeed, 1.25);
+    state.tSpeed = Math.max(state.tSpeed, 1.15);
   }
 
   /* while not dragging, ease toward held pose — always stay inside windscreen */
-  const yawMax = THREE.MathUtils.clamp(0.42 - state.zoom * 0.1, 0.28, 0.45);
-  const pitchMin = -0.28;
-  const pitchMax = 0.22;
+  const yawMax = 0.28;
+  const pitchMin = -0.14;
+  const pitchMax = 0.1;
   state.tYaw = THREE.MathUtils.clamp(state.tYaw, -yawMax, yawMax);
   state.tPitch = THREE.MathUtils.clamp(state.tPitch, pitchMin, pitchMax);
   state.yaw += (state.tYaw - state.yaw) * (state.dragging ? 1 : 0.28);
   state.pitch += (state.tPitch - state.pitch) * (state.dragging ? 1 : 0.28);
   state.yaw = THREE.MathUtils.clamp(state.yaw, -yawMax, yawMax);
   state.pitch = THREE.MathUtils.clamp(state.pitch, pitchMin, pitchMax);
-  state.roll += (state.tRoll - state.roll) * 0.2;
+  state.roll += (state.tRoll - state.roll) * 0.22;
   state.vibe += dt;
 
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0012;
@@ -1615,8 +1627,9 @@ function animate(now) {
   }
   /* world turns with banked heading — side windows see same ground */
   terrainGroup.rotation.y = -state.flightHeading;
-  terrainGroup.rotation.z = -state.roll * 0.35;
+  terrainGroup.rotation.z = -state.roll * 0.25;
   terrainGroup.position.x = 0;
+  terrainGroup.position.y = -state.altLift;
 
   for (const layer of cloudLayers) {
     layer.mesh.position.x = Math.sin(-state.flightHeading) * (-8 - layer.speed * 0.6);
