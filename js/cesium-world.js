@@ -412,20 +412,33 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     if (elapsed < 28) {
       hdg = DEP_RWY_HEADING;
     } else if (onArrLeg || distM >= path.totalDistM - 80) {
-      /* Only after ARR_ENTRY — never lock 176 while still joining from TGU */
       hdg = ARR_RWY_HEADING;
+      /* Hard snap — no catch-up crab while moving 176° */
+      if (!state._arrHdgLocked) {
+        lastHeading = ARR_RWY_HEADING;
+        state._arrHdgLocked = true;
+        /* Swallow handoff teleport so GS/smear doesn't spike one frame */
+        state._prevLat = sample.lat;
+        state._prevLon = sample.lon;
+      }
     } else {
+      state._arrHdgLocked = false;
       const softAhead = sampleAhead(path, distM, Math.max(lookM, 12000));
       hdg = bearingDeg(sample.lat, sample.lon, softAhead.lat, softAhead.lon);
     }
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
-    const maxDegPerSec = elapsed < 40 ? 2.2 : onArrLeg ? 30 : elapsed >= 72 ? 18 : 5;
-    const cappedDt = Math.min(step, 0.08);
-    const maxStep = maxDegPerSec * cappedDt;
-    if (dh > maxStep) dh = maxStep;
-    if (dh < -maxStep) dh = -maxStep;
-    const blend = 1 - Math.exp(-cappedDt * (onArrLeg ? 7 : elapsed >= 72 ? 3.5 : 1.2));
-    lastHeading = (lastHeading + dh * blend + 360) % 360;
+    if (state._arrHdgLocked) {
+      lastHeading = ARR_RWY_HEADING;
+      dh = 0;
+    } else {
+      const maxDegPerSec = elapsed < 40 ? 2.2 : elapsed >= 70 ? 20 : 5;
+      const cappedDt = Math.min(step, 0.08);
+      const maxStep = maxDegPerSec * cappedDt;
+      if (dh > maxStep) dh = maxStep;
+      if (dh < -maxStep) dh = -maxStep;
+      const blend = 1 - Math.exp(-cappedDt * (elapsed >= 70 ? 4 : 1.2));
+      lastHeading = (lastHeading + dh * blend + 360) % 360;
+    }
     geo.heading = lastHeading;
     state.routeHeading = lastHeading;
     state.heading = lastHeading;
@@ -443,10 +456,10 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     else if (geo.phase === "cruise") iasTarget = 445;
     else if (geo.phase === "descent") iasTarget = 290;
     else if (geo.phase === "approach") {
-      if (elapsed >= 106.5) iasTarget = 45; /* roll-out brake */
-      else if (elapsed >= 105) iasTarget = 110;
-      else if (elapsed > 100) iasTarget = 145;
-      else iasTarget = 180;
+      if (elapsed >= 107) iasTarget = 40;
+      else if (elapsed >= 105) iasTarget = 95;
+      else if (elapsed > 100) iasTarget = 130;
+      else iasTarget = 160;
     }
     geo.indicatedAirspeedKt =
       (geo.indicatedAirspeedKt || iasTarget) + (iasTarget - (geo.indicatedAirspeedKt || iasTarget)) * Math.min(1, step * 1.4);
@@ -457,16 +470,16 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const terrainH = terrainAtCached(sample.lat, sample.lon);
     geo.terrainHeight = terrainH;
     state.terrainHeight = terrainH;
-    /* Touchdown ~106.5s then stay on deck through roll-out */
     const onGround =
-      elapsed >= 106.4 ||
+      elapsed >= 106.8 ||
       state._heldAtEnd ||
-      (elapsed >= 105.5 && autoAlt <= USN_ELEV_M + 10);
+      (elapsed >= 105.8 && autoAlt <= USN_ELEV_M + 12);
     let minClear =
-      geo.phase === "departure" ? 8 : geo.phase === "approach" ? 12 : geo.phase === "cruise" ? 400 : 120;
-    if (elapsed > 100) minClear = 4;
+      geo.phase === "departure" ? 8 : geo.phase === "approach" ? 25 : geo.phase === "cruise" ? 400 : 120;
+    if (elapsed > 100) minClear = 10;
+    if (elapsed > 104) minClear = 5;
     if (onGround) {
-      geo.altitudeAMSL = Math.max(USN_ELEV_M + 3, terrainH + 2.5);
+      geo.altitudeAMSL = Math.max(USN_ELEV_M + 4, terrainH + 4);
       geo.pitch = 0;
     } else {
       geo.altitudeAMSL = Math.max(autoAlt, terrainH + minClear);
@@ -481,8 +494,12 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       geo.pitch = autopilotPitchDeg(geo.phase, altRate, elapsed);
     }
     state.pitch = geo.pitch;
-    const turnRate = dh / Math.max(cappedDt, 1e-3);
-    geo.roll = Math.max(-5, Math.min(5, -turnRate * 0.05));
+    if (onArrLeg || onGround) {
+      geo.roll = 0;
+    } else {
+      const turnRate = dh / Math.max(Math.min(step, 0.08), 1e-3);
+      geo.roll = Math.max(-4, Math.min(4, -turnRate * 0.04));
+    }
     state.roll = geo.roll;
 
     if (geo.quality !== lastQuality) {
@@ -496,32 +513,33 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       console.warn("[clouds] update", e);
     }
 
-    /* After liftoff: show clear sky band (~40%+). Looking too far down hid clouds too. */
+    /* Look ahead on final — never bury nose into dirt */
     const camH = geo.altitudeAMSL;
-    let horizonBias = -5.2;
+    let horizonBias = -5.0;
     if (onGround) {
-      horizonBias = -4.8;
+      horizonBias = -3.8;
     } else if (geo.phase === "departure" && elapsed < 8) {
       horizonBias = -5.0;
     } else if (geo.phase === "climb" || geo.phase === "cruise") {
-      horizonBias = -4.6;
+      horizonBias = -4.4;
     } else if (geo.phase === "descent") {
-      horizonBias = -5.4;
+      horizonBias = -4.8;
     } else if (geo.phase === "approach") {
-      horizonBias = elapsed > 100 ? -6.2 : -5.6;
+      horizonBias = elapsed > 104 ? -4.2 : -4.6;
     }
     if (state._horizonBias == null) state._horizonBias = horizonBias;
-    state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 1.8);
+    state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 2);
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
     const renderPitch = state._horizonBias + view.pitchOffset;
+    const renderRoll = onArrLeg || onGround ? 0 : geo.roll;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
       orientation: {
         heading: Cesium.Math.toRadians(renderHeading),
         pitch: Cesium.Math.toRadians(renderPitch),
-        roll: Cesium.Math.toRadians(geo.roll),
+        roll: Cesium.Math.toRadians(renderRoll),
       },
     });
 

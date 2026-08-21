@@ -50,20 +50,20 @@ function offsetLatLon(lat, lon, bearingDeg, distM) {
 }
 
 /**
- * Straight-in final + ground roll on runway heading (no lateral slide).
- * Every arrival point sits on RWY 176 extended centerline — no LATEP dogleg.
+ * Short straight-in (~5–6 km) so final groundspeed stays viewable.
+ * LATEP→ENTRY join is skipped in route-progress (instant handoff).
  */
 const ARR_THR = { lat: 35.545, lon: 129.355 };
 const ARR_BACK = (ARR_RWY_HEADING + 180) % 360;
 export const ARRIVAL_TRANSITION = [
-  { id: "ARR_ENTRY", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 28000), note: "long final entry" },
-  { id: "ARR_IF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 14000), note: "initial approach" },
-  { id: "ARR_FAF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 6500), note: "final approach" },
-  { id: "ARR_SHORT", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 2000), note: "short final" },
+  { id: "ARR_ENTRY", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 5200), note: "final entry" },
+  { id: "ARR_IF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 3200), note: "initial approach" },
+  { id: "ARR_FAF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 1600), note: "final approach" },
+  { id: "ARR_SHORT", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 600), note: "short final" },
   { id: "ARR_THR", lat: ARR_THR.lat, lon: ARR_THR.lon, note: "virtual RWY threshold" },
-  { id: "ARR_TD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 400), note: "touchdown" },
-  { id: "ARR_ROLL", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 1500), note: "roll-out" },
-  { id: "ARR_HOLD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 2600), note: "end of roll" },
+  { id: "ARR_TD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 220), note: "touchdown" },
+  { id: "ARR_ROLL", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 700), note: "roll-out" },
+  { id: "ARR_HOLD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 1300), note: "end of roll" },
 ];
 
 export const FLIGHT_DURATION_SEC = 110;
@@ -188,19 +188,17 @@ export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURA
     const x = (t - 18) / 22;
     return 0.012 + 0.07 * smoothstep(x);
   }
-  if (t <= 72) {
-    /* Reach LATEP (~84%) */
-    const x = (t - 40) / 32;
-    return 0.082 + 0.76 * smoothstep(x);
+  if (t <= 70) {
+    /* Hold at end of LATEP (~86.04%) — do NOT lerp across LATEP→ARR_ENTRY */
+    const x = (t - 40) / 30;
+    return 0.082 + 0.778 * smoothstep(x);
   }
-  if (t <= 78) {
-    /* Snap onto ARR_ENTRY centerline — do not linger on SE join */
-    const x = (t - 72) / 6;
-    return 0.842 + 0.075 * smoothstep(x);
+  if (t < 73) {
+    return 0.8604;
   }
-  /* 176° final + touchdown + roll (~91.5% → 100%) */
-  const x = (t - 78) / 32;
-  return 0.917 + 0.083 * smoothstep(x);
+  /* Discontinuous handoff onto ARR_ENTRY (past join end 98.14%), then slow final */
+  const x = (t - 73) / 37;
+  return 0.9815 + 0.0185 * smoothstep(x);
 }
 
 export function timeToDistanceProgress(elapsed, duration, totalDistM) {
@@ -220,13 +218,14 @@ export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
     [45, 7000],
     [55, 7200],
     [70, 6800],
-    [82, 4200],
-    [92, 1600],
-    [98, 520],
-    [102, 160],
-    [105, USN_ELEV_M + 8], /* flare */
-    [106.5, USN_ELEV_M + 3], /* touchdown */
-    [110, USN_ELEV_M + 3], /* roll-out on deck */
+    [78, 3200],
+    [88, 1400],
+    [96, 520],
+    [100, 220],
+    [103, 90],
+    [105.5, USN_ELEV_M + 10], /* flare */
+    [107, USN_ELEV_M + 4], /* touchdown */
+    [110, USN_ELEV_M + 3], /* roll-out */
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];
@@ -284,8 +283,8 @@ export function autopilotPitchDeg(phase, altRateMps, elapsed = 0) {
   if (phase === "cruise") return 1.5 + rateP * 0.25;
   if (phase === "descent") return -1.5 + rateP;
   if (elapsed >= 105.5) return 0;
-  if (elapsed > 102) return 1.2 + rateP * 0.3; /* flare */
-  return -2.2 + rateP;
+  if (elapsed > 103) return 1.0;
+  return -1.2 + rateP * 0.35;
 }
 
 /**
