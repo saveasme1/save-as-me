@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=lcd3d2mt32fewl";
+import { createCesiumWorld } from "./cesium-world.js?v=debugmfdmt35mxb5";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=lcd3d2mt32fewl";
+} from "./gmp-usn-route.js?v=debugmfdmt35mxb5";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -833,10 +833,33 @@ function clearMfdClipOverlay() {
   if (layer) layer.remove();
 }
 
+// #region agent log
+function dbgMfd(hypothesisId, location, message, data) {
+  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+    body: JSON.stringify({
+      sessionId: "88eb62",
+      runId: "mfd-miss",
+      hypothesisId,
+      location,
+      message,
+      data: data || {},
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+}
+// #endregion
+
 function placeMfdOnBlackDus(root) {
   const w = renderer.domElement.width;
   const h = renderer.domElement.height;
-  if (!w || !h) return false;
+  if (!w || !h) {
+    // #region agent log
+    dbgMfd("A", "flight.js:placeMfd", "abort_no_canvas", { w, h });
+    // #endregion
+    return false;
+  }
 
   /* kill floating HTML overlays — MFDs must be 3D children of black LCD */
   clearMfdClipOverlay();
@@ -847,9 +870,29 @@ function placeMfdOnBlackDus(root) {
   const prev = (state._mfdScreens || []).slice();
 
   let centers = measureBlackDuCenters(root, w, h);
+  const measuredN = centers.length;
   if (centers.length < 5) centers = findBlackDuCenters(w, h);
+  // #region agent log
+  dbgMfd("A", "flight.js:placeMfd", "centers", {
+    measuredN,
+    usedN: centers.length,
+    sample: (centers || []).slice(0, 5).map((c) => ({
+      i: c.projectIndex,
+      px: c.px,
+      py: c.py,
+      wPx: c.wPx,
+      hPx: c.hPx,
+    })),
+    cam: { ...(state._camBase || {}) },
+    pitch: state.pitch,
+    zoom: state.zoom,
+  });
+  // #endregion
   if (centers.length < 5) {
     console.warn("[mfd-panel] no DU centers");
+    // #region agent log
+    dbgMfd("A", "flight.js:placeMfd", "fail_no_centers", { measuredN });
+    // #endregion
     return false;
   }
   centers = centers.slice(0, 5);
@@ -857,6 +900,9 @@ function placeMfdOnBlackDus(root) {
   const black = collectBlackMeshes(root);
   if (!black.length) {
     console.warn("[mfd-panel] no black LCD");
+    // #region agent log
+    dbgMfd("B", "flight.js:placeMfd", "fail_no_black", {});
+    // #endregion
     return false;
   }
 
@@ -882,6 +928,14 @@ function placeMfdOnBlackDus(root) {
     }
     if (!hit?.face) {
       console.warn("[mfd-panel] miss seed", c0.projectIndex);
+      // #region agent log
+      dbgMfd("C", "flight.js:placeMfd", "fail_ray_miss", {
+        projectIndex: c0.projectIndex,
+        px: c0.px,
+        py: c0.py,
+        blackN: black.length,
+      });
+      // #endregion
       return false;
     }
     sized.push({ c, hit });
@@ -970,6 +1024,18 @@ function placeMfdOnBlackDus(root) {
   paintMfdScreens();
   tickMfdPop();
   console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((s) => s.detect)));
+  // #region agent log
+  dbgMfd("D", "flight.js:placeMfd", "place_ok", {
+    n: state._mfdScreens.length,
+    detect: state._mfdScreens.map((s) => s.detect),
+    parents: state._mfdScreens.map((s) => s.mesh?.parent?.name),
+    sizes: state._mfdScreens.map((s) => {
+      const g = s.mesh?.geometry?.parameters;
+      return g ? { width: g.width, height: g.height } : null;
+    }),
+    visible: state._mfdScreens.map((s) => s.mesh?.visible),
+  });
+  // #endregion
   return state._mfdScreens.length >= 5;
 }
 
@@ -986,6 +1052,12 @@ function installMfdScreens(root) {
     THREE,
     placeMfdOnBlackDus: () => placeMfdOnBlackDus(root),
   };
+  // #region agent log
+  dbgMfd("E", "flight.js:installMfd", "install_start", {
+    hasCockpit: typeof cockpit !== "undefined",
+    blackN: collectBlackMeshes(root).length,
+  });
+  // #endregion
   let tries = 0;
   const maxTries = 40;
   const attempt = () => {
@@ -994,11 +1066,27 @@ function installMfdScreens(root) {
     cameraRig.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
     root.updateMatrixWorld(true);
-    if (placeMfdOnBlackDus(root)) {
+    const ok = placeMfdOnBlackDus(root);
+    // #region agent log
+    dbgMfd("E", "flight.js:installMfd", "attempt", {
+      tries,
+      ok,
+      n: (state._mfdScreens || []).length,
+    });
+    // #endregion
+    if (ok) {
       console.info("[mfd-panel] eacc-seat ok tries=" + tries);
       return;
     }
     if (tries < maxTries) setTimeout(attempt, 280);
+    else {
+      // #region agent log
+      dbgMfd("E", "flight.js:installMfd", "exhausted", {
+        tries,
+        n: (state._mfdScreens || []).length,
+      });
+      // #endregion
+    }
   };
   setTimeout(attempt, 800);
   const onCesium = () => {
@@ -1133,13 +1221,25 @@ new GLTFLoader().load(
       key.position.set(0.4, 2.2, 1.2);
       cockpit.add(key);
       document.body.classList.add("is-cockpit-ready");
+      // #region agent log
+      dbgMfd("F", "flight.js:gltf", "cockpit_ready", {
+        cam: { ...(state._camBase || {}) },
+        blackN: collectBlackMeshes(root).length,
+      });
+      // #endregion
     } catch (err) {
       console.error("A320 cockpit init failed", err);
+      // #region agent log
+      dbgMfd("F", "flight.js:gltf", "cockpit_init_fail", { err: String(err?.message || err) });
+      // #endregion
     }
   },
   undefined,
   (err) => {
     console.error("A320 cockpit GLB failed", err);
+    // #region agent log
+    dbgMfd("F", "flight.js:gltf", "glb_fail", { err: String(err?.message || err) });
+    // #endregion
   }
 );
 
