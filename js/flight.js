@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=debugmfdmt35mxb5";
+import { createCesiumWorld } from "./cesium-world.js?v=fixcammt35z5h1";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=debugmfdmt35mxb5";
+} from "./gmp-usn-route.js?v=fixcammt35z5h1";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -651,7 +651,14 @@ function mfdLookBias() {
 
 function syncMfdCamera() {
   const lookBias = mfdLookBias();
+  const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
+  const dolly = (state.zoom - 0.28) * (isMobile() ? 0.38 : 0.45);
   cameraRig.rotation.set(state.pitch + lookBias, state.yaw, state.roll);
+  camera.position.set(
+    base.x + state.zoomSide,
+    base.y - state.zoom * 0.03 + (state.snapLift || 0),
+    base.z - dolly
+  );
   cameraRig.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
 }
@@ -668,15 +675,18 @@ function measureBlackDuCenters(root, w, h) {
     return raycaster.intersectObjects(black, false).length > 0;
   };
 
-  /* find modal DU row */
+  /* find modal DU row — wide belt (close-cam LCD can sit lower) */
   const hits = [];
   const step = 3;
-  for (let py = Math.floor(h * 0.58); py <= Math.floor(h * 0.82); py += step) {
-    for (let px = Math.floor(w * 0.3); px <= Math.floor(w * 0.7); px += step) {
+  for (let py = Math.floor(h * 0.45); py <= Math.floor(h * 0.92); py += step) {
+    for (let px = Math.floor(w * 0.28); px <= Math.floor(w * 0.72); px += step) {
       if (hitAt(px, py)) hits.push({ px, py });
     }
   }
-  if (hits.length < 30) return [];
+  // #region agent log
+  dbgMfd("A", "flight.js:measure", "scan_hits", { hits: hits.length, w, h });
+  // #endregion
+  if (hits.length < 20) return [];
   const yHist = new Map();
   hits.forEach((hh) => {
     const b = Math.round(hh.py / 4) * 4;
@@ -698,14 +708,24 @@ function measureBlackDuCenters(root, w, h) {
     let sx = Math.floor(w * seeds[i]);
     let sy = modeY;
     let found = false;
-    for (const dy of [0, 6, -6, 12, -12, 18, -18, 24, -24, 30, -30]) {
+    for (let dy = 0; dy <= Math.floor(h * 0.25); dy += 4) {
       if (hitAt(sx, modeY + dy)) {
         sy = modeY + dy;
         found = true;
         break;
       }
+      if (dy && hitAt(sx, modeY - dy)) {
+        sy = modeY - dy;
+        found = true;
+        break;
+      }
     }
-    if (!found) return [];
+    if (!found) {
+      // #region agent log
+      dbgMfd("A", "flight.js:measure", "seed_miss", { i, sx, modeY });
+      // #endregion
+      return [];
+    }
 
     let minPx = sx;
     let maxPx = sx;
@@ -720,7 +740,6 @@ function measureBlackDuCenters(root, w, h) {
 
     let bw = maxPx - minPx;
     let bh = maxPy - minPy;
-    /* reject ECAM tower — clamp to DU-like aspect */
     if (bh > bw * 1.35) {
       const mid = (minPy + maxPy) / 2;
       const half = (bw * 1.05) / 2;
@@ -728,7 +747,7 @@ function measureBlackDuCenters(root, w, h) {
       maxPy = Math.round(mid + half);
       bh = maxPy - minPy;
     }
-    if (bw < 20 || bh < 20) return [];
+    if (bw < 16 || bh < 16) return [];
 
     out.push({
       projectIndex: i,
@@ -747,7 +766,28 @@ function measureBlackDuCenters(root, w, h) {
 }
 
 function findBlackDuCenters(w, h) {
-  const fy = 0.74;
+  /* live modeY from a cheap mid-column black scan — never hardcode 0.74 alone */
+  let modeY = Math.floor(h * 0.74);
+  const black = collectBlackMeshes(state._mfdRoot || cockpit);
+  if (black.length && typeof camera !== "undefined") {
+    const raycaster = new THREE.Raycaster();
+    const yHist = new Map();
+    const cx = Math.floor(w * 0.5);
+    for (let py = Math.floor(h * 0.45); py <= Math.floor(h * 0.92); py += 4) {
+      raycaster.setFromCamera(new THREE.Vector2((cx / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
+      if (!raycaster.intersectObjects(black, false).length) continue;
+      const b = Math.round(py / 4) * 4;
+      yHist.set(b, (yHist.get(b) || 0) + 1);
+    }
+    let best = 0;
+    yHist.forEach((n, y) => {
+      if (n > best) {
+        best = n;
+        modeY = y;
+      }
+    });
+  }
+  const fy = modeY / h;
   const expect = [
     { fx: 0.339, fy },
     { fx: 0.406, fy },
@@ -840,7 +880,7 @@ function dbgMfd(hypothesisId, location, message, data) {
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "mfd-miss",
+      runId: "post-fix",
       hypothesisId,
       location,
       message,
@@ -910,14 +950,13 @@ function placeMfdOnBlackDus(root) {
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
-  const yProbe = [0, 4, -4, 8, -8, 12, -12, 16, -16, 24, -24];
 
   const sized = [];
   for (const c0 of centers) {
     let hit = null;
     let c = c0;
-    for (const dy of yProbe) {
-      const py = c0.py + dy;
+    /* full-column probe — log proved fixed yProbe ±24 still missed */
+    for (let py = Math.floor(h * 0.4); py <= Math.floor(h * 0.95); py += 3) {
       ndc.set((c0.px / w) * 2 - 1, -((py / h) * 2 - 1));
       raycaster.setFromCamera(ndc, camera);
       hit = raycaster.intersectObjects(black, false)[0];
@@ -1193,11 +1232,11 @@ function fitCockpitView(root) {
   const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  /* Slightly aft of cabin center, high enough to see panel + both seats + pedestal */
+  /* Slightly aft of cabin center — log-proven: z≈0.38 made NDC miss black LCD */
   state._camBase = {
     x: center.x,
     y: box.min.y + Math.min(Math.max(size.y * 0.52, 1.05), 1.45),
-    z: center.z + size.z * 0.12,
+    z: Math.max(1.25, center.z + size.z * 0.28),
   };
   state._cockpitReady = true;
   console.info("[cockpit]", {
