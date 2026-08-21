@@ -1,14 +1,14 @@
-﻿import * as THREE from "three";
+import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=scrub-move1";
+import { createCesiumWorld } from "./cesium-world.js?v=boot-fix1";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=scrub-move1";
+} from "./gmp-usn-route.js?v=boot-fix1";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1694,25 +1694,7 @@ document.addEventListener("visibilitychange", () => {
   state._tabVisible = document.visibilityState === "visible";
 });
 
-createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug") })
-  .then((world) => {
-    state._cesium = world;
-    window.__SAVEAS_SEEK = (u) => {
-      world.seekNormalized(u);
-      updateGauges();
-    };
-    bindFlightScrubber();
-    finishBootLoad();
-    console.info(
-      `[cesium] ready routeKm=${world.path.totalDistM / 1000} duration=${world.FLIGHT_DURATION_SEC}s`
-    );
-  })
-  .catch((err) => {
-    console.error("[cesium] init failed", err);
-    finishBootLoad();
-  });
-
-/* Boot loading bar ??creep while Cesium boots, snap to 100% on ready */
+/* Boot loading bar — creep while Cesium boots, snap to 100% on ready */
 const bootFill = document.getElementById("bootLoadFill");
 const bootPct = document.getElementById("bootLoadPct");
 const bootLabel = document.getElementById("bootLoadLabel");
@@ -1730,7 +1712,11 @@ function fitBootType() {
   if (maxW < 40) return;
   let size = parseFloat(getComputedStyle(bootEn).fontSize);
   for (let i = 0; i < 32; i++) {
-    const overflow = lines.some((line) => line.scrollWidth > maxW + 1);
+    const overflow = lines.some((line) => {
+      const rim = line.querySelector(".boot-outline-rim");
+      const w = rim ? rim.scrollWidth : line.scrollWidth;
+      return w > maxW + 1;
+    });
     if (!overflow) break;
     size *= 0.93;
     bootEn.style.fontSize = `${size.toFixed(2)}px`;
@@ -1745,6 +1731,7 @@ window.addEventListener("resize", () => {
 
 let bootProgress = 0;
 let bootDone = false;
+let bootFailSafe = 0;
 function setBootProgress(p) {
   bootProgress = Math.max(0, Math.min(1, p));
   if (bootFill) bootFill.style.transform = `scaleX(${bootProgress})`;
@@ -1759,12 +1746,36 @@ function finishBootLoad() {
   if (bootDone) return;
   bootDone = true;
   clearInterval(bootTimer);
+  if (bootFailSafe) clearTimeout(bootFailSafe);
   setBootProgress(1);
   if (bootLabel) bootLabel.textContent = "READY";
   requestAnimationFrame(() => {
     setTimeout(() => document.body.classList.add("is-ready"), 220);
   });
 }
+/* Never leave users stuck on boot if Cesium hangs */
+bootFailSafe = setTimeout(() => {
+  console.warn("[boot] failsafe — forcing ready");
+  finishBootLoad();
+}, 20000);
+
+createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug") })
+  .then((world) => {
+    state._cesium = world;
+    window.__SAVEAS_SEEK = (u) => {
+      world.seekNormalized(u);
+      updateGauges();
+    };
+    bindFlightScrubber();
+    finishBootLoad();
+    console.info(
+      `[cesium] ready routeKm=${world.path.totalDistM / 1000} duration=${world.FLIGHT_DURATION_SEC}s`
+    );
+  })
+  .catch((err) => {
+    console.error("[cesium] init failed", err);
+    finishBootLoad();
+  });
 
 applyProject(-1, { maneuver: false });
 requestAnimationFrame(animate);

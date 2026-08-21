@@ -682,6 +682,8 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   z-index: 40;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding:
     max(var(--boot-pad-y), env(safe-area-inset-top))
     max(var(--boot-pad-x), env(safe-area-inset-right))
@@ -696,27 +698,29 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   box-sizing: border-box;
 }
 .boot-inner {
-  width: 100%;
-  max-width: 68rem;
-  margin: 0;
-  margin-right: auto;
-  flex: 1;
+  width: min(100%, 52rem);
+  max-width: 52rem;
+  margin: 0 auto;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  align-items: stretch;
-  gap: clamp(1.4rem, 4.5vh, 2.6rem);
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: clamp(1.5rem, 4.5vh, 2.8rem);
   box-sizing: border-box;
 }
 .boot-copy {
   flex: 0 1 auto;
+  width: 100%;
   min-width: 0;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 .boot-mark {
   margin: 0 0 clamp(0.75rem, 1.8vw, 1.35rem);
@@ -734,31 +738,59 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   min-width: 0;
   font-family: "Syne", "Outfit", var(--font-d), sans-serif;
   font-weight: 800;
-  font-size: clamp(1.7rem, 7.6vw, 6.2rem);
-  line-height: 0.94;
+  font-size: clamp(1.7rem, 7.2vw, 5.6rem);
+  line-height: 0.96;
   letter-spacing: -0.045em;
   text-transform: uppercase;
-  color: transparent;
-  -webkit-text-stroke: clamp(1.1px, 0.14vw, 2.1px) #071018;
-  paint-order: stroke fill;
+  color: #071018;
+  text-align: center;
 }
 .boot-en .boot-line {
   display: block;
-  width: max-content;
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
   white-space: nowrap;
   overflow: visible;
+  text-align: center;
 }
+/* Hollow outline via rim + destination-out cut = united glyph strokes (no double-overlap) */
 .boot-en .boot-outline {
+  position: relative;
+  display: block;
   color: transparent;
-  -webkit-text-stroke: clamp(1.1px, 0.14vw, 2.1px) #071018;
+  isolation: isolate;
+  -webkit-text-stroke: 0;
+}
+.boot-en .boot-outline-rim,
+.boot-en .boot-outline-cut {
+  display: block;
+  white-space: nowrap;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: inherit;
+}
+.boot-en .boot-outline-rim {
+  color: #071018;
+  -webkit-text-stroke: 0;
+}
+.boot-en .boot-outline-cut {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  color: #000;
+  transform: translate(-50%, -50%) scale(0.92);
+  transform-origin: center center;
+  mix-blend-mode: destination-out;
+  pointer-events: none;
+  user-select: none;
 }
 .boot-en .boot-solid {
   color: #071018;
   -webkit-text-stroke: 0;
 }
 .boot-ko {
-  margin: clamp(0.95rem, 2.2vw, 1.5rem) 0 0;
+  margin: clamp(0.95rem, 2.2vw, 1.5rem) auto 0;
   max-width: 28em;
   font-family: "Pretendard Variable", Pretendard, sans-serif;
   font-weight: 500;
@@ -767,14 +799,15 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   letter-spacing: -0.02em;
   color: rgba(7, 16, 24, 0.62);
   word-break: keep-all;
+  text-align: center;
 }
 .boot-load {
   flex: 0 0 auto;
-  width: 100%;
+  width: min(100%, 22rem);
   max-width: 22rem;
   box-sizing: border-box;
   padding: 0;
-  margin: 0;
+  margin: 0 auto;
 }
 .boot-load-row {
   display: flex;
@@ -836,13 +869,12 @@ body.is-ready .boot {
     gap: 1.15rem;
   }
   .boot-en {
-    font-size: clamp(1.5rem, 8.6vw, 2.45rem);
-    line-height: 0.96;
+    font-size: clamp(1.45rem, 8.2vw, 2.35rem);
+    line-height: 0.98;
     letter-spacing: -0.04em;
-    -webkit-text-stroke: 1.05px #071018;
   }
-  .boot-en .boot-outline {
-    -webkit-text-stroke: 1.05px #071018;
+  .boot-en .boot-outline-cut {
+    transform: translate(-50%, -50%) scale(0.905);
   }
   .boot-ko {
     font-size: clamp(0.9rem, 3.7vw, 1.05rem);

@@ -1,4 +1,4 @@
-﻿import {
+import {
   ARRIVAL_TRANSITION,
   ARR_RWY_HEADING,
   DEPARTURE_TRANSITION,
@@ -19,9 +19,9 @@
   sampleAhead,
   samplePathByDistance,
   timeToDistanceProgress,
-} from "./gmp-usn-route.js?v=scrub-move1";
+} from "./gmp-usn-route.js?v=boot-fix1";
 import { addVirtualAirport } from "./virtual-airport.js";
-import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=scrub-move1";
+import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=boot-fix1";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
