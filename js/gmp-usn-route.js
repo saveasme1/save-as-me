@@ -35,14 +35,34 @@ export const DEPARTURE_TRANSITION = [
 export const DEP_RWY_HEADING = 145;
 export const ARR_RWY_HEADING = 176;
 
+const R_EARTH = 6371000;
+
+function offsetLatLon(lat, lon, bearingDeg, distM) {
+  const δ = distM / R_EARTH;
+  const θ = (bearingDeg * Math.PI) / 180;
+  const φ1 = (lat * Math.PI) / 180;
+  const λ1 = (lon * Math.PI) / 180;
+  const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+  const λ2 =
+    λ1 +
+    Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+  return { lat: (φ2 * 180) / Math.PI, lon: (((λ2 * 180) / Math.PI + 540) % 360) - 180 };
+}
+
 /**
- * Cinematic arrival — virtual Ulsan Field (stand-in for blurred RKPU pad).
+ * Straight-in final + ground roll on runway heading (no lateral slide).
+ * Approach points sit on the extended centerline opposite ARR_RWY_HEADING.
  */
+const ARR_THR = { lat: 35.545, lon: 129.355 };
+const ARR_BACK = (ARR_RWY_HEADING + 180) % 360;
 export const ARRIVAL_TRANSITION = [
-  { id: "ARR_IF", lat: 35.62574, lon: 129.34805, note: "initial approach" },
-  { id: "ARR_FAF", lat: 35.58537, lon: 129.35153, note: "final approach" },
-  { id: "ARR_THR", lat: 35.545, lon: 129.355, note: "virtual RWY threshold" },
-  { id: "ARR_HOLD", lat: 35.54141, lon: 129.35531, note: "touchdown / roll-out" },
+  { id: "ARR_IF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 14000), note: "initial approach" },
+  { id: "ARR_FAF", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 6500), note: "final approach" },
+  { id: "ARR_SHORT", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_BACK, 1800), note: "short final" },
+  { id: "ARR_THR", lat: ARR_THR.lat, lon: ARR_THR.lon, note: "virtual RWY threshold" },
+  { id: "ARR_TD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 350), note: "touchdown" },
+  { id: "ARR_ROLL", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 1400), note: "roll-out" },
+  { id: "ARR_HOLD", ...offsetLatLon(ARR_THR.lat, ARR_THR.lon, ARR_RWY_HEADING, 2400), note: "end of roll" },
 ];
 
 export const FLIGHT_DURATION_SEC = 110;
@@ -76,7 +96,7 @@ export function routeLabelLong() {
   return `${ROUTE_META.depName} (${ROUTE_META.depIcao}) → ${ROUTE_META.arrName} (${ROUTE_META.arrIcao})`;
 }
 
-const R_EARTH = 6371000;
+const R_EARTH_M = 6371000;
 
 export function haversineM(lat1, lon1, lat2, lon2) {
   const toR = (d) => (d * Math.PI) / 180;
@@ -86,7 +106,7 @@ export function haversineM(lat1, lon1, lat2, lon2) {
   const Δλ = toR(lon2 - lon1);
   const a =
     Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return 2 * R_EARTH * Math.asin(Math.min(1, Math.sqrt(a)));
+  return 2 * R_EARTH_M * Math.asin(Math.min(1, Math.sqrt(a)));
 }
 
 export function bearingDeg(lat1, lon1, lat2, lon2) {
@@ -109,7 +129,8 @@ export function lerpGeo(a, b, t) {
 export function buildFlightPath() {
   const pts = [];
   DEPARTURE_TRANSITION.forEach((p) => pts.push({ ...p, kind: "departure" }));
-  PUBLISHED_AIRWAY.slice(1).forEach((p) => pts.push({ ...p, kind: "airway" }));
+  /* Drop KPO/USN/RKPU — those doglegs caused sideways final; hand off to ARR_IF */
+  PUBLISHED_AIRWAY.slice(1, -3).forEach((p) => pts.push({ ...p, kind: "airway" }));
   ARRIVAL_TRANSITION.forEach((p) => pts.push({ ...p, kind: "arrival" }));
 
   const segments = [];
@@ -164,18 +185,20 @@ export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURA
   }
   if (t <= 40) {
     const x = (t - 18) / 22;
-    return 0.015 + 0.085 * smoothstep(x);
+    return 0.015 + 0.08 * smoothstep(x);
   }
-  if (t <= 72) {
-    const x = (t - 40) / 32;
-    return 0.1 + 0.78 * smoothstep(x);
+  if (t <= 70) {
+    const x = (t - 40) / 30;
+    return 0.095 + 0.72 * smoothstep(x);
   }
-  if (t <= 84) {
-    const x = (t - 72) / 12;
-    return 0.88 + 0.04 * smoothstep(x);
+  if (t <= 88) {
+    /* Descent into ARR_IF / FAF */
+    const x = (t - 70) / 18;
+    return 0.815 + 0.1 * smoothstep(x);
   }
-  const x = (t - 84) / 26;
-  return 0.92 + 0.08 * smoothstep(x);
+  /* Final + touchdown + roll — give landing real path distance */
+  const x = (t - 88) / 22;
+  return 0.915 + 0.085 * smoothstep(x);
 }
 
 export function timeToDistanceProgress(elapsed, duration, totalDistM) {
@@ -195,12 +218,13 @@ export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
     [45, 7000],
     [55, 7200],
     [70, 6800],
-    [80, 5000],
-    [90, 2800],
-    [100, 900],
-    [105, 220],
-    [108, USN_ELEV_M + 18],
-    [110, USN_ELEV_M + 4],
+    [82, 4200],
+    [92, 1600],
+    [98, 520],
+    [102, 160],
+    [105, USN_ELEV_M + 8], /* flare */
+    [106.5, USN_ELEV_M + 3], /* touchdown */
+    [110, USN_ELEV_M + 3], /* roll-out on deck */
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];
@@ -235,7 +259,8 @@ export function qualityPhase(elapsed) {
 }
 
 export function lookAheadMeters(phase) {
-  if (phase === "departure" || phase === "approach") return 1800;
+  if (phase === "departure") return 1800;
+  if (phase === "approach") return 1200;
   if (phase === "climb" || phase === "descent") return 4000;
   return 8000;
 }
@@ -256,8 +281,9 @@ export function autopilotPitchDeg(phase, altRateMps, elapsed = 0) {
   if (phase === "climb") return 4 + rateP;
   if (phase === "cruise") return 1.5 + rateP * 0.25;
   if (phase === "descent") return -1.5 + rateP;
-  if (elapsed > 105) return 1.5 + rateP;
-  return -2.5 + rateP;
+  if (elapsed >= 105.5) return 0;
+  if (elapsed > 102) return 1.2 + rateP * 0.3; /* flare */
+  return -2.2 + rateP;
 }
 
 /**
@@ -277,8 +303,9 @@ export function cinematicLookPitchDeg(elapsed, duration = FLIGHT_DURATION_SEC) {
     [64, -4], /* terrain pass */
     [74, 2], /* top of descent */
     [88, -7], /* approach — runway / city */
-    [104, -5], /* short final */
-    [110, -2], /* flare / hold */
+    [104, -4], /* short final */
+    [106.5, -2], /* touchdown */
+    [110, -1.5], /* roll-out */
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];

@@ -655,10 +655,11 @@ function measureBlackDuCenters(root, w, h) {
   const raycaster = new THREE.Raycaster();
   const hits = [];
   const step = 2;
-  const y0 = Math.floor(h * 0.66);
-  const y1 = Math.floor(h * 0.72);
-  const x0 = Math.floor(w * 0.29);
-  const x1 = Math.floor(w * 0.71);
+  /* Wider belt — camera pitch shifts DU NDC after framing tweaks */
+  const y0 = Math.floor(h * 0.58);
+  const y1 = Math.floor(h * 0.82);
+  const x0 = Math.floor(w * 0.26);
+  const x1 = Math.floor(w * 0.74);
   for (let py = y0; py <= y1; py += step) {
     for (let px = x0; px <= x1; px += step) {
       raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
@@ -711,11 +712,11 @@ function measureBlackDuCenters(root, w, h) {
 
 function findBlackDuCenters(w, h) {
   const expect = [
-    { fx: 0.339, fy: 0.685 },
-    { fx: 0.406, fy: 0.685 },
-    { fx: 0.5, fy: 0.685 },
-    { fx: 0.589, fy: 0.685 },
-    { fx: 0.656, fy: 0.685 },
+    { fx: 0.339, fy: 0.7 },
+    { fx: 0.406, fy: 0.7 },
+    { fx: 0.5, fy: 0.7 },
+    { fx: 0.589, fy: 0.7 },
+    { fx: 0.656, fy: 0.7 },
   ];
   const wPx = Math.floor(w * 0.078);
   const hPx = Math.floor(h * 0.08);
@@ -727,6 +728,12 @@ function findBlackDuCenters(w, h) {
     hPx,
     n: 100,
   }));
+}
+
+function hitBlackAt(black, raycaster, ndc, px, py, w, h) {
+  ndc.set((px / w) * 2 - 1, -((py / h) * 2 - 1));
+  raycaster.setFromCamera(ndc, camera);
+  return raycaster.intersectObjects(black, false)[0] || null;
 }
 
 function placeMfdOnBlackDus(root) {
@@ -742,23 +749,34 @@ function placeMfdOnBlackDus(root) {
   centers.length = 5;
 
   const black = collectBlackMeshes(root);
-  if (!black.length) return false;
+  if (!black.length) {
+    console.warn("[mfd-panel] no black LCD meshes");
+    return false;
+  }
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
+  const yProbe = [0, 8, -8, 16, -16, 24, -24, 32, -32, 40, -40];
 
   const sized = [];
   centers.forEach((c) => {
-    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
-    raycaster.setFromCamera(ndc, camera);
-    /* non-recursive: hit black LCD only, ignore child MFD planes */
-    const hit = raycaster.intersectObjects(black, false)[0];
+    let hit = null;
+    for (const dy of yProbe) {
+      hit = hitBlackAt(black, raycaster, ndc, c.px, c.py + dy, w, h);
+      if (hit?.face) {
+        c = { ...c, py: c.py + dy };
+        break;
+      }
+    }
     if (!hit || !hit.face) return;
     sized.push({ c, hit });
   });
-  if (sized.length < 5) return false;
+  if (sized.length < 5) {
+    console.warn(`[mfd-panel] black hits ${sized.length}/5 — keep prior screens`);
+    return false;
+  }
 
   /* success confirmed — only now remove previous screens */
   prev.forEach((s) => {
@@ -882,9 +900,9 @@ function installMfdScreens(root) {
   setTimeout(attempt, 400);
   /* again after Cesium exterior fades in (boot / camera settle) */
   const onCesium = () => {
-    if (state._mfdScreens?.length >= 5) return;
     setTimeout(() => placeMfdOnBlackDus(root), 200);
     setTimeout(() => placeMfdOnBlackDus(root), 900);
+    setTimeout(() => placeMfdOnBlackDus(root), 1800);
   };
   if (document.body.classList.contains("is-cesium-ready")) onCesium();
   else {
@@ -1005,6 +1023,13 @@ function prepareCockpitMaterials(root) {
         m.color?.set?.(0xffe8d0);
         m.emissive?.set?.(0x000000);
       } else if (n === "black") {
+        m.visible = true;
+        m.transparent = false;
+        m.opacity = 1;
+        m.colorWrite = true;
+        m.depthWrite = true;
+        m.depthTest = true;
+        m.color?.set?.(0x050505);
         m.polygonOffset = true;
         m.polygonOffsetFactor = 2;
         m.polygonOffsetUnits = 2;
