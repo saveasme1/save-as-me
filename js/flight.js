@@ -506,53 +506,90 @@ scene.add(skyDome);
 state._skyDome = skyDome;
 /* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-/* Windshield-only photo clouds — depth-tested so cockpit hull masks them
- * (never full-screen wash). Soft approach after takeoff. */
+/* Windshield photo clouds (eacc0b6 sizes) + post-takeoff approach.
+ * depthTest ON so cockpit hull masks — clouds only through windows. */
 const cloudLayers = [];
-function addPhotoCloud(url, w, h, farZ, nearZ, opacity) {
+function addPhotoCloud(url, w, h, farZ, nearZ, opacity, opts = {}) {
   loader.load(url, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
+    const map = opts.cloneMap ? tex.clone() : tex;
+    if (opts.cloneMap) map.needsUpdate = true;
     const m = new THREE.Mesh(
       new THREE.PlaneGeometry(w, h),
       new THREE.MeshBasicMaterial({
-        map: tex,
+        map,
         transparent: true,
-        opacity: 0.01,
+        opacity: 0.02,
         depthWrite: false,
-        depthTest: true, /* critical: only visible through window openings */
+        depthTest: true,
         toneMapped: false,
+        side: opts.side ?? THREE.FrontSide,
       })
     );
-    /* sit in upper windshield band, ahead of glass */
-    m.position.set(0, 1.35 + h * 0.02, farZ);
-    m.renderOrder = 1;
+    const y = opts.y != null ? opts.y : h * 0.08;
+    m.position.set(opts.x || 0, y, farZ);
+    if (opts.rotY) m.rotation.y = opts.rotY;
+    m.renderOrder = 2;
     scene.add(m);
     cloudLayers.push({
       mesh: m,
       farZ,
       nearZ,
-      baseY: 1.35 + h * 0.02,
-      speed: 4 + Math.random() * 5,
+      baseY: y,
+      speed: opts.speed ?? 6 + Math.random() * 10,
       opacity,
-      sideX: 0,
+      sideX: opts.x || 0,
+      approachStart: opts.approachStart ?? 12,
+      approachEnd: opts.approachEnd ?? 36,
     });
   });
 }
-/* Modest plane sizes — big enough through glass, not whole-viewport slabs */
-addPhotoCloud("assets/sky/clouds-front.jpg", 200, 52, -240, -95, 0.38);
-if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 260, 68, -320, -120, 0.3);
-if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 340, 88, -420, -160, 0.22);
+/* Near windshield layers (git eacc0b6 proportions) — ease in after takeoff */
+addPhotoCloud("assets/sky/clouds-front.jpg", 220, 48, -260, -90, 0.28);
+if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 280, 70, -340, -130, 0.22);
+if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 360, 90, -420, -200, 0.16);
+/* Huge distant bank — stays farther, slowly creeps closer */
+if (!isMobile()) {
+  addPhotoCloud("assets/sky/clouds-drama.jpg", 520, 140, -720, -380, 0.14, {
+    approachStart: 18,
+    approachEnd: 55,
+    speed: 3,
+  });
+  addPhotoCloud("assets/sky/sky-clouds.jpg", 680, 170, -900, -480, 0.1, {
+    approachStart: 22,
+    approachEnd: 70,
+    speed: 2,
+  });
+}
+/* Side windows — depth-tested (eacc0b6) */
+if (!isMobile()) {
+  addPhotoCloud("assets/sky/clouds-front.jpg", 160, 50, -220, -80, 0.22, {
+    x: -90,
+    y: 30,
+    rotY: 0.55,
+    side: THREE.DoubleSide,
+    cloneMap: true,
+    speed: 5,
+  });
+  addPhotoCloud("assets/sky/clouds-front.jpg", 160, 50, -220, -80, 0.22, {
+    x: 90,
+    y: 30,
+    rotY: -0.55,
+    side: THREE.DoubleSide,
+    cloneMap: true,
+    speed: 5,
+  });
+}
 const cloudGroup = new THREE.Group();
 cloudGroup.visible = false;
 scene.add(cloudGroup);
 const clouds = [];
 
-function cloudApproach01(elapsed) {
-  if (elapsed <= 12) return 0;
-  if (elapsed >= 34) return 1;
-  const x = (elapsed - 12) / 22;
+function cloudApproach01(elapsed, start, end) {
+  if (elapsed <= start) return 0;
+  if (elapsed >= end) return 1;
+  const x = (elapsed - start) / (end - start || 1);
   return x * x * (3 - 2 * x);
 }
 
@@ -1515,18 +1552,17 @@ function animate(now) {
     if (!layer.mesh) continue;
     const elapsed = state._cesium?.state?.elapsedSeconds ?? 0;
     const phase = state._cesium?.state?.phase || "";
-    let a = cloudApproach01(elapsed);
-    /* Fade out on short final so runway stays readable */
+    let a = cloudApproach01(elapsed, layer.approachStart, layer.approachEnd);
     if (elapsed > 95) a *= Math.max(0, 1 - (elapsed - 95) / 12);
     const z = layer.farZ + (layer.nearZ - layer.farZ) * a;
-    const op = layer.opacity * (0.12 + 0.88 * a) * (layer._nightMul ?? 1);
-    layer.mesh.position.z += (z - layer.mesh.position.z) * Math.min(1, dt * 1.2);
+    const op = layer.opacity * (0.15 + 0.85 * a) * (layer._nightMul ?? 1);
+    layer.mesh.position.z += (z - layer.mesh.position.z) * Math.min(1, dt * 1.1);
     layer.mesh.position.x =
-      layer.sideX + Math.sin(-state.flightHeading) * (-6 - layer.speed * 0.45) * a;
-    layer.mesh.position.y = layer.baseY + state.pitch * 2.5 + a * 8;
-    layer.mesh.material.opacity += (op - layer.mesh.material.opacity) * Math.min(1, dt * 1.5);
+      layer.sideX + Math.sin(-state.flightHeading) * (-8 - layer.speed * 0.6) * Math.max(0.35, a);
+    layer.mesh.position.y = layer.baseY + state.pitch * 3;
+    layer.mesh.material.opacity += (op - layer.mesh.material.opacity) * Math.min(1, dt * 1.4);
     if (layer.mesh.material.map) {
-      const drift = phase === "departure" ? 0.006 : 0.012 + state.speed * 0.02;
+      const drift = phase === "departure" ? 0.008 : 0.018 + state.speed * 0.025;
       layer.mesh.material.map.offset.x -= dt * drift;
     }
   }

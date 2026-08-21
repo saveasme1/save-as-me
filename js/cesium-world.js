@@ -120,18 +120,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   viewer.scene.globe.depthTestAgainstTerrain = false;
   if (viewer.scene.fog) {
     viewer.scene.fog.enabled = true;
-    viewer.scene.fog.density = 0.00038;
-  }
-  if (viewer.scene.skyAtmosphere && typeof viewer.scene.skyAtmosphere === "object") {
-    viewer.scene.skyAtmosphere.show = true;
-    viewer.scene.skyAtmosphere.brightnessShift = 0.12;
-    viewer.scene.skyAtmosphere.saturationShift = -0.05;
-  }
-  viewer.scene.globe.showGroundAtmosphere = true;
-  /* Soften far terrain so mountains don't dominate the exterior */
-  if (viewer.scene.globe) {
-    viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.4 : 1.8;
-    viewer.scene.globe.preloadSiblings = true;
+    viewer.scene.fog.density = 0.00015; /* pre-cloud Cesium look (afb7ae3) */
   }
   if (viewer.scene.skyBox && typeof viewer.scene.skyBox === "object") viewer.scene.skyBox.show = true;
   if (viewer.scene.sun && typeof viewer.scene.sun === "object") viewer.scene.sun.show = true;
@@ -433,12 +422,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const terrainH = terrainAtCached(sample.lat, sample.lon);
     geo.terrainHeight = terrainH;
     state.terrainHeight = terrainH;
-    /* Allow near-ground on virtual runway; keep clearance only in enroute */
-    let minClear = 120;
-    if (geo.phase === "cruise") minClear = 400;
-    else if (geo.phase === "climb" || geo.phase === "descent") minClear = 80;
-    else if (elapsed < 10 || elapsed > 105) minClear = 5;
-    else if (geo.phase === "departure" || geo.phase === "approach") minClear = 20;
+    const minClear =
+      geo.phase === "departure" || geo.phase === "approach" ? 30 : geo.phase === "cruise" ? 400 : 120;
     geo.altitudeAMSL = Math.max(autoAlt, terrainH + minClear);
     geo.altitudeAGL = geo.altitudeAMSL - terrainH;
     state.altitudeAMSL = geo.altitudeAMSL;
@@ -457,17 +442,18 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
-    /* Camera: keep sky dominant — avoid mountain-filled windshield */
-    const camH = Math.max(geo.altitudeAMSL, terrainH + (elapsed < 16 ? 120 : 60));
-    let horizonBias = 2.5; /* default slight sky */
-    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -1.5 : 4.5;
-    else if (geo.phase === "climb") horizonBias = 5.5;
-    else if (geo.phase === "cruise") horizonBias = 3.5;
-    else if (geo.phase === "descent") horizonBias = 1.0;
-    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -4.0 : -2.0;
+    /* Camera pitch — restore pre-cloud Cesium framing (afb7ae3).
+     * Cesium: 0=horizon, negative=look down. Formula: -autopilot + bias. */
+    const camH = geo.altitudeAMSL;
+    let horizonBias = -8;
+    if (geo.phase === "departure") horizonBias = -7;
+    else if (geo.phase === "cruise") horizonBias = -12; /* mostly sky ahead at cruise alt */
+    else if (geo.phase === "approach") horizonBias = -10;
+    else if (geo.phase === "descent") horizonBias = -9;
+    else if (geo.phase === "climb") horizonBias = -8;
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    const renderPitch = geo.pitch * 0.2 + horizonBias + view.pitchOffset;
+    const renderPitch = -geo.pitch + horizonBias + view.pitchOffset;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
