@@ -165,14 +165,14 @@ export function timeToDistanceProgress(elapsed, duration, totalDistM) {
 export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsed));
   const keys = [
-    [0, GMP_ELEV_M + 8],
-    [4, GMP_ELEV_M + 8],
-    [7, GMP_ELEV_M + 22],
-    [10, 220],
-    [14, 900],
-    [18, 2800],
-    [24, 5200],
-    [35, 6800],
+    [0, GMP_ELEV_M + 12],
+    [4, GMP_ELEV_M + 14],
+    [7, 90],
+    [10, 380],
+    [14, 1400],
+    [18, 3200],
+    [24, 5600],
+    [35, 7000],
     [50, 7200],
     [65, 7000],
     [75, 5200],

@@ -506,60 +506,60 @@ scene.add(skyDome);
 state._skyDome = skyDome;
 /* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-/* Photo cloud layers (parallax) — windshield atmosphere; soft sprites stay off */
+/* Photo cloud layers — large, soft, approach after takeoff complete */
 const cloudLayers = [];
-function addPhotoCloud(url, w, h, z, opacity) {
+function addPhotoCloud(url, w, h, farZ, nearZ, opacity, opts = {}) {
   loader.load(url, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
     const m = new THREE.Mesh(
       new THREE.PlaneGeometry(w, h),
       new THREE.MeshBasicMaterial({
         map: tex,
         transparent: true,
-        opacity,
+        opacity: opacity * 0.2,
         depthWrite: false,
+        depthTest: false,
         toneMapped: false,
+        side: opts.side ?? THREE.FrontSide,
       })
     );
-    m.position.set(0, h * 0.08, z);
-    m.renderOrder = -2;
+    m.position.set(opts.x || 0, h * 0.12, farZ);
+    if (opts.rotY) m.rotation.y = opts.rotY;
+    m.renderOrder = -3;
     scene.add(m);
-    cloudLayers.push({ mesh: m, baseZ: z, speed: 6 + Math.random() * 10, opacity });
-  });
-}
-addPhotoCloud("assets/sky/clouds-front.jpg", 220, 48, -90, 0.22);
-if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 280, 70, -130, 0.18);
-if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 360, 90, -200, 0.14);
-if (!isMobile()) {
-  loader.load("assets/sky/clouds-front.jpg", (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.wrapS = THREE.RepeatWrapping;
-    [-1, 1].forEach((side) => {
-      const m = new THREE.Mesh(
-        new THREE.PlaneGeometry(160, 50),
-        new THREE.MeshBasicMaterial({
-          map: tex.clone(),
-          transparent: true,
-          opacity: 0.22,
-          depthWrite: false,
-          toneMapped: false,
-          side: THREE.DoubleSide,
-          depthTest: true,
-        })
-      );
-      m.position.set(side * 90, 30, -80);
-      m.rotation.y = side * -0.55;
-      m.renderOrder = -2;
-      scene.add(m);
-      cloudLayers.push({ mesh: m, baseZ: -80, speed: 5, opacity: 0.22 });
+    cloudLayers.push({
+      mesh: m,
+      farZ,
+      nearZ,
+      baseY: h * 0.12,
+      speed: 4 + Math.random() * 6,
+      opacity,
+      sideX: opts.x || 0,
     });
   });
+}
+/* Bigger + more transparent; stay far until climb-out, then ease closer */
+addPhotoCloud("assets/sky/clouds-front.jpg", 520, 130, -320, -75, 0.32);
+if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 640, 160, -420, -100, 0.26);
+if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 820, 200, -560, -150, 0.18);
+if (!isMobile()) {
+  addPhotoCloud("assets/sky/clouds-front.jpg", 380, 120, -300, -90, 0.2, { x: -110, rotY: 0.5, side: THREE.DoubleSide });
+  addPhotoCloud("assets/sky/clouds-front.jpg", 380, 120, -300, -90, 0.2, { x: 110, rotY: -0.5, side: THREE.DoubleSide });
 }
 const cloudGroup = new THREE.Group();
 cloudGroup.visible = false;
 scene.add(cloudGroup);
 const clouds = [];
+
+function cloudApproach01(elapsed) {
+  /* After takeoff/rotate (~12s) start easing in; full presence ~32s */
+  if (elapsed <= 12) return 0;
+  if (elapsed >= 32) return 1;
+  const x = (elapsed - 12) / 20;
+  return x * x * (3 - 2 * x);
+}
 
 /* Old OSM strip terrain removed — Cesium World Terrain is the exterior */
 const terrainGroup = new THREE.Group();
@@ -1087,8 +1087,9 @@ function tickEnv() {
   sun.intensity += ((2.4 - night * 1.6) - sun.intensity) * k;
   for (const layer of cloudLayers) {
     if (!layer.mesh?.material) continue;
-    const want = layer.opacity * (1 - night * 0.75);
-    layer.mesh.material.opacity += (want - layer.mesh.material.opacity) * k;
+    /* approach loop owns opacity; only night-dim here */
+    const nightMul = 1 - night * 0.55;
+    layer._nightMul = nightMul;
   }
 }
 
@@ -1516,11 +1517,22 @@ function animate(now) {
   }
 
   for (const layer of cloudLayers) {
-    if (!layer.mesh?.geometry?.parameters) continue;
-    layer.mesh.position.x = Math.sin(-state.flightHeading) * (-8 - layer.speed * 0.6);
-    layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 3;
+    if (!layer.mesh) continue;
+    const elapsed = state._cesium?.state?.elapsedSeconds ?? 0;
+    const phase = state._cesium?.state?.phase || "";
+    let a = cloudApproach01(elapsed);
+    /* Fade out on short final so runway stays readable */
+    if (elapsed > 95) a *= Math.max(0, 1 - (elapsed - 95) / 12);
+    const z = layer.farZ + (layer.nearZ - layer.farZ) * a;
+    const op = layer.opacity * (0.12 + 0.88 * a);
+    layer.mesh.position.z += (z - layer.mesh.position.z) * Math.min(1, dt * 1.2);
+    layer.mesh.position.x =
+      layer.sideX + Math.sin(-state.flightHeading) * (-6 - layer.speed * 0.45) * a;
+    layer.mesh.position.y = layer.baseY + state.pitch * 2.5 + a * 8;
+    layer.mesh.material.opacity += (op - layer.mesh.material.opacity) * Math.min(1, dt * 1.5);
     if (layer.mesh.material.map) {
-      layer.mesh.material.map.offset.x -= dt * (0.018 + state.speed * 0.025);
+      const drift = phase === "departure" ? 0.006 : 0.012 + state.speed * 0.02;
+      layer.mesh.material.map.offset.x -= dt * drift;
     }
   }
 

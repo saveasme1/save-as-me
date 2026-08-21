@@ -120,7 +120,12 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   viewer.scene.globe.depthTestAgainstTerrain = false;
   if (viewer.scene.fog) {
     viewer.scene.fog.enabled = true;
-    viewer.scene.fog.density = 0.00015;
+    viewer.scene.fog.density = 0.00028;
+  }
+  /* Soften far terrain LOD pop / mountain stacking */
+  if (viewer.scene.globe) {
+    viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.0 : 1.4;
+    viewer.scene.globe.preloadSiblings = true;
   }
   if (viewer.scene.skyBox && typeof viewer.scene.skyBox === "object") viewer.scene.skyBox.show = true;
   if (viewer.scene.sun && typeof viewer.scene.sun === "object") viewer.scene.sun.show = true;
@@ -446,17 +451,18 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
-    /* Camera pitch: stable framing (no cinematic look-up/down sweeps) */
-    const camH = geo.altitudeAMSL;
-    let horizonBias = -2.5;
-    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -3.5 : -1.5;
-    else if (geo.phase === "climb") horizonBias = -1.0;
-    else if (geo.phase === "cruise") horizonBias = -2.0;
-    else if (geo.phase === "descent") horizonBias = -3.0;
-    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -5.5 : -4.0;
+    /* Camera: Cesium 0=horizon. Keep sky in frame at dep — don't bury nose in hills. */
+    const camH = Math.max(geo.altitudeAMSL, terrainH + (elapsed < 16 ? 80 : 40));
+    let horizonBias = -2;
+    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -2 : 2.5; /* rotate → sky */
+    else if (geo.phase === "climb") horizonBias = 3.0;
+    else if (geo.phase === "cruise") horizonBias = -1.5;
+    else if (geo.phase === "descent") horizonBias = -2.5;
+    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -4.5 : -3.0;
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    const renderPitch = geo.pitch + horizonBias + view.pitchOffset;
+    /* Light autopilot influence only — full +pitch was slamming horizon into terrain LOD */
+    const renderPitch = geo.pitch * 0.25 + horizonBias + view.pitchOffset;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
