@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=eaccmfdmt2xxl8d";
+import { createCesiumWorld } from "./cesium-world.js?v=exactmt2yb6gc";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=eaccmfdmt2xxl8d";
+} from "./gmp-usn-route.js?v=exactmt2yb6gc";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -688,11 +688,10 @@ function measureBlackDuCenters(root, w, h) {
     start = cut;
   });
   ranges.push(xs.slice(start));
+  /* reject fused/tiny islands so MD fallback fy≈0.685 actually runs */
   if (ranges.length !== 5 || ranges.some((r) => r.length < 28)) return [];
   const spans = ranges.map((r) => r[r.length - 1] - r[0]);
-  const minSpan = Math.min(...spans);
-  const maxSpan = Math.max(...spans);
-  if (minSpan < 40 || maxSpan > minSpan * 2.2) return [];
+  if (Math.min(...spans) < 40 || Math.max(...spans) > Math.min(...spans) * 2.2) return [];
 
   return ranges.map((isle, i) => {
     const set = new Set(isle);
@@ -738,7 +737,11 @@ function placeMfdOnBlackDus(root) {
   if (!w || !h) return false;
 
   const prev = (state._mfdScreens || []).slice();
-  /* do NOT hide existing screens before success — empty black DUs flash / stick on failure */
+  /* do NOT hide before success — empty black DUs stick on failure */
+
+  let centers = measureBlackDuCenters(root, w, h);
+  if (centers.length < 5) centers = findBlackDuCenters(w, h);
+  centers.length = 5;
 
   const black = collectBlackMeshes(root);
   if (!black.length) {
@@ -751,24 +754,25 @@ function placeMfdOnBlackDus(root) {
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
 
-  const rayHit = (centers) => {
-    const sized = [];
-    centers.forEach((c) => {
+  const sized = [];
+  centers.forEach((c) => {
+    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObjects(black, false)[0];
+    if (!hit || !hit.face) return;
+    sized.push({ c, hit });
+  });
+  if (sized.length < 5) {
+    /* measure can return 5 bad islands — force MD fallback */
+    const fb = findBlackDuCenters(w, h);
+    sized.length = 0;
+    fb.forEach((c) => {
       ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
       raycaster.setFromCamera(ndc, camera);
       const hit = raycaster.intersectObjects(black, false)[0];
       if (!hit || !hit.face) return;
       sized.push({ c, hit });
     });
-    return sized;
-  };
-
-  /* MD/eacc: measure belt; on failure → fy≈0.685 fallback */
-  let centers = measureBlackDuCenters(root, w, h);
-  let sized = centers.length >= 5 ? rayHit(centers.slice(0, 5)) : [];
-  if (sized.length < 5) {
-    centers = findBlackDuCenters(w, h);
-    sized = rayHit(centers);
   }
   if (sized.length < 5) {
     console.warn("[mfd-panel] black hits " + sized.length + "/5 — keep prior screens");
@@ -804,8 +808,8 @@ function placeMfdOnBlackDus(root) {
     let nLocal = hit.face.normal.clone().normalize();
     const nWorld = nLocal.clone().transformDirection(parent.matrixWorld).normalize();
     if (nWorld.dot(toward) < 0) nLocal = nLocal.negate();
-    /* sit just in front of black LCD glass (eacc-era depthTest:true seating) */
-    local.addScaledVector(nLocal, 0.004);
+    /* eacc used 0.0003; with Cesium stack that sinks under black LCD — keep depthTest but bias forward */
+    local.addScaledVector(nLocal, 0.006);
 
     const pw = new THREE.Vector3();
     parent.getWorldScale(pw);
@@ -824,13 +828,13 @@ function placeMfdOnBlackDus(root) {
       depthWrite: false,
       transparent: true,
       polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
+      polygonOffsetFactor: -8,
+      polygonOffsetUnits: -8,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
-    mesh.renderOrder = 5;
+    mesh.renderOrder = 3;
     mesh.userData.mfd = true;
     mesh.visible = true;
     parent.add(mesh);
@@ -875,45 +879,16 @@ function installMfdScreens(root) {
     THREE,
     placeMfdOnBlackDus: () => placeMfdOnBlackDus(root),
   };
-
   let tries = 0;
-  const maxTries = 40;
-  const attempt = () => {
+  const refine = () => {
     tries += 1;
     if (typeof frameSideScreens === "function") frameSideScreens("center");
     cameraRig.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
-    root.updateMatrixWorld(true);
-    const w = renderer.domElement.width;
-    const h = renderer.domElement.height;
-    if (!w || !h) {
-      if (tries < maxTries) setTimeout(attempt, 250);
-      return;
-    }
-    if (placeMfdOnBlackDus(root)) {
-      console.info(`[mfd-panel] seated ok tries=${tries}`);
-      return;
-    }
-    if (tries < maxTries) setTimeout(attempt, 280);
-    else console.warn("[mfd-panel] seating failed after retries — will retry on cesium-ready/resize");
+    if (placeMfdOnBlackDus(root) || tries >= 8) return;
+    requestAnimationFrame(refine);
   };
-
-  setTimeout(attempt, 400);
-  /* again after Cesium exterior fades in (boot / camera settle) */
-  const onCesium = () => {
-    setTimeout(() => placeMfdOnBlackDus(root), 200);
-    setTimeout(() => placeMfdOnBlackDus(root), 900);
-    setTimeout(() => placeMfdOnBlackDus(root), 1800);
-  };
-  if (document.body.classList.contains("is-cesium-ready")) onCesium();
-  else {
-    const obs = new MutationObserver(() => {
-      if (!document.body.classList.contains("is-cesium-ready")) return;
-      obs.disconnect();
-      onCesium();
-    });
-    obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-  }
+  setTimeout(() => requestAnimationFrame(refine), 1000);
 }
 
 
@@ -929,18 +904,7 @@ function prepareCockpitMaterials(root) {
     o.castShadow = false;
     o.receiveShadow = false;
     const meshName = String(o.name || "").toLowerCase();
-    if (
-      meshName === "hud" ||
-      meshName.includes("hudscreen") ||
-      meshName.includes("inop")
-    ) {
-      o.visible = false;
-      return;
-    }
-    /* Hide baked exterior / photo / cloud plates that sit in the windshield */
-    if (
-      /gallery|photo|scenery|exterior|cloud|skybox|backdrop|outside/.test(meshName)
-    ) {
+    if (meshName === "hud" || meshName.includes("hudscreen")) {
       o.visible = false;
       return;
     }
@@ -948,47 +912,14 @@ function prepareCockpitMaterials(root) {
     const cleaned = mats.map((m) => {
       if (!m) return m;
       const n = String(m.name || "").toLowerCase();
-      /* FG baked exterior gallery / photo plates blocked the real sky */
-      if (
-        n.includes("front_gallery") ||
-        n.includes("gallery") ||
-        n.includes("photo") ||
-        n.includes("scenery") ||
-        n === "inop"
-      ) {
+      /* FG baked exterior gallery blocked the real sky — punch it out */
+      if (n.includes("front_gallery") || n.includes("gallery")) {
         const ghost = m.clone();
         ghost.name = `${m.name}_ghost`;
-        ghost.visible = false;
         ghost.transparent = true;
         ghost.opacity = 0;
         ghost.depthWrite = false;
         ghost.colorWrite = false;
-        ghost.map = null;
-        ghost.emissiveMap = null;
-        ghost.needsUpdate = true;
-        return ghost;
-      }
-      /* Do NOT match bare "sky"/"cloud" — too broad for cockpit labels */
-      const mapHint = [
-        m.map?.name,
-        m.map?.image?.currentSrc,
-        m.map?.image?.src,
-        m.map?.source?.name,
-        m.name,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      if (/front_gallery|gallery_r|gallery_l|photo.?plate|scenery/.test(mapHint)) {
-        const ghost = m.clone();
-        ghost.name = `${m.name || "mat"}_ghost`;
-        ghost.visible = false;
-        ghost.transparent = true;
-        ghost.opacity = 0;
-        ghost.depthWrite = false;
-        ghost.colorWrite = false;
-        ghost.map = null;
-        ghost.emissiveMap = null;
         ghost.needsUpdate = true;
         return ghost;
       }
@@ -1000,13 +931,7 @@ function prepareCockpitMaterials(root) {
     useMats.forEach((m) => {
       if (!m || m.visible === false) return;
       const n = String(m.name || "").toLowerCase();
-      if (
-        n.includes("front_gallery") ||
-        n.includes("gallery") ||
-        n.includes("photo") ||
-        n.includes("_ghost")
-      )
-        return;
+      if (n.includes("front_gallery") || n.includes("gallery")) return;
       const isGlass =
         (n.includes("glass") || n.includes("visor") || /mat\d*gla/i.test(n)) &&
         !n.includes("glare");
@@ -1039,54 +964,6 @@ function prepareCockpitMaterials(root) {
       m.needsUpdate = true;
     });
   });
-
-  /* Second pass: zero-out geometry groups using gallery mats + dump names */
-  const allMatNames = new Set();
-  let gallerySlots = 0;
-  let groupsCleared = 0;
-  root.traverse((o) => {
-    if (!o.isMesh) return;
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    mats.forEach((m) => {
-      if (m?.name) allMatNames.add(m.name);
-    });
-    const galleryIdx = new Set();
-    mats.forEach((m, idx) => {
-      if (!m) return;
-      const hint = `${m.name || ""} ${m.map?.name || ""}`.toLowerCase();
-      if (/front_gallery|gallery_r|gallery_l|gallery/.test(hint)) {
-        gallerySlots += 1;
-        galleryIdx.add(idx);
-        m.visible = false;
-        m.colorWrite = false;
-        m.opacity = 0;
-        m.transparent = true;
-        m.depthWrite = false;
-        m.map = null;
-        m.emissiveMap = null;
-        m.needsUpdate = true;
-      }
-    });
-    if (galleryIdx.size && o.geometry?.groups?.length) {
-      for (const g of o.geometry.groups) {
-        if (galleryIdx.has(g.materialIndex)) {
-          g.count = 0;
-          groupsCleared += 1;
-        }
-      }
-    } else if (galleryIdx.size && mats.length === 1) {
-      o.visible = false;
-    }
-  });
-  console.info(`[cockpit] gallery slots=${gallerySlots} groupsCleared=${groupsCleared}`);
-  console.info("[cockpit] materials:", [...allMatNames].sort().join(", "));
-  if (new URLSearchParams(location.search).has("meshDebug")) {
-    const el = document.createElement("pre");
-    el.style.cssText =
-      "position:fixed;right:8px;top:48px;z-index:45;margin:0;padding:8px;font:10px monospace;background:rgba(0,0,0,.55);color:#ffd;max-width:360px;max-height:40vh;overflow:auto";
-    el.textContent = `gallery=${gallerySlots} cleared=${groupsCleared}\n` + [...allMatNames].sort().join("\n");
-    document.body.appendChild(el);
-  }
 }
 
 function fitCockpitView(root) {
@@ -1516,7 +1393,7 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "←→ 좌우 시선 · ↑ 하늘 · ↓ 지형(항로 불변) · LCD 탭 · 드래그";
+hint.textContent = "←→ 살짝 선회 · ↑ 상승 · ↓ 하강(한계) · LCD 탭 · 드래그 시선";
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
 setTimeout(() => hint.classList.remove("is-on"), 4500);
@@ -1539,10 +1416,6 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
-  if (state._mfdRoot) {
-    clearTimeout(state._mfdResizeTimer);
-    state._mfdResizeTimer = setTimeout(() => placeMfdOnBlackDus(state._mfdRoot), 180);
-  }
 });
 
 let prev = performance.now();
