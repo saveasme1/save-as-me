@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=livefixmt2z71x7";
+import { createCesiumWorld } from "./cesium-world.js?v=cockpitbackmt2zm4kf";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=livefixmt2z71x7";
+} from "./gmp-usn-route.js?v=cockpitbackmt2zm4kf";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -939,6 +939,12 @@ function installMfdScreens(root) {
     obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
   }
 }
+
+/* ========== A320 FLIGHTDECK (IDG-A32X fd_complete) ========== */
+const cockpit = new THREE.Group();
+scene.add(cockpit);
+state._cockpitReady = false;
+state._camBase = { x: 0, y: 1.15, z: 1.35 };
 
 function prepareCockpitMaterials(root) {
   root.traverse((o) => {
