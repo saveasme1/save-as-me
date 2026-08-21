@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=seedlockmt36k77b";
+import { createCesiumWorld } from "./cesium-world.js?v=cleanmdmt36pqv1";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=seedlockmt36k77b";
+} from "./gmp-usn-route.js?v=cleanmdmt36pqv1";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -686,14 +686,6 @@ function measureBlackDuCenters(root, w, h) {
       if (hitAt(px, py)) hits.push({ px, py });
     }
   }
-  // #region agent log
-  dbgMfd("A", "flight.js:measure", "scan_hits", {
-    hits: hits.length,
-    w,
-    h,
-    camZ: state._camBase?.z,
-  });
-  // #endregion
   if (hits.length < 30) return [];
 
   const yHist = new Map();
@@ -732,9 +724,6 @@ function measureBlackDuCenters(root, w, h) {
       if (found) break;
     }
     if (!found) {
-      // #region agent log
-      dbgMfd("A", "flight.js:measure", "seed_miss", { i, sx, modeY });
-      // #endregion
       return [];
     }
 
@@ -773,12 +762,6 @@ function measureBlackDuCenters(root, w, h) {
       n: Math.round((bw * bh) / 4),
     });
   }
-  // #region agent log
-  dbgMfd("A", "flight.js:measure", "seed_ok", {
-    modeY,
-    sample: out.map((c) => ({ i: c.projectIndex, px: c.px, py: c.py, wPx: c.wPx, hPx: c.hPx })),
-  });
-  // #endregion
   return out;
 }
 
@@ -860,23 +843,6 @@ function clearMfdClipOverlay() {
   if (layer) layer.remove();
 }
 
-// #region agent log
-function dbgMfd(hypothesisId, location, message, data) {
-  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
-    body: JSON.stringify({
-      sessionId: "88eb62",
-      runId: "seed-lock",
-      hypothesisId,
-      location,
-      message,
-      data: data || {},
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-}
-// #endregion
 
 function placeMfdOnBlackDus(root, opts = {}) {
   const force = !!opts.force;
@@ -887,9 +853,6 @@ function placeMfdOnBlackDus(root, opts = {}) {
   const w = renderer.domElement.width;
   const h = renderer.domElement.height;
   if (!w || !h) {
-    // #region agent log
-    dbgMfd("A", "flight.js:placeMfd", "abort_no_canvas", { w, h });
-    // #endregion
     return false;
   }
 
@@ -902,31 +865,13 @@ function placeMfdOnBlackDus(root, opts = {}) {
   let centers = measureBlackDuCenters(root, w, h);
   const measuredN = centers.length;
   if (centers.length < 5) centers = findBlackDuCenters(w, h);
-  // #region agent log
-  dbgMfd("A", "flight.js:placeMfd", "centers", {
-    measuredN,
-    usedN: centers.length,
-    sample: (centers || []).slice(0, 5).map((c) => ({
-      i: c.projectIndex,
-      px: c.px,
-      py: c.py,
-      wPx: c.wPx,
-      hPx: c.hPx,
-    })),
-    cam: { ...(state._camBase || {}) },
-    pitch: state.pitch,
-    zoom: state.zoom,
-  });
-  // #endregion
   if (centers.length < 5) {
-    dbgMfd("A", "flight.js:placeMfd", "fail_no_centers", { measuredN });
     return false;
   }
   centers = centers.slice(0, 5);
 
   const black = collectBlackMeshes(root);
   if (!black.length) {
-    dbgMfd("B", "flight.js:placeMfd", "fail_no_black", {});
     return false;
   }
 
@@ -959,26 +904,8 @@ function placeMfdOnBlackDus(root, opts = {}) {
     }
     if (!hit?.face) {
       console.warn("[mfd-panel] miss seed", c0.projectIndex);
-      // #region agent log
-      dbgMfd("C", "flight.js:placeMfd", "fail_ray_miss", {
-        projectIndex: c0.projectIndex,
-        px: c0.px,
-        py: c0.py,
-        blackN: black.length,
-      });
-      // #endregion
       return false;
     }
-    // #region agent log
-    dbgMfd("D", "flight.js:placeMfd", "hit_meta", {
-      i: c0.projectIndex,
-      px: c.px,
-      py: c.py,
-      dist: +hit.distance.toFixed(4),
-      wPx: c.wPx,
-      hPx: c.hPx,
-    });
-    // #endregion
     sized.push({ c, hit });
   }
 
@@ -1066,18 +993,6 @@ function placeMfdOnBlackDus(root, opts = {}) {
   paintMfdScreens();
   tickMfdPop();
   console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((slot) => slot.detect)));
-  // #region agent log
-  dbgMfd("D", "flight.js:placeMfd", "place_ok", {
-    n: state._mfdScreens.length,
-    detect: state._mfdScreens.map((slot) => slot.detect),
-    parents: state._mfdScreens.map((slot) => slot.mesh?.parent?.name),
-    sizes: state._mfdScreens.map((slot) => {
-      const g = slot.mesh?.geometry?.parameters;
-      return g ? { width: g.width, height: g.height } : null;
-    }),
-    visible: state._mfdScreens.map((slot) => slot.mesh?.visible),
-  });
-  // #endregion
   return state._mfdScreens.length >= 5;
 }
 
@@ -1095,12 +1010,6 @@ function installMfdScreens(root) {
     THREE,
     placeMfdOnBlackDus: () => placeMfdOnBlackDus(root, { force: true }),
   };
-  // #region agent log
-  dbgMfd("E", "flight.js:installMfd", "install_start", {
-    hasCockpit: typeof cockpit !== "undefined",
-    blackN: collectBlackMeshes(root).length,
-  });
-  // #endregion
   let tries = 0;
   const maxTries = 24;
   const attempt = () => {
@@ -1111,25 +1020,12 @@ function installMfdScreens(root) {
     camera.updateMatrixWorld(true);
     root.updateMatrixWorld(true);
     const ok = placeMfdOnBlackDus(root, { force: true });
-    // #region agent log
-    dbgMfd("E", "flight.js:installMfd", "attempt", {
-      tries,
-      ok,
-      n: (state._mfdScreens || []).length,
-    });
-    // #endregion
     if (ok) {
       console.info("[mfd-panel] seat ok tries=" + tries);
       return;
     }
     if (tries < maxTries) setTimeout(attempt, 200);
     else {
-      // #region agent log
-      dbgMfd("E", "flight.js:installMfd", "exhausted", {
-        tries,
-        n: (state._mfdScreens || []).length,
-      });
-      // #endregion
     }
   };
   setTimeout(attempt, 200);
@@ -1265,25 +1161,13 @@ new GLTFLoader().load(
       key.position.set(0.4, 2.2, 1.2);
       cockpit.add(key);
       document.body.classList.add("is-cockpit-ready");
-      // #region agent log
-      dbgMfd("F", "flight.js:gltf", "cockpit_ready", {
-        cam: { ...(state._camBase || {}) },
-        blackN: collectBlackMeshes(root).length,
-      });
-      // #endregion
     } catch (err) {
       console.error("A320 cockpit init failed", err);
-      // #region agent log
-      dbgMfd("F", "flight.js:gltf", "cockpit_init_fail", { err: String(err?.message || err) });
-      // #endregion
     }
   },
   undefined,
   (err) => {
     console.error("A320 cockpit GLB failed", err);
-    // #region agent log
-    dbgMfd("F", "flight.js:gltf", "glb_fail", { err: String(err?.message || err) });
-    // #endregion
   }
 );
 
