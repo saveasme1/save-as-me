@@ -174,7 +174,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     totalDistM: path.totalDistM,
     totalDistKm: path.totalDistM / 1000,
     publishedNm: path.totalDistM / 1852,
-    _prevAlt: GMP_ELEV_M + 25,
+    _prevAlt: 380,
     geo,
     view,
   };
