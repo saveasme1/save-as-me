@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=seatedmt2yucs1";
+import { createCesiumWorld } from "./cesium-world.js?v=livefixmt2z71x7";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=seatedmt2yucs1";
+} from "./gmp-usn-route.js?v=livefixmt2z71x7";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -624,17 +624,18 @@ function tickMfdPop() {
     if (!slot.mesh) return;
     const want = state.project === slot.projectIndex ? 1 : 0;
     slot.pop = THREE.MathUtils.lerp(slot.pop || 0, want, 0.18);
-    /* stay on the LCD — only brighten / slight scale, never lift into cabin */
+    /* stay on the LCD — scale only, never lift into cabin */
     const sc = 1 + slot.pop * 0.02;
     slot.mesh.scale.setScalar(sc);
     slot.mesh.visible = true;
     if (slot.mesh.material) {
-      slot.mesh.material.depthTest = true;
+      /* paint onto black LCD surface (seated look) */
+      slot.mesh.material.depthTest = false;
       slot.mesh.material.depthWrite = false;
       slot.mesh.material.opacity = 1;
       slot.mesh.material.transparent = true;
     }
-    slot.mesh.renderOrder = 3;
+    slot.mesh.renderOrder = 20;
   });
 }
 
@@ -738,7 +739,7 @@ function placeMfdOnBlackDus(root) {
   const h = renderer.domElement.height;
   if (!w || !h) return false;
 
-  /* Match animate() lookBias so NDC rays hit the same LCD band the user sees */
+  /* Match animate() lookBias so NDC rays hit the LCD band the user sees */
   const lookBias = (isMobile() ? -0.01 : 0.0) - state.zoom * 0.04;
   cameraRig.rotation.set(state.pitch + lookBias, state.yaw, state.roll);
   cameraRig.updateMatrixWorld(true);
@@ -746,11 +747,7 @@ function placeMfdOnBlackDus(root) {
   root.updateMatrixWorld(true);
 
   const prev = (state._mfdScreens || []).slice();
-  /* do NOT hide before success — empty black DUs stick on failure */
-
-  let centers = measureBlackDuCenters(root, w, h);
-  if (centers.length < 5) centers = findBlackDuCenters(w, h);
-  centers.length = 5;
+  /* do NOT hide before success */
 
   const black = collectBlackMeshes(root);
   if (!black.length) {
@@ -762,25 +759,35 @@ function placeMfdOnBlackDus(root) {
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
+  const yProbe = [0, 8, -8, 16, -16, 24, -24, 32, -32, 40, -40, 48, -48];
 
-  const sized = [];
-  centers.forEach((c) => {
-    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
-    raycaster.setFromCamera(ndc, camera);
-    const hit = raycaster.intersectObjects(black, false)[0];
-    if (!hit || !hit.face) return;
-    sized.push({ c, hit });
-  });
-  if (sized.length < 5) {
-    const fb = findBlackDuCenters(w, h);
-    sized.length = 0;
-    fb.forEach((c) => {
-      ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
-      raycaster.setFromCamera(ndc, camera);
-      const hit = raycaster.intersectObjects(black, false)[0];
+  const hitCenters = (list) => {
+    const sized = [];
+    list.forEach((c0) => {
+      let hit = null;
+      let c = c0;
+      for (const dy of yProbe) {
+        const py = c0.py + dy;
+        if (py < 0 || py > h) continue;
+        ndc.set((c0.px / w) * 2 - 1, -((py / h) * 2 - 1));
+        raycaster.setFromCamera(ndc, camera);
+        hit = raycaster.intersectObjects(black, false)[0];
+        if (hit?.face) {
+          c = { ...c0, py };
+          break;
+        }
+      }
       if (!hit || !hit.face) return;
       sized.push({ c, hit });
     });
+    return sized;
+  };
+
+  let centers = measureBlackDuCenters(root, w, h);
+  let sized = centers.length >= 5 ? hitCenters(centers.slice(0, 5)) : [];
+  if (sized.length < 5) {
+    centers = findBlackDuCenters(w, h);
+    sized = hitCenters(centers);
   }
   if (sized.length < 5) {
     console.warn("[mfd-panel] black hits " + sized.length + "/5 — keep prior screens");
@@ -807,23 +814,26 @@ function placeMfdOnBlackDus(root) {
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    const duW = Math.min(0.14, worldH * aspect * (c.wPx / w) * 1.0);
-    const duH = Math.min(0.12, worldH * (c.hPx / h) * 1.05);
+    /* keep inside black bezel — seated QA scale */
+    const duW = Math.min(0.155, worldH * aspect * (c.wPx / w) * 1.05);
+    const duH = Math.min(0.135, worldH * (c.hPx / h) * 1.1);
 
     const parent = hit.object;
+    if (!/111vumesh_11/i.test(parent.name || "")) {
+      console.warn("[mfd-panel] skip non-LCD parent", parent.name);
+      return;
+    }
     const local = hit.point.clone();
     parent.worldToLocal(local);
     let nLocal = hit.face.normal.clone().normalize();
     const nWorld = nLocal.clone().transformDirection(parent.matrixWorld).normalize();
     if (nWorld.dot(toward) < 0) nLocal = nLocal.negate();
-    /* sit just proud of black LCD glass — no cabin lift */
-    local.addScaledVector(nLocal, 0.0015);
+    local.addScaledVector(nLocal, 0.0004);
 
     const pw = new THREE.Vector3();
     parent.getWorldScale(pw);
     const sx = Math.max(1e-4, Math.abs(pw.x));
     const sy = Math.max(1e-4, Math.abs(pw.y));
-    /* keep nearly uniform — tiny axis scale blows a plane into the cabin */
     const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
     const gw = duW / s;
     const gh = duH / s;
@@ -832,17 +842,14 @@ function placeMfdOnBlackDus(root) {
       map: makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false),
       color: 0xffffff,
       toneMapped: false,
-      depthTest: true,
+      depthTest: false,
       depthWrite: false,
       transparent: true,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
-    mesh.renderOrder = 3;
+    mesh.renderOrder = 20;
     mesh.userData.mfd = true;
     mesh.visible = true;
     parent.add(mesh);
@@ -865,13 +872,18 @@ function placeMfdOnBlackDus(root) {
     });
   });
 
+  if (state._mfdScreens.length < 5) {
+    console.warn("[mfd-panel] only " + state._mfdScreens.length + " after parent filter");
+    return false;
+  }
+
   cockpit.add(group);
   state._mfdGroup = group;
   if (typeof applyProject === "function") applyProject(-1, { maneuver: false });
   paintMfdScreens();
   tickMfdPop();
   console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((s) => s.detect)));
-  return state._mfdScreens.length >= 5;
+  return true;
 }
 
 function installMfdScreens(root) {
@@ -887,24 +899,46 @@ function installMfdScreens(root) {
     THREE,
     placeMfdOnBlackDus: () => placeMfdOnBlackDus(root),
   };
+
   let tries = 0;
-  const refine = () => {
+  const maxTries = 60;
+  const attempt = () => {
     tries += 1;
     if (typeof frameSideScreens === "function") frameSideScreens("center");
     cameraRig.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
-    if (placeMfdOnBlackDus(root) || tries >= 8) return;
-    requestAnimationFrame(refine);
+    root.updateMatrixWorld(true);
+    const w = renderer.domElement.width;
+    const h = renderer.domElement.height;
+    if (!w || !h) {
+      if (tries < maxTries) setTimeout(attempt, 250);
+      return;
+    }
+    if (placeMfdOnBlackDus(root)) {
+      console.info("[mfd-panel] seated ok tries=" + tries);
+      return;
+    }
+    if (tries < maxTries) setTimeout(attempt, 300);
+    else console.warn("[mfd-panel] seating failed — will retry on cesium-ready/resize");
   };
-  setTimeout(() => requestAnimationFrame(refine), 1000);
+
+  setTimeout(attempt, 500);
+  const onCesium = () => {
+    setTimeout(() => placeMfdOnBlackDus(root), 300);
+    setTimeout(() => placeMfdOnBlackDus(root), 1000);
+    setTimeout(() => placeMfdOnBlackDus(root), 2000);
+    setTimeout(() => placeMfdOnBlackDus(root), 3500);
+  };
+  if (document.body.classList.contains("is-cesium-ready")) onCesium();
+  else {
+    const obs = new MutationObserver(() => {
+      if (!document.body.classList.contains("is-cesium-ready")) return;
+      obs.disconnect();
+      onCesium();
+    });
+    obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
 }
-
-
-/* ========== A320 FLIGHTDECK (IDG-A32X fd_complete) ========== */
-const cockpit = new THREE.Group();
-scene.add(cockpit);
-state._cockpitReady = false;
-state._camBase = { x: 0, y: 1.15, z: 1.35 };
 
 function prepareCockpitMaterials(root) {
   root.traverse((o) => {
