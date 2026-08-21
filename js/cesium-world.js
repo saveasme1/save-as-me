@@ -444,16 +444,26 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const terrainH = terrainAtCached(sample.lat, sample.lon);
     geo.terrainHeight = terrainH;
     state.terrainHeight = terrainH;
-    const minClear =
-      geo.phase === "departure" || geo.phase === "approach" ? 30 : geo.phase === "cruise" ? 400 : 120;
-    geo.altitudeAMSL = Math.max(autoAlt, terrainH + minClear);
+    /* Final seconds: plant on runway — never float after arrival */
+    const onGround = elapsed >= FLIGHT_DURATION_SEC - 1.2 || state._heldAtEnd;
+    let minClear =
+      geo.phase === "departure" ? 8 : geo.phase === "approach" ? 12 : geo.phase === "cruise" ? 400 : 120;
+    if (elapsed > 104) minClear = 4;
+    if (onGround) {
+      geo.altitudeAMSL = Math.max(USN_ELEV_M + 3, terrainH + 3);
+      geo.pitch = 0;
+    } else {
+      geo.altitudeAMSL = Math.max(autoAlt, terrainH + minClear);
+    }
     geo.altitudeAGL = geo.altitudeAMSL - terrainH;
     state.altitudeAMSL = geo.altitudeAMSL;
     state.altitudeAGL = geo.altitudeAGL;
 
     const altRate = (geo.altitudeAMSL - state._prevAlt) / Math.max(step, 1e-3);
     state._prevAlt = geo.altitudeAMSL;
-    geo.pitch = autopilotPitchDeg(geo.phase, altRate, elapsed);
+    if (!onGround) {
+      geo.pitch = autopilotPitchDeg(geo.phase, altRate, elapsed);
+    }
     state.pitch = geo.pitch;
     const turnRate = dh / Math.max(cappedDt, 1e-3);
     geo.roll = Math.max(-4, Math.min(4, -turnRate * 0.04));
@@ -472,12 +482,19 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 
     /* Camera pitch — restore pre-cloud Cesium framing (afb7ae3), smoothed */
     const camH = geo.altitudeAMSL;
-    let horizonBias = -8;
-    if (geo.phase === "departure") horizonBias = -7;
-    else if (geo.phase === "cruise") horizonBias = -12;
-    else if (geo.phase === "approach") horizonBias = -10;
-    else if (geo.phase === "descent") horizonBias = -9;
-    else if (geo.phase === "climb") horizonBias = -8;
+    /* In-flight framing: ~30% sky / 70% terrain — always keep some sky visible */
+    let horizonBias = -9.5;
+    if (geo.phase === "departure") {
+      horizonBias = elapsed < 8 ? -7 : -9; /* rotate → climb: introduce sky */
+    } else if (geo.phase === "climb") {
+      horizonBias = -9.5;
+    } else if (geo.phase === "cruise") {
+      horizonBias = -10;
+    } else if (geo.phase === "descent") {
+      horizonBias = -9.5;
+    } else if (geo.phase === "approach") {
+      horizonBias = onGround ? -6.5 : -9; /* final: still a ribbon of sky until touchdown */
+    }
     if (state._horizonBias == null) state._horizonBias = horizonBias;
     state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 1.4);
 

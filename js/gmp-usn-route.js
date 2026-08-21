@@ -49,6 +49,33 @@ export const FLIGHT_DURATION_SEC = 110;
 export const GMP_ELEV_M = 18;
 export const USN_ELEV_M = 13;
 
+/**
+ * Active flight leg labels — update together when swapping routes.
+ * Must stay in sync with DEPARTURE_TRANSITION / ARRIVAL_TRANSITION.
+ */
+export const ROUTE_META = {
+  depIcao: "USN",
+  depName: "Ulsan",
+  arrIcao: "GMP",
+  arrName: "Gimpo",
+  durationSec: FLIGHT_DURATION_SEC,
+};
+
+export function formatRouteDuration(sec = ROUTE_META.durationSec) {
+  const s = Math.max(0, Math.round(sec));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+export function routeLabelShort() {
+  return `${ROUTE_META.depIcao} → ${ROUTE_META.arrIcao}`;
+}
+
+export function routeLabelLong() {
+  return `${ROUTE_META.depName} (${ROUTE_META.depIcao}) → ${ROUTE_META.arrName} (${ROUTE_META.arrIcao})`;
+}
+
 const R_EARTH = 6371000;
 
 export function haversineM(lat1, lon1, lat2, lon2) {
@@ -170,9 +197,10 @@ export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
     [70, 6800],
     [80, 5000],
     [90, 2800],
-    [100, 1400],
-    [107, 450],
-    [110, USN_ELEV_M + 80],
+    [100, 900],
+    [105, 220],
+    [108, USN_ELEV_M + 18],
+    [110, USN_ELEV_M + 4],
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];

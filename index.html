@@ -87,9 +87,25 @@
   </aside>
 
   <div class="float-gauges" id="floatGauges" aria-label="flight instruments">
-    <div><span>ALT</span><b id="gAlt">000</b></div>
-    <div><span>SPD</span><b id="gSpd">000</b></div>
-    <div><span>HDG</span><b id="gHdg">000°</b></div>
+    <div class="fg-meters">
+      <div><span>ALT</span><b id="gAlt">000</b></div>
+      <div><span>SPD</span><b id="gSpd">000</b></div>
+      <div><span>HDG</span><b id="gHdg">000°</b></div>
+    </div>
+    <div class="fg-route" id="fgRoute">
+      <div class="fg-leg">
+        <span>FROM</span>
+        <b id="gDep">Ulsan · USN</b>
+      </div>
+      <div class="fg-leg">
+        <span>TO</span>
+        <b id="gArr">Gimpo · GMP</b>
+      </div>
+      <div class="fg-leg fg-time">
+        <span>ETE</span>
+        <b id="gEte">1:50</b>
+      </div>
+    </div>
   </div>
 
   <main class="stage" id="stage">
@@ -161,15 +177,15 @@
   </footer>
 
   <div class="boot" id="boot">
-    <div>
-      <strong>SAVEAS FOR BIZ</strong>
-      <em>Loading Gimpo exterior…</em>
+    <div class="boot-typo">
+      <p class="boot-en">Take a fast and safe leap forward for your business</p>
+      <p class="boot-ko">당신의 사업을 가장 빠르게, 안전하게 도약시켜드립니다.</p>
     </div>
   </div>
 
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js"></script>
   <script src="js/cesium-token.js"></script>
   <script src="js/cesium-token.local.js"></script>
-  <script type="module" src="js/flight.js?v=cloud-cesium7"></script>
+  <script type="module" src="js/flight.js?v=sky30-1"></script>
 </body>
 </html>

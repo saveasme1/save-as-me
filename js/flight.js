@@ -3,6 +3,12 @@ import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { createCesiumWorld } from "./cesium-world.js";
+import {
+  ROUTE_META,
+  formatRouteDuration,
+  routeLabelShort,
+  FLIGHT_DURATION_SEC,
+} from "./gmp-usn-route.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -122,6 +128,9 @@ const el = {
   gAlt: document.getElementById("gAlt"),
   gSpd: document.getElementById("gSpd"),
   gHdg: document.getElementById("gHdg"),
+  gDep: document.getElementById("gDep"),
+  gArr: document.getElementById("gArr"),
+  gEte: document.getElementById("gEte"),
   pEye: document.getElementById("pEye"),
   pTitle: document.getElementById("pTitle"),
   pBody: document.getElementById("pBody"),
@@ -539,7 +548,7 @@ cityGroup.visible = false;
 scene.add(cityGroup);
 
 const label = document.getElementById("routeLabel");
-if (label) label.textContent = "GMP → USN · CESIUM AIRWAY";
+if (label) label.textContent = `${routeLabelShort()} · CESIUM`;
 
 
 function makeProjectPreview(project, index, highlight = false) {
@@ -1204,6 +1213,15 @@ function applyProject(index, { maneuver = true } = {}) {
   }
 }
 
+function syncRouteHud() {
+  if (el.gDep) el.gDep.textContent = `${ROUTE_META.depName} · ${ROUTE_META.depIcao}`;
+  if (el.gArr) el.gArr.textContent = `${ROUTE_META.arrName} · ${ROUTE_META.arrIcao}`;
+  if (el.gEte) el.gEte.textContent = formatRouteDuration(ROUTE_META.durationSec);
+  const label = document.getElementById("routeLabel");
+  if (label) label.textContent = `${routeLabelShort()} · ${formatRouteDuration()}`;
+}
+syncRouteHud();
+
 function updateGauges() {
   const fs = state._cesium?.state;
   if (fs) {
@@ -1213,6 +1231,8 @@ function updateGauges() {
     el.gAlt.textContent = altFt.toLocaleString("en-US");
     el.gSpd.textContent = String(spd);
     el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}°`;
+    const remain = Math.max(0, FLIGHT_DURATION_SEC - (fs.elapsedSeconds || 0));
+    if (el.gEte) el.gEte.textContent = formatRouteDuration(remain);
     return;
   }
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];
@@ -1534,8 +1554,8 @@ function animate(now) {
     state.snapLift += (0 - state.snapLift) * 0.18;
   }
   state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.28;
-  /* slight nose-up bias so horizon sits in the windshield, not under the dash */
-  const lookBias = (isMobile() ? 0.02 : 0.04) - state.zoom * 0.04;
+  /* Keep cockpit view matched to exterior: slight down bias so sky stays a top band */
+  const lookBias = (isMobile() ? -0.01 : 0.0) - state.zoom * 0.04;
   cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
   const dolly = (state.zoom - 0.28) * (isMobile() ? 0.38 : 0.45);
   camera.position.set(

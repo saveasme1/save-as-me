@@ -1,19 +1,18 @@
 /**
  * Cinematic cloud configuration (atmosphere only — not geographic route).
- * Renderer: Cesium CloudCollection (world-space). Three windshield sprites stay OFF.
  */
 export const CLOUD_CONFIG = {
   enabled: true,
-  maxHeroFormations: 2,
-  puffsPerFormation: { desktop: 5, mobile: 3 },
+  maxHeroFormations: 3,
+  puffsPerFormation: { desktop: 6, mobile: 4 },
   density: {
-    departure: 0.1,
-    climb: 0.5,
-    cruise: 0.95,
-    descent: 0.35,
-    approach: 0.08,
+    departure: 0.15,
+    climb: 0.65,
+    cruise: 1.0,
+    descent: 0.4,
+    approach: 0.1,
   },
-  cinematicApproachMps: 16,
+  cinematicApproachMps: 22,
   atmTimeScale: 1,
   qualityMode: "auto",
 };
