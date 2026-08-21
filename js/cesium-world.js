@@ -254,8 +254,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 
   const g0 = DEPARTURE_TRANSITION[0];
   document.body.classList.remove("is-cesium-ready");
-  const bootEm = document.querySelector("#boot em");
-  if (bootEm) bootEm.textContent = "Gimpo terrain loading…";
+  const bootLoadLabel = document.getElementById("bootLoadLabel");
+  if (bootLoadLabel) bootLoadLabel.textContent = "TERRAIN";
 
   /* Preload virtual runway — stay low, look along strip (not into muddy ground) */
   const startHdg = DEP_RWY_HEADING;
@@ -273,7 +273,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     console.info(`[cesium] debug flightT=${state.elapsedSeconds}s`);
   }
   document.body.classList.add("is-cesium-ready");
-  if (bootEm) bootEm.textContent = "Opening cockpit…";
+  if (bootLoadLabel) bootLoadLabel.textContent = "READY";
   document.body.classList.add("is-ready");
 
   let debugEl = null;
