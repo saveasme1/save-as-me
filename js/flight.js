@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=scrub-land1";
+import { createCesiumWorld } from "./cesium-world.js?v=scrub-fix2";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=scrub-land1";
+} from "./gmp-usn-route.js?v=scrub-fix2";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1252,32 +1252,59 @@ syncRouteHud();
 /* Click / drag progress to jump flight time (inspect any segment) */
 function scrubFlightFromEvent(ev) {
   const world = state._cesium;
-  if (!world?.seekNormalized) return;
+  if (!world || typeof world.seekNormalized !== "function") {
+    console.warn("[scrub] cesium not ready");
+    return false;
+  }
   const track = document.getElementById("fgProgressTrack") || document.getElementById("fgProgress");
-  if (!track) return;
+  if (!track) return false;
   const rect = track.getBoundingClientRect();
   const clientX = ev.touches?.[0]?.clientX ?? ev.clientX;
-  const u = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
-  world.seekNormalized(u);
+  if (!Number.isFinite(clientX) || rect.width < 1) return false;
+  const u = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  const t = world.seekNormalized(u);
+  /* Apply camera immediately — don't wait for next RAF */
+  try {
+    world.tick(1 / 60, state.keys || {}, true);
+  } catch (err) {
+    console.warn("[scrub] tick", err);
+  }
   updateGauges();
+  console.info(`[scrub] -> ${(u * 100).toFixed(0)}% t=${Number(t).toFixed(1)}s`);
+  return true;
 }
-const fgProgress = document.getElementById("fgProgress");
-if (fgProgress) {
+function bindFlightScrubber() {
+  const fgProgress = document.getElementById("fgProgress");
+  if (!fgProgress || fgProgress.dataset.scrubBound === "1") return;
+  fgProgress.dataset.scrubBound = "1";
   let dragging = false;
   const start = (ev) => {
     dragging = true;
+    try {
+      fgProgress.setPointerCapture?.(ev.pointerId);
+    } catch (_) {}
     scrubFlightFromEvent(ev);
     ev.preventDefault();
+    ev.stopPropagation();
   };
   const move = (ev) => {
     if (!dragging) return;
     scrubFlightFromEvent(ev);
     ev.preventDefault();
   };
-  const end = () => {
+  const end = (ev) => {
+    if (!dragging) return;
     dragging = false;
+    try {
+      fgProgress.releasePointerCapture?.(ev.pointerId);
+    } catch (_) {}
   };
   fgProgress.addEventListener("pointerdown", start);
+  fgProgress.addEventListener("click", (ev) => {
+    scrubFlightFromEvent(ev);
+    ev.preventDefault();
+    ev.stopPropagation();
+  });
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", end);
   window.addEventListener("pointercancel", end);
@@ -1287,14 +1314,17 @@ if (fgProgress) {
     const cur = world.state?.elapsedSeconds || 0;
     if (ev.key === "ArrowRight" || ev.key === "ArrowUp") {
       world.seek(cur + 2);
+      world.tick?.(1 / 60, state.keys || {}, true);
       ev.preventDefault();
     } else if (ev.key === "ArrowLeft" || ev.key === "ArrowDown") {
       world.seek(cur - 2);
+      world.tick?.(1 / 60, state.keys || {}, true);
       ev.preventDefault();
     }
     updateGauges();
   });
 }
+bindFlightScrubber();
 
 function updateGauges() {
   const fs = state._cesium?.state;
@@ -1675,6 +1705,12 @@ document.addEventListener("visibilitychange", () => {
 createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug") })
   .then((world) => {
     state._cesium = world;
+    window.__SAVEAS_SEEK = (u) => {
+      world.seekNormalized(u);
+      world.tick?.(1 / 60, state.keys || {}, true);
+      updateGauges();
+    };
+    bindFlightScrubber();
     finishBootLoad();
     console.info(
       `[cesium] ready routeKm=${world.path.totalDistM / 1000} duration=${world.FLIGHT_DURATION_SEC}s`

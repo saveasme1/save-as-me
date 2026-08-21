@@ -305,21 +305,37 @@ body.is-cesium-ready #cesiumContainer {
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  pointer-events: none;
+  pointer-events: auto;
   color: #f3efe7;
   width: max-content;
   max-width: 7.2rem;
   min-width: 0;
 }
-﻿.fg-progress {
+.float-gauges .fg-body {
+  pointer-events: none;
   display: flex;
   flex-direction: column;
-  gap: 0.22rem;
+  align-items: flex-start;
+  gap: 0.28rem;
   width: 100%;
-  pointer-events: auto;
+}
+.fg-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  width: 100%;
+  min-width: 6.4rem;
+  pointer-events: auto !important;
   cursor: pointer;
   touch-action: none;
-  padding: 0.2rem 0;
+  padding: 0.35rem 0.1rem 0.45rem;
+  margin: 0;
+  border-radius: 8px;
+  position: relative;
+  z-index: 2;
+}
+.fg-progress:hover .fg-progress-track {
+  background: rgba(255, 255, 255, 0.22);
 }
 .fg-progress-meta {
   display: flex;
@@ -327,6 +343,7 @@ body.is-cesium-ready #cesiumContainer {
   align-items: baseline;
   gap: 0.35rem;
   width: 100%;
+  pointer-events: none;
 }
 .fg-progress-meta span {
   font-family: var(--font-m);
@@ -343,11 +360,12 @@ body.is-cesium-ready #cesiumContainer {
   font-variant-numeric: tabular-nums;
 }
 .fg-progress-track {
-  height: 6px;
+  height: 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.16);
   overflow: hidden;
   position: relative;
+  pointer-events: auto;
 }
 .fg-progress-fill {
   height: 100%;
