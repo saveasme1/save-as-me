@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/main.css?v=boot-fix6" />
+  <link rel="stylesheet" href="css/main.css?v=boot-fix7" />
   <link
     rel="stylesheet"
     href="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Widgets/widgets.css"
@@ -192,9 +192,28 @@
       <div class="boot-copy">
         <p class="boot-mark">SAVEAS FOR BIZ</p>
         <h1 class="boot-en" id="bootEn" aria-label="Fast forward your business">
-          <span class="boot-line boot-outline">
-            <span class="boot-outline-rim" aria-hidden="true">FAST FORWARD</span>
-            <span class="boot-outline-cut" aria-hidden="true">FAST FORWARD</span>
+          <span class="boot-line boot-outline" aria-hidden="true">
+            <svg class="boot-outline-svg" viewBox="0 0 1000 150" preserveAspectRatio="xMidYMid meet" role="img">
+              <defs>
+                <filter id="bootHollowOutline" x="-8%" y="-20%" width="116%" height="140%" color-interpolation-filters="sRGB">
+                  <feMorphology in="SourceAlpha" operator="dilate" radius="3" result="expanded" />
+                  <feComposite in="expanded" in2="SourceAlpha" operator="out" result="ring" />
+                  <feFlood flood-color="#071018" result="ink" />
+                  <feComposite in="ink" in2="ring" operator="in" />
+                </filter>
+              </defs>
+              <text
+                x="500"
+                y="108"
+                text-anchor="middle"
+                font-family="Syne, Outfit, sans-serif"
+                font-weight="800"
+                font-size="108"
+                letter-spacing="6"
+                fill="#071018"
+                filter="url(#bootHollowOutline)"
+              >FAST FORWARD</text>
+            </svg>
           </span>
           <span class="boot-line boot-solid">YOUR BUSINESS.</span>
         </h1>
@@ -215,6 +234,6 @@
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js"></script>
   <script src="js/cesium-token.js"></script>
   <script src="js/cesium-token.local.js"></script>
-  <script type="module" src="js/flight.js?v=boot-fix6"></script>
+  <script type="module" src="js/flight.js?v=boot-fix7"></script>
 </body>
 </html>

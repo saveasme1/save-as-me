@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=boot-fix6";
+import { createCesiumWorld } from "./cesium-world.js?v=boot-fix8";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=boot-fix6";
+} from "./gmp-usn-route.js?v=boot-fix8";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1682,21 +1682,21 @@ function fitBootType() {
   if (!bootEn) return;
   const copy = bootEn.parentElement;
   if (!copy) return;
-  const lines = [...bootEn.querySelectorAll(".boot-line")];
-  if (!lines.length) return;
+  const solid = bootEn.querySelector(".boot-solid");
+  const svg = bootEn.querySelector(".boot-outline-svg");
   bootEn.style.fontSize = "";
   const maxW = copy.clientWidth;
   if (maxW < 40) return;
   let size = parseFloat(getComputedStyle(bootEn).fontSize);
   for (let i = 0; i < 40; i++) {
-    const overflow = lines.some((line) => {
-      const rim = line.querySelector(".boot-outline-rim");
-      const w = rim ? rim.scrollWidth : line.scrollWidth;
-      return w > maxW + 1;
-    });
-    if (!overflow) break;
+    const solidOverflow = solid ? solid.scrollWidth > maxW + 1 : false;
+    if (!solidOverflow) break;
     size *= 0.94;
     bootEn.style.fontSize = `${size.toFixed(2)}px`;
+  }
+  if (svg) {
+    /* keep outline SVG matched to solid line optical width */
+    svg.style.width = `${Math.min(maxW, Math.max(solid?.scrollWidth || maxW, maxW * 0.92))}px`;
   }
 }
 fitBootType();

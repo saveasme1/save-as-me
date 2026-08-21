@@ -744,40 +744,18 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   text-align: center;
 }
 .boot-en .boot-outline {
-  position: relative;
   display: block;
+  width: 100%;
+  line-height: 0;
   color: transparent;
-  isolation: isolate;
   -webkit-text-stroke: 0;
 }
-.boot-en .boot-outline-rim,
-.boot-en .boot-outline-cut {
+.boot-en .boot-outline-svg {
   display: block;
-  white-space: nowrap;
-  font: inherit;
-  letter-spacing: inherit;
-  line-height: inherit;
-  text-transform: inherit;
-  text-align: center;
-}
-.boot-en .boot-outline-rim {
-  color: #071018;
-  -webkit-text-fill-color: #071018;
-  -webkit-text-stroke: 0;
-  font-weight: 800;
-}
-.boot-en .boot-outline-cut {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) scale(0.905);
-  transform-origin: center center;
-  color: #000;
-  -webkit-text-fill-color: #000;
-  mix-blend-mode: destination-out;
-  pointer-events: none;
-  user-select: none;
-  font-weight: 800;
+  width: min(100%, 42rem);
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
 }
 .boot-en .boot-solid {
   color: #071018;
@@ -798,7 +776,7 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   text-align: center;
 }
 .boot-load {
-  width: min(100%, 20rem);
+  width: min(100%, 28rem);
   margin: 0 auto;
   box-sizing: border-box;
 }
