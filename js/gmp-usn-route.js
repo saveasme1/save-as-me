@@ -127,11 +127,29 @@ export function lerpGeo(a, b, t) {
   };
 }
 
+/**
+ * Soften the hard TGU corner (PATLA≈136° → LATEP≈77°) so cruise
+ * doesn't crab left while looking over the East Sea.
+ */
+export const COAST_CURVE = [
+  { id: "COAST1", lat: 36.12, lon: 128.22, note: "coast turn in" },
+  { id: "COAST2", lat: 35.98, lon: 128.42, note: "coast turn" },
+  { id: "COAST3", lat: 35.9, lon: 128.62, note: "coast turn" },
+  { id: "COAST4", lat: 35.88, lon: 128.82, note: "eastbound sea" },
+  { id: "COAST5", lat: 35.89, lon: 129.0, note: "to LATEP" },
+];
+
 export function buildFlightPath() {
   const pts = [];
   DEPARTURE_TRANSITION.forEach((p) => pts.push({ ...p, kind: "departure" }));
-  /* Keep LATEP (near coast), drop KPO/USN/RKPU doglegs */
-  PUBLISHED_AIRWAY.slice(1, -3).forEach((p) => pts.push({ ...p, kind: "airway" }));
+  /* Keep LATEP (near coast), drop KPO/USN/RKPU doglegs; replace TGU kink */
+  for (const p of PUBLISHED_AIRWAY.slice(1, -3)) {
+    if (p.id === "TGU") {
+      COAST_CURVE.forEach((c) => pts.push({ ...c, kind: "airway" }));
+      continue;
+    }
+    pts.push({ ...p, kind: "airway" });
+  }
   ARRIVAL_TRANSITION.forEach((p) => pts.push({ ...p, kind: "arrival" }));
 
   const segments = [];
@@ -178,9 +196,12 @@ function smoothstep(x) {
 
 /**
  * Gentler early route so climb-out does not whip the exterior view.
+ * Fractions: LATEP start ≈0.8573, ARR_ENTRY start ≈0.9810 (coast-curve path).
  */
 export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsedSeconds));
+  const LATEP_U = 0.8573;
+  const ARR_ENTRY_U = 0.981;
   if (t <= 18) {
     return 0.012 * smoothstep(t / 18);
   }
@@ -189,16 +210,24 @@ export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURA
     return 0.012 + 0.07 * smoothstep(x);
   }
   if (t <= 70) {
-    /* Hold at end of LATEP (~86.04%) — do NOT lerp across LATEP→ARR_ENTRY */
+    /* Hold at LATEP — do NOT lerp across LATEP→ARR_ENTRY teleport */
     const x = (t - 40) / 30;
-    return 0.082 + 0.778 * smoothstep(x);
+    return 0.082 + (LATEP_U - 0.082) * smoothstep(x);
   }
   if (t < 73) {
-    return 0.8604;
+    return LATEP_U;
   }
-  /* Discontinuous handoff onto ARR_ENTRY (past join end 98.14%), then slow final */
-  const x = (t - 73) / 37;
-  return 0.9815 + 0.0185 * smoothstep(x);
+  /* Slow final: linger on ARR_ENTRY→SHORT so ~96% still has altitude + horizon */
+  if (t <= 105) {
+    const x = (t - 73) / 32;
+    return ARR_ENTRY_U + (0.9945 - ARR_ENTRY_U) * smoothstep(x); /* ~ARR_SHORT */
+  }
+  if (t < 108) {
+    const x = (t - 105) / 3;
+    return 0.9945 + (0.997 - 0.9945) * smoothstep(x); /* SHORT→THR→TD */
+  }
+  const x = (t - 108) / 2;
+  return 0.997 + (1 - 0.997) * smoothstep(x);
 }
 
 export function timeToDistanceProgress(elapsed, duration, totalDistM) {
@@ -208,7 +237,7 @@ export function timeToDistanceProgress(elapsed, duration, totalDistM) {
 /** Altitude AMSL vs elapsed time (seconds), cinematic envelope */
 export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsed));
-  /* Approach sink capped ~18–22 m/s — prior keys dove 50–110 m/s (crash look) */
+  /* Keep short-final higher so 90–96% still shows horizon / sea, not dirt fill */
   const keys = [
     [0, GMP_ELEV_M + 12],
     [5, GMP_ELEV_M + 70],
@@ -219,15 +248,16 @@ export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
     [45, 7000],
     [55, 7200],
     [68, 5200],
-    [73, 2600], /* final handoff */
-    [80, 1500],
-    [88, 780],
-    [94, 380],
-    [98, 190],
-    [102, 85],
-    [105, 38],
-    [106.5, USN_ELEV_M + 12],
-    [107.5, USN_ELEV_M + 5], /* touchdown */
+    [73, 2800], /* final handoff */
+    [82, 1600],
+    [90, 1100],
+    [96, 620],
+    [100, 380],
+    [104, 180],
+    [106, 85],
+    [107.5, USN_ELEV_M + 28],
+    [108.5, USN_ELEV_M + 10], /* delayed touchdown */
+    [109.3, USN_ELEV_M + 5],
     [110, USN_ELEV_M + 4],
   ];
   for (let i = 0; i < keys.length - 1; i++) {
@@ -250,7 +280,7 @@ export function phaseFromTime(elapsed, duration = FLIGHT_DURATION_SEC) {
   if (elapsed < 16) return "departure";
   if (elapsed < 28) return "climb";
   if (elapsed < 70) return "cruise";
-  if (elapsed < 82) return "descent";
+  if (elapsed < 84) return "descent";
   return "approach";
 }
 
@@ -258,7 +288,7 @@ export function qualityPhase(elapsed) {
   if (elapsed < 16) return "HIGH";
   if (elapsed < 28) return "MEDIUM";
   if (elapsed < 70) return "LOW";
-  if (elapsed < 82) return "MEDIUM";
+  if (elapsed < 84) return "MEDIUM";
   return "HIGH";
 }
 
@@ -285,8 +315,8 @@ export function autopilotPitchDeg(phase, altRateMps, elapsed = 0) {
   if (phase === "climb") return 4 + rateP;
   if (phase === "cruise") return 1.5 + rateP * 0.25;
   if (phase === "descent") return -1.2 + rateP * 0.4;
-  if (elapsed >= 106.5) return 0;
-  if (elapsed > 104) return 0.8;
+  if (elapsed >= 108) return 0;
+  if (elapsed > 106) return 0.8;
   return -0.8 + rateP * 0.25;
 }
 
@@ -302,14 +332,16 @@ export function cinematicLookPitchDeg(elapsed, duration = FLIGHT_DURATION_SEC) {
     [8, 6], /* rotate — sky */
     [16, 8], /* climb — look up into cloud */
     [28, 3], /* early cruise — soft sky */
-    [40, -6], /* mid — glance at terrain */
-    [52, 5], /* cruise — back to sky / cloud */
-    [64, -4], /* terrain pass */
-    [74, 2], /* top of descent */
-    [88, -7], /* approach — runway / city */
-    [104, -4], /* short final */
-    [106.5, -2], /* touchdown */
-    [110, -1.5], /* roll-out */
+    [40, -2.5], /* mid — glance at terrain, keep horizon */
+    [52, 2.5], /* cruise — sky / cloud */
+    [64, -1.5], /* coast / sea — keep horizon */
+    [72, -1.2], /* hold LATEP */
+    [78, -1.8], /* top of descent */
+    [90, -2.2], /* approach — runway ahead, not dirt fill */
+    [100, -1.6], /* short final */
+    [106, -1.2], /* flare */
+    [108, -1.0], /* touchdown */
+    [110, -1.2], /* roll-out */
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];
