@@ -392,10 +392,16 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const lookM = lookAheadMeters(geo.phase);
     const ahead = sampleAhead(path, distM, lookM);
     let hdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
-    if (elapsed < 10) hdg = DEP_RWY_HEADING;
-    else if (elapsed > 98) hdg = ARR_RWY_HEADING;
+    if (elapsed < 12) hdg = DEP_RWY_HEADING;
+    else if (elapsed > 100) hdg = ARR_RWY_HEADING;
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
-    lastHeading = (lastHeading + dh * Math.min(1, step * (elapsed > 95 ? 2.2 : 1.6)) + 360) % 360;
+    /* Cap turn rate — was step*1.6 → frantic heading snaps */
+    const maxDegPerSec = elapsed > 95 ? 8 : 5;
+    const maxStep = maxDegPerSec * Math.min(step, 0.1);
+    if (dh > maxStep) dh = maxStep;
+    if (dh < -maxStep) dh = -maxStep;
+    const blend = 1 - Math.exp(-Math.min(step, 0.1) * 1.1);
+    lastHeading = (lastHeading + dh * blend + 360) % 360;
     geo.heading = lastHeading;
     state.routeHeading = lastHeading;
     state.heading = lastHeading;
@@ -442,18 +448,19 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
-    /* Camera pitch — restore pre-cloud Cesium framing (afb7ae3).
-     * Cesium: 0=horizon, negative=look down. Formula: -autopilot + bias. */
+    /* Camera pitch — restore pre-cloud Cesium framing (afb7ae3), smoothed */
     const camH = geo.altitudeAMSL;
     let horizonBias = -8;
     if (geo.phase === "departure") horizonBias = -7;
-    else if (geo.phase === "cruise") horizonBias = -12; /* mostly sky ahead at cruise alt */
+    else if (geo.phase === "cruise") horizonBias = -12;
     else if (geo.phase === "approach") horizonBias = -10;
     else if (geo.phase === "descent") horizonBias = -9;
     else if (geo.phase === "climb") horizonBias = -8;
+    if (state._horizonBias == null) state._horizonBias = horizonBias;
+    state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 1.4);
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    const renderPitch = -geo.pitch + horizonBias + view.pitchOffset;
+    const renderPitch = -geo.pitch + state._horizonBias + view.pitchOffset;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),

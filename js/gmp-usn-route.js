@@ -129,31 +129,26 @@ function smoothstep(x) {
 
 /**
  * Nonlinear cinematicTime → geographic route progress [0..1].
- * Keep takeoff/landing feel, but leave the field quickly after rotate.
- * 0–10s  runway / rotate ~2%
- * 10–20s climb-out accelerates ~14% (was hanging near airport too long)
- * 20–70s cruise compresses most of airway
- * 70–80s decelerate
- * 80–110s Ulsan approach
+ * Gentler climb-out so heading/view don't whip after rotate.
  */
 export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsedSeconds));
-  if (t <= 10) {
-    return 0.02 * smoothstep(t / 10);
+  if (t <= 12) {
+    return 0.02 * smoothstep(t / 12);
   }
-  if (t <= 20) {
-    const x = (t - 10) / 10;
-    return 0.02 + 0.14 * smoothstep(x);
+  if (t <= 28) {
+    const x = (t - 12) / 16;
+    return 0.02 + 0.1 * smoothstep(x);
   }
   if (t <= 70) {
-    const x = (t - 20) / 50;
-    return 0.16 + 0.72 * smoothstep(x);
+    const x = (t - 28) / 42;
+    return 0.12 + 0.76 * smoothstep(x);
   }
-  if (t <= 80) {
-    const x = (t - 70) / 10;
+  if (t <= 82) {
+    const x = (t - 70) / 12;
     return 0.88 + 0.04 * smoothstep(x);
   }
-  const x = (t - 80) / 30;
+  const x = (t - 82) / 28;
   return 0.92 + 0.08 * smoothstep(x);
 }
 
