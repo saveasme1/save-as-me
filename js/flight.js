@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=boot-fix3";
+import { createCesiumWorld } from "./cesium-world.js?v=boot-fix4";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=boot-fix3";
+} from "./gmp-usn-route.js?v=boot-fix4";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1689,7 +1689,11 @@ function fitBootType() {
   if (maxW < 40) return;
   let size = parseFloat(getComputedStyle(bootEn).fontSize);
   for (let i = 0; i < 40; i++) {
-    const overflow = lines.some((line) => line.scrollWidth > maxW + 1);
+    const overflow = lines.some((line) => {
+      const rim = line.querySelector(".boot-outline-rim");
+      const w = rim ? rim.scrollWidth : line.scrollWidth;
+      return w > maxW + 1;
+    });
     if (!overflow) break;
     size *= 0.94;
     bootEn.style.fontSize = `${size.toFixed(2)}px`;
