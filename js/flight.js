@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=clipdu2mt30maym";
+import { createCesiumWorld } from "./cesium-world.js?v=dufill2mt319rrk";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=clipdu2mt30maym";
+} from "./gmp-usn-route.js?v=dufill2mt319rrk";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -667,21 +667,21 @@ function measureBlackDuCenters(root, w, h) {
   syncMfdCamera();
   root.updateMatrixWorld(true);
   const raycaster = new THREE.Raycaster();
+  const hitAt = (px, py) => {
+    if (px < 0 || py < 0 || px >= w || py >= h) return false;
+    raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
+    return raycaster.intersectObjects(black, false).length > 0;
+  };
+
+  /* find modal DU row */
   const hits = [];
-  const step = 2;
-  const y0 = Math.floor(h * 0.58);
-  const y1 = Math.floor(h * 0.86);
-  const x0 = Math.floor(w * 0.28);
-  const x1 = Math.floor(w * 0.72);
-  for (let py = y0; py <= y1; py += step) {
-    for (let px = x0; px <= x1; px += step) {
-      raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
-      if (!raycaster.intersectObjects(black, false).length) continue;
-      hits.push({ px, py });
+  const step = 3;
+  for (let py = Math.floor(h * 0.58); py <= Math.floor(h * 0.82); py += step) {
+    for (let px = Math.floor(w * 0.3); px <= Math.floor(w * 0.7); px += step) {
+      if (hitAt(px, py)) hits.push({ px, py });
     }
   }
-  if (hits.length < 40) return [];
-
+  if (hits.length < 30) return [];
   const yHist = new Map();
   hits.forEach((hh) => {
     const b = Math.round(hh.py / 4) * 4;
@@ -695,46 +695,60 @@ function measureBlackDuCenters(root, w, h) {
       modeY = y;
     }
   });
-  const band = Math.max(12, Math.floor(h * 0.022));
-  const row = hits.filter((hh) => Math.abs(hh.py - modeY) <= band);
-  if (row.length < 30) return [];
 
-  const col = new Map();
-  row.forEach((hh) => col.set(hh.px, (col.get(hh.px) || 0) + 1));
-  const xs = [...col.keys()].sort((a, b) => a - b);
-  if (xs.length < 10) return [];
-  const gaps = [];
-  for (let i = 1; i < xs.length; i++) gaps.push({ i, d: xs[i] - xs[i - 1] });
-  gaps.sort((a, b) => b.d - a.d);
-  const cuts = gaps
-    .slice(0, 4)
-    .map((g) => g.i)
-    .sort((a, b) => a - b);
-  const ranges = [];
-  let start = 0;
-  cuts.forEach((cut) => {
-    ranges.push(xs.slice(start, cut));
-    start = cut;
-  });
-  ranges.push(xs.slice(start));
-  if (ranges.length !== 5 || ranges.some((r) => r.length < 2)) return [];
+  /* eacc0b6 seated fx seeds — grow each into exact black LCD rect */
+  const seeds = [0.339, 0.406, 0.5, 0.589, 0.656];
+  const out = [];
+  for (let i = 0; i < seeds.length; i++) {
+    let sx = Math.floor(w * seeds[i]);
+    let sy = modeY;
+    let found = false;
+    for (const dy of [0, 6, -6, 12, -12, 18, -18, 24, -24, 30, -30]) {
+      if (hitAt(sx, modeY + dy)) {
+        sy = modeY + dy;
+        found = true;
+        break;
+      }
+    }
+    if (!found) return [];
 
-  return ranges.map((isle, i) => {
-    const set = new Set(isle);
-    const g = row.filter((hh) => set.has(hh.px));
-    const minPx = Math.min(...g.map((hh) => hh.px));
-    const maxPx = Math.max(...g.map((hh) => hh.px));
-    const minPy = Math.min(...g.map((hh) => hh.py));
-    const maxPy = Math.max(...g.map((hh) => hh.py));
-    return {
+    let minPx = sx;
+    let maxPx = sx;
+    while (minPx > 8 && hitAt(minPx - 2, sy)) minPx -= 2;
+    while (maxPx < w - 8 && hitAt(maxPx + 2, sy)) maxPx += 2;
+    const cx = Math.round((minPx + maxPx) / 2);
+
+    let minPy = sy;
+    let maxPy = sy;
+    while (minPy > 8 && hitAt(cx, minPy - 2)) minPy -= 2;
+    while (maxPy < h - 8 && hitAt(cx, maxPy + 2)) maxPy += 2;
+
+    let bw = maxPx - minPx;
+    let bh = maxPy - minPy;
+    /* reject ECAM tower — clamp to DU-like aspect */
+    if (bh > bw * 1.35) {
+      const mid = (minPy + maxPy) / 2;
+      const half = (bw * 1.05) / 2;
+      minPy = Math.round(mid - half);
+      maxPy = Math.round(mid + half);
+      bh = maxPy - minPy;
+    }
+    if (bw < 20 || bh < 20) return [];
+
+    out.push({
       projectIndex: i,
-      px: Math.round((minPx + maxPx) / 2),
+      px: cx,
       py: Math.round((minPy + maxPy) / 2),
-      wPx: Math.max(40, maxPx - minPx),
-      hPx: Math.max(40, maxPy - minPy),
-      n: g.length,
-    };
-  });
+      minPx,
+      maxPx,
+      minPy,
+      maxPy,
+      wPx: bw,
+      hPx: bh,
+      n: Math.round((bw * bh) / 4),
+    });
+  }
+  return out;
 }
 
 function findBlackDuCenters(w, h) {
@@ -746,16 +760,24 @@ function findBlackDuCenters(w, h) {
     { fx: 0.589, fy },
     { fx: 0.656, fy },
   ];
-  const wPx = Math.floor(w * 0.07);
-  const hPx = Math.floor(h * 0.075);
-  return expect.map((e, i) => ({
-    projectIndex: i,
-    px: Math.floor(w * e.fx),
-    py: Math.floor(h * e.fy),
-    wPx,
-    hPx,
-    n: 100,
-  }));
+  const wPx = Math.floor(w * 0.062);
+  const hPx = Math.floor(h * 0.095);
+  return expect.map((e, i) => {
+    const px = Math.floor(w * e.fx);
+    const py = Math.floor(h * e.fy);
+    return {
+      projectIndex: i,
+      px,
+      py,
+      minPx: px - Math.floor(wPx / 2),
+      maxPx: px + Math.floor(wPx / 2),
+      minPy: py - Math.floor(hPx / 2),
+      maxPy: py + Math.floor(hPx / 2),
+      wPx,
+      hPx,
+      n: 100,
+    };
+  });
 }
 
 function ensureMfdClipLayer() {
@@ -872,14 +894,27 @@ function placeMfdOnBlackDus(root) {
   ok.forEach((c, i) => {
     const wrap = document.createElement("div");
     wrap.className = "mfd-clip";
-    const pad = 1;
-    /* measured centers are thin — force seated DU aspect so content fills bezels */
-    const wPx = Math.max(c.wPx, Math.floor(w * 0.068));
-    const hPx = Math.max(c.hPx, Math.floor(h * 0.1));
-    const left = (c.px - wPx / 2) * sx + pad;
-    const top = (c.py - hPx / 2) * sy + pad;
-    const width = Math.max(36, wPx * sx - pad * 2);
-    const height = Math.max(48, hPx * sy - pad * 2);
+    const minPx = c.minPx ?? c.px - c.wPx / 2;
+    const maxPx = c.maxPx ?? c.px + c.wPx / 2;
+    const minPy = c.minPy ?? c.py - c.hPx / 2;
+    const maxPy = c.maxPy ?? c.py + c.hPx / 2;
+    const bw = Math.max(20, maxPx - minPx);
+    const bh = Math.max(20, maxPy - minPy);
+    /* slight down bias — grow tends to sit high on the bezel lip */
+    const nudgeY = Math.round(bh * 0.06);
+    const minPx2 = minPx;
+    const maxPx2 = maxPx;
+    const minPy2 = minPy + nudgeY;
+    const maxPy2 = maxPy + nudgeY;
+    const bw2 = Math.max(20, maxPx2 - minPx2);
+    const bh2 = Math.max(20, maxPy2 - minPy2);
+    /* tight inset — fill black glass like seated QA */
+    const insetX = Math.max(1, bw2 * 0.02);
+    const insetY = Math.max(1, bh2 * 0.02);
+    const left = (minPx2 + insetX) * sx;
+    const top = (minPy2 + insetY) * sy;
+    const width = Math.max(18, (bw2 - insetX * 2) * sx);
+    const height = Math.max(22, (bh2 - insetY * 2) * sy);
     wrap.style.left = left + "px";
     wrap.style.top = top + "px";
     wrap.style.width = width + "px";
@@ -902,7 +937,7 @@ function placeMfdOnBlackDus(root) {
         side: +width.toFixed(1),
         h: +height.toFixed(1),
         n: c.n,
-        mode: "clip",
+        mode: "clip-inset",
       },
     });
   });
