@@ -653,55 +653,54 @@ function loadTileImage(z, x, y) {
 }
 
 function gradeAerialCanvas(ctx, w, h) {
-  /* mute greens — cruise haze, not low forest */
-  ctx.fillStyle = "rgba(100,120,145,0.35)";
+  /* wash to distant blue-gray — kill near forest greens */
+  ctx.fillStyle = "rgba(90,120,155,0.72)";
   ctx.fillRect(0, 0, w, h);
   const haze = ctx.createLinearGradient(0, 0, 0, h);
-  haze.addColorStop(0, "rgba(160,195,230,0.55)");
-  haze.addColorStop(0.45, "rgba(140,170,200,0.28)");
-  haze.addColorStop(1, "rgba(70,90,110,0.35)");
+  haze.addColorStop(0, "rgba(170,205,235,0.7)");
+  haze.addColorStop(0.5, "rgba(130,165,200,0.45)");
+  haze.addColorStop(1, "rgba(80,105,130,0.55)");
   ctx.fillStyle = haze;
   ctx.fillRect(0, 0, w, h);
 }
 
 const terrainGroup = new THREE.Group();
-/* high cruise — green terrain barely on the horizon */
-terrainGroup.position.set(0, -28, 0);
+/* cruise high — ground is a thin distant band, not a forest wall */
+terrainGroup.position.set(0, -85, 0);
 scene.add(terrainGroup);
 state._terrain = null;
 state._routeReady = false;
 state.flightHeading = 0;
-state.altLift = 28;
+state.altLift = 85;
 state.keys = { left: false, right: false, up: false, down: false };
 
-/* 360° distant ground — muted so it reads as far earth, not a forest trip */
+/* distant muted earth disk only — no near trees */
 (function addWorldGround() {
   const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 512;
+  c.width = 256;
+  c.height = 256;
   const g = c.getContext("2d");
-  const rad = g.createRadialGradient(256, 256, 40, 256, 256, 256);
-  rad.addColorStop(0, "#5a6e58");
-  rad.addColorStop(0.4, "#4a5e55");
-  rad.addColorStop(0.75, "#3a4e58");
-  rad.addColorStop(1, "#2a3e52");
+  const rad = g.createRadialGradient(128, 128, 20, 128, 128, 128);
+  rad.addColorStop(0, "#4a5a62");
+  rad.addColorStop(0.5, "#3a4a55");
+  rad.addColorStop(1, "#2a3a4a");
   g.fillStyle = rad;
-  g.fillRect(0, 0, 512, 512);
+  g.fillRect(0, 0, 256, 256);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 8);
+  tex.repeat.set(4, 4);
   const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(1800, 72),
+    new THREE.CircleGeometry(2400, 64),
     new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: true })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -2;
+  ground.position.y = -8;
   terrainGroup.add(ground);
   state._groundTex = tex;
 })();
 
-scene.fog = new THREE.FogExp2(0x87b8e8, 0.00035);
+scene.fog = new THREE.FogExp2(0x8eb8e0, 0.00022);
 
 async function buildGmpUsnTerrain() {
   const z = ROUTE.zoom;
@@ -764,10 +763,11 @@ async function buildGmpUsnTerrain() {
     toneMapped: false,
     fog: false,
   });
-  /* Distant horizon ribbon — far below cruise altitude */
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(640, 420, 1, rows), mat);
-  strip.rotation.x = -Math.PI / 2.35;
-  strip.position.set(0, -6, -90);
+  /* far below horizon only — never fills the windscreen with trees */
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(900, 500, 1, rows), mat);
+  strip.rotation.x = -Math.PI / 2.15;
+  strip.position.set(0, -35, -220);
+  strip.scale.set(1, 1, 1);
   terrainGroup.add(strip);
 
   state._terrain = { strip, tex, mat };
@@ -1289,7 +1289,7 @@ function applyProject(index, { maneuver = true } = {}) {
 
 function updateGauges() {
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];
-  const alt = 9800 + state.altLift * 180 + state.speed * 35 + Math.sin(state.vibe) * 10;
+  const alt = 22000 + state.altLift * 220 + state.speed * 40 + Math.sin(state.vibe) * 12;
   const spd = 240 + state.speed * 90 + state.velocity * 35;
   const hdg = (p.hdg + state.flightHeading * (180 / Math.PI) + state.yaw * 35 + 3600) % 360;
   el.gAlt.textContent = Math.round(alt).toLocaleString("en-US");
@@ -1460,9 +1460,9 @@ canvasEl.addEventListener("pointercancel", endDrag);
 
 /* Aim at captain / FO panel LCDs — no floating focus plates */
 const LOOK_PRESETS = {
-  left: { yaw: 0.26, pitch: -0.08, zoom: 0.58, side: -0.1, lift: 0.02 },
-  center: { yaw: 0, pitch: -0.05, zoom: 0.28, side: 0, lift: 0 },
-  right: { yaw: -0.26, pitch: -0.08, zoom: 0.58, side: 0.1, lift: 0.02 },
+  left: { yaw: 0.26, pitch: -0.06, zoom: 0.58, side: -0.1, lift: 0.02 },
+  center: { yaw: 0, pitch: -0.02, zoom: 0.28, side: 0, lift: 0 },
+  right: { yaw: -0.26, pitch: -0.06, zoom: 0.58, side: 0.1, lift: 0.02 },
 };
 
 function frameSideScreens(side) {
@@ -1538,7 +1538,7 @@ function animate(now) {
   /* arrow keys: mild bank/turn, climb/descend with floors */
   const k = state.keys || {};
   const turnRate = 0.16;
-  const pitchRate = 0.22;
+  const pitchRate = 0.55;
   const rollMax = 0.16;
   const headingMax = 0.38;
   if (k.left) {
@@ -1560,14 +1560,14 @@ function animate(now) {
   } else if (!state.dragging) {
     state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3.5);
   }
-  /* ↑ climb / ↓ descend — altitude, not just look pitch */
+  /* ↑ climb (nose UP) / ↓ descend (nose DOWN) — Three.js +X pitch looks down, so invert */
   if (k.up) {
-    state.altLift = Math.min(48, state.altLift + dt * 14);
-    state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate * 0.35, -0.12, 0.1);
+    state.altLift = Math.min(140, state.altLift + dt * 38);
+    state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate, -0.2, 0.12);
   } else if (k.down) {
-    /* floor: never drop into the trees */
-    state.altLift = Math.max(18, state.altLift - dt * 11);
-    state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate * 0.35, -0.12, 0.1);
+    /* floor: stay above the terrain band */
+    state.altLift = Math.max(55, state.altLift - dt * 28);
+    state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate, -0.2, 0.12);
   } else if (!state.dragging && Math.abs(state.tPitch) > 0.015) {
     state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
   }
@@ -1577,8 +1577,8 @@ function animate(now) {
 
   /* while not dragging, ease toward held pose — always stay inside windscreen */
   const yawMax = 0.28;
-  const pitchMin = -0.14;
-  const pitchMax = 0.1;
+  const pitchMin = -0.2;
+  const pitchMax = 0.12;
   state.tYaw = THREE.MathUtils.clamp(state.tYaw, -yawMax, yawMax);
   state.tPitch = THREE.MathUtils.clamp(state.tPitch, pitchMin, pitchMax);
   state.yaw += (state.tYaw - state.yaw) * (state.dragging ? 1 : 0.28);
@@ -1598,7 +1598,8 @@ function animate(now) {
     state.snapLift += (0 - state.snapLift) * 0.18;
   }
   state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.28;
-  const lookBias = (isMobile() ? -0.02 : -0.04) - state.zoom * 0.08;
+  /* slight nose-up bias so horizon sits in the windshield, not under the dash */
+  const lookBias = (isMobile() ? 0.02 : 0.04) - state.zoom * 0.04;
   cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
   const dolly = (state.zoom - 0.28) * (isMobile() ? 0.38 : 0.45);
   camera.position.set(
