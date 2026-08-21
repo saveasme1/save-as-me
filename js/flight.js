@@ -655,8 +655,8 @@ function measureBlackDuCenters(root, w, h) {
   const raycaster = new THREE.Raycaster();
   const hits = [];
   const step = 2;
-  const y0 = Math.floor(h * 0.66);
-  const y1 = Math.floor(h * 0.72);
+  const y0 = Math.floor(h * 0.7);
+  const y1 = Math.floor(h * 0.8);
   const x0 = Math.floor(w * 0.29);
   const x1 = Math.floor(w * 0.71);
   for (let py = y0; py <= y1; py += step) {
@@ -689,7 +689,12 @@ function measureBlackDuCenters(root, w, h) {
     start = cut;
   });
   ranges.push(xs.slice(start));
-  if (ranges.length !== 5 || ranges.some((r) => r.length < 2)) return [];
+  /* reject merged/split islands (tiny gap columns or fused DUs) → use fx/fy fallback */
+  if (ranges.length !== 5 || ranges.some((r) => r.length < 28)) return [];
+  const spans = ranges.map((r) => r[r.length - 1] - r[0]);
+  const minSpan = Math.min(...spans);
+  const maxSpan = Math.max(...spans);
+  if (minSpan < 40 || maxSpan > minSpan * 2.2) return [];
 
   return ranges.map((isle, i) => {
     const set = new Set(isle);
@@ -710,15 +715,16 @@ function measureBlackDuCenters(root, w, h) {
 }
 
 function findBlackDuCenters(w, h) {
+  /* mid of live black LCD band (~0.65–0.84 NDC y); 0.685 sits on the top lip and floats cards */
   const expect = [
-    { fx: 0.339, fy: 0.685 },
-    { fx: 0.406, fy: 0.685 },
-    { fx: 0.5, fy: 0.685 },
-    { fx: 0.589, fy: 0.685 },
-    { fx: 0.656, fy: 0.685 },
+    { fx: 0.339, fy: 0.74 },
+    { fx: 0.406, fy: 0.74 },
+    { fx: 0.5, fy: 0.74 },
+    { fx: 0.589, fy: 0.74 },
+    { fx: 0.656, fy: 0.74 },
   ];
-  const wPx = Math.floor(w * 0.078);
-  const hPx = Math.floor(h * 0.08);
+  const wPx = Math.floor(w * 0.072);
+  const hPx = Math.floor(h * 0.07);
   return expect.map((e, i) => ({
     projectIndex: i,
     px: Math.floor(w * e.fx),
@@ -737,28 +743,48 @@ function placeMfdOnBlackDus(root) {
   const prev = (state._mfdScreens || []).slice();
   /* do NOT hide existing screens before success — empty black DUs flash / stick on failure */
 
-  let centers = measureBlackDuCenters(root, w, h);
-  if (centers.length < 5) centers = findBlackDuCenters(w, h);
-  centers.length = 5;
-
   const black = collectBlackMeshes(root);
-  if (!black.length) return false;
+  if (!black.length) {
+    console.warn("[mfd-panel] no black LCD meshes");
+    return false;
+  }
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
+  const yProbe = [0, 6, -6, 12, -12, 18, -18, 24, -24];
 
-  const sized = [];
-  centers.forEach((c) => {
-    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
-    raycaster.setFromCamera(ndc, camera);
-    /* non-recursive: hit black LCD only, ignore child MFD planes */
-    const hit = raycaster.intersectObjects(black, false)[0];
-    if (!hit || !hit.face) return;
-    sized.push({ c, hit });
-  });
-  if (sized.length < 5) return false;
+  const hitCenters = (list) => {
+    const sized = [];
+    list.forEach((c0) => {
+      let c = c0;
+      let hit = null;
+      for (const dy of yProbe) {
+        ndc.set((c0.px / w) * 2 - 1, -(((c0.py + dy) / h) * 2 - 1));
+        raycaster.setFromCamera(ndc, camera);
+        hit = raycaster.intersectObjects(black, false)[0];
+        if (hit?.face) {
+          c = { ...c0, py: c0.py + dy };
+          break;
+        }
+      }
+      if (!hit || !hit.face) return;
+      sized.push({ c, hit });
+    });
+    return sized;
+  };
+
+  let centers = measureBlackDuCenters(root, w, h);
+  let sized = centers.length >= 5 ? hitCenters(centers.slice(0, 5)) : [];
+  if (sized.length < 5) {
+    centers = findBlackDuCenters(w, h);
+    sized = hitCenters(centers);
+  }
+  if (sized.length < 5) {
+    console.warn(`[mfd-panel] black hits ${sized.length}/5 — keep prior screens`);
+    return false;
+  }
 
   /* success confirmed — only now remove previous screens */
   prev.forEach((s) => {
@@ -781,8 +807,8 @@ function placeMfdOnBlackDus(root) {
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    const duW = Math.min(0.195, worldH * aspect * (c.wPx / w) * 1.22);
-    const duH = Math.min(0.175, worldH * (c.hPx / h) * 1.45);
+    const duW = Math.min(0.155, worldH * aspect * (c.wPx / w) * 1.05);
+    const duH = Math.min(0.135, worldH * (c.hPx / h) * 1.15);
 
     const parent = hit.object;
     const local = hit.point.clone();
