@@ -1,0 +1,99 @@
+{
+  "url": "https://saveasme1.github.io/save-as-me/?nocache=1787318177417",
+  "info": {
+    "n": 5,
+    "detect": [
+      {
+        "px": 488,
+        "py": 666,
+        "parent": "111VUmesh_11",
+        "side": 0.14,
+        "h": 0.12,
+        "n": 100
+      },
+      {
+        "px": 584,
+        "py": 666,
+        "parent": "111VUmesh_11",
+        "side": 0.14,
+        "h": 0.12,
+        "n": 100
+      },
+      {
+        "px": 720,
+        "py": 666,
+        "parent": "111VUmesh_11",
+        "side": 0.14,
+        "h": 0.12,
+        "n": 100
+      },
+      {
+        "px": 848,
+        "py": 666,
+        "parent": "111VUmesh_11",
+        "side": 0.14,
+        "h": 0.12,
+        "n": 100
+      },
+      {
+        "px": 944,
+        "py": 666,
+        "parent": "111VUmesh_11",
+        "side": 0.14,
+        "h": 0.12,
+        "n": 100
+      }
+    ],
+    "depth": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "pos": [
+      [
+        -0.5143,
+        0.6708,
+        -1.1554
+      ],
+      [
+        -0.3007,
+        0.6705,
+        -1.1562
+      ],
+      [
+        0.0024,
+        0.6708,
+        -1.1554
+      ],
+      [
+        0.2874,
+        0.6708,
+        -1.1552
+      ],
+      [
+        0.5012,
+        0.6708,
+        -1.1553
+      ]
+    ]
+  },
+  "logs": [
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 0/5 — keep prior screens",
+    "[mfd-panel] black hits 3/5 — keep prior screens",
+    "[mfd-panel] black hits 4/5 — keep prior screens",
+    "[mfd-panel] [{\"px\":488,\"py\":666,\"parent\":\"111VUmesh_11\",\"side\":0.14,\"h\":0.12,\"n\":100},{\"px\":584,\"py\":666,\"parent\":\"111VUmesh_11\",\"side\":0.14,\"h\":0.12,\"n\":100},{\"px\":720,\"py\":666,\"parent\":\"111VUmesh_11\",\"side\":0.14,\"h\":0.12,\"n\":100},{\"px\":848,\"py\":666,\"parent\":\"111VUmesh_11\",\"side\":0.14,\"h\":0.12,\"n\":100},{\"px\":944,\"py\":666,\"parent\":\"111VUmesh_11\",\"side\":0.14,\"h\":0.12,\"n\":100}]"
+  ]
+}
