@@ -506,9 +506,10 @@ scene.add(skyDome);
 state._skyDome = skyDome;
 /* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-/* Photo cloud layers — large, soft, approach after takeoff complete */
+/* Windshield-only photo clouds — depth-tested so cockpit hull masks them
+ * (never full-screen wash). Soft approach after takeoff. */
 const cloudLayers = [];
-function addPhotoCloud(url, w, h, farZ, nearZ, opacity, opts = {}) {
+function addPhotoCloud(url, w, h, farZ, nearZ, opacity) {
   loader.load(url, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping;
@@ -518,46 +519,40 @@ function addPhotoCloud(url, w, h, farZ, nearZ, opacity, opts = {}) {
       new THREE.MeshBasicMaterial({
         map: tex,
         transparent: true,
-        opacity: opacity * 0.2,
+        opacity: 0.01,
         depthWrite: false,
-        depthTest: false,
+        depthTest: true, /* critical: only visible through window openings */
         toneMapped: false,
-        side: opts.side ?? THREE.FrontSide,
       })
     );
-    m.position.set(opts.x || 0, h * 0.12, farZ);
-    if (opts.rotY) m.rotation.y = opts.rotY;
-    m.renderOrder = -3;
+    /* sit in upper windshield band, ahead of glass */
+    m.position.set(0, 1.35 + h * 0.02, farZ);
+    m.renderOrder = 1;
     scene.add(m);
     cloudLayers.push({
       mesh: m,
       farZ,
       nearZ,
-      baseY: h * 0.12,
-      speed: 4 + Math.random() * 6,
+      baseY: 1.35 + h * 0.02,
+      speed: 4 + Math.random() * 5,
       opacity,
-      sideX: opts.x || 0,
+      sideX: 0,
     });
   });
 }
-/* Bigger + more transparent; stay far until climb-out, then ease closer */
-addPhotoCloud("assets/sky/clouds-front.jpg", 520, 130, -320, -75, 0.32);
-if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 640, 160, -420, -100, 0.26);
-if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 820, 200, -560, -150, 0.18);
-if (!isMobile()) {
-  addPhotoCloud("assets/sky/clouds-front.jpg", 380, 120, -300, -90, 0.2, { x: -110, rotY: 0.5, side: THREE.DoubleSide });
-  addPhotoCloud("assets/sky/clouds-front.jpg", 380, 120, -300, -90, 0.2, { x: 110, rotY: -0.5, side: THREE.DoubleSide });
-}
+/* Modest plane sizes — big enough through glass, not whole-viewport slabs */
+addPhotoCloud("assets/sky/clouds-front.jpg", 200, 52, -240, -95, 0.38);
+if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 260, 68, -320, -120, 0.3);
+if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 340, 88, -420, -160, 0.22);
 const cloudGroup = new THREE.Group();
 cloudGroup.visible = false;
 scene.add(cloudGroup);
 const clouds = [];
 
 function cloudApproach01(elapsed) {
-  /* After takeoff/rotate (~12s) start easing in; full presence ~32s */
   if (elapsed <= 12) return 0;
-  if (elapsed >= 32) return 1;
-  const x = (elapsed - 12) / 20;
+  if (elapsed >= 34) return 1;
+  const x = (elapsed - 12) / 22;
   return x * x * (3 - 2 * x);
 }
 
@@ -1524,7 +1519,7 @@ function animate(now) {
     /* Fade out on short final so runway stays readable */
     if (elapsed > 95) a *= Math.max(0, 1 - (elapsed - 95) / 12);
     const z = layer.farZ + (layer.nearZ - layer.farZ) * a;
-    const op = layer.opacity * (0.12 + 0.88 * a);
+    const op = layer.opacity * (0.12 + 0.88 * a) * (layer._nightMul ?? 1);
     layer.mesh.position.z += (z - layer.mesh.position.z) * Math.min(1, dt * 1.2);
     layer.mesh.position.x =
       layer.sideX + Math.sin(-state.flightHeading) * (-6 - layer.speed * 0.45) * a;

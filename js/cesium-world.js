@@ -120,11 +120,17 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   viewer.scene.globe.depthTestAgainstTerrain = false;
   if (viewer.scene.fog) {
     viewer.scene.fog.enabled = true;
-    viewer.scene.fog.density = 0.00028;
+    viewer.scene.fog.density = 0.00038;
   }
-  /* Soften far terrain LOD pop / mountain stacking */
+  if (viewer.scene.skyAtmosphere && typeof viewer.scene.skyAtmosphere === "object") {
+    viewer.scene.skyAtmosphere.show = true;
+    viewer.scene.skyAtmosphere.brightnessShift = 0.12;
+    viewer.scene.skyAtmosphere.saturationShift = -0.05;
+  }
+  viewer.scene.globe.showGroundAtmosphere = true;
+  /* Soften far terrain so mountains don't dominate the exterior */
   if (viewer.scene.globe) {
-    viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.0 : 1.4;
+    viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.4 : 1.8;
     viewer.scene.globe.preloadSiblings = true;
   }
   if (viewer.scene.skyBox && typeof viewer.scene.skyBox === "object") viewer.scene.skyBox.show = true;
@@ -451,18 +457,17 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
-    /* Camera: Cesium 0=horizon. Keep sky in frame at dep — don't bury nose in hills. */
-    const camH = Math.max(geo.altitudeAMSL, terrainH + (elapsed < 16 ? 80 : 40));
-    let horizonBias = -2;
-    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -2 : 2.5; /* rotate → sky */
-    else if (geo.phase === "climb") horizonBias = 3.0;
-    else if (geo.phase === "cruise") horizonBias = -1.5;
-    else if (geo.phase === "descent") horizonBias = -2.5;
-    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -4.5 : -3.0;
+    /* Camera: keep sky dominant — avoid mountain-filled windshield */
+    const camH = Math.max(geo.altitudeAMSL, terrainH + (elapsed < 16 ? 120 : 60));
+    let horizonBias = 2.5; /* default slight sky */
+    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -1.5 : 4.5;
+    else if (geo.phase === "climb") horizonBias = 5.5;
+    else if (geo.phase === "cruise") horizonBias = 3.5;
+    else if (geo.phase === "descent") horizonBias = 1.0;
+    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -4.0 : -2.0;
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    /* Light autopilot influence only — full +pitch was slamming horizon into terrain LOD */
-    const renderPitch = geo.pitch * 0.25 + horizonBias + view.pitchOffset;
+    const renderPitch = geo.pitch * 0.2 + horizonBias + view.pitchOffset;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
