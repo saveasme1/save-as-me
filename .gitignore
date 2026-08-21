@@ -2,3 +2,6 @@
 js/cesium-token.local.js
 .env
 .env.local
+
+_ref_clouds/
+

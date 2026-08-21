@@ -3,7 +3,7 @@ import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { createCesiumWorld } from "./cesium-world.js";
-import { createWindshieldClouds } from "./windshield-clouds.js";
+import { createThreeCinematicClouds } from "./cinematic-clouds-three.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -507,12 +507,12 @@ scene.add(skyDome);
 state._skyDome = skyDome;
 /* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-/* Soft windshield clouds — drei-style puff sprites (not landscape photo planes) */
-const windshieldClouds = createWindshieldClouds(scene, { mobile: isMobile() });
-const cloudLayers = []; /* legacy night-dim hook unused */
-function cloudApproach01() {
-  return 0;
-}
+/* Cinematic towering cumulus — Three world-space mesh clusters (not windshield overlays) */
+const cinematicClouds = createThreeCinematicClouds(scene, {
+  mobile: isMobile(),
+  debug: new URLSearchParams(location.search).has("cloudDebug"),
+});
+const cloudLayers = [];
 const cloudGroup = new THREE.Group();
 cloudGroup.visible = false;
 scene.add(cloudGroup);
@@ -1467,10 +1467,10 @@ function animate(now) {
       const norm = Math.min(1.35, (fs.indicatedAirspeedKt || 0) / 420);
       state.speed += (norm - state.speed) * Math.min(1, dt * 2);
       state.flightHeading = ((fs.heading || 0) * Math.PI) / 180;
-      windshieldClouds.update(dt, fs.elapsedSeconds || 0, state.speed);
+      cinematicClouds.update(dt, fs.phase || "cruise");
     }
   } else {
-    windshieldClouds.update(dt, 0, state.speed);
+    cinematicClouds.update(dt, "cruise");
   }
 
   tickEnv();

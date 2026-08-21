@@ -128,27 +128,26 @@ function smoothstep(x) {
 }
 
 /**
- * Nonlinear cinematicTime → geographic route progress [0..1].
- * Gentler climb-out so heading/view don't whip after rotate.
+ * Gentler early route so climb-out does not whip the exterior view.
  */
 export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsedSeconds));
-  if (t <= 12) {
-    return 0.02 * smoothstep(t / 12);
+  if (t <= 18) {
+    return 0.015 * smoothstep(t / 18);
   }
-  if (t <= 28) {
-    const x = (t - 12) / 16;
-    return 0.02 + 0.1 * smoothstep(x);
+  if (t <= 40) {
+    const x = (t - 18) / 22;
+    return 0.015 + 0.085 * smoothstep(x);
   }
-  if (t <= 70) {
-    const x = (t - 28) / 42;
-    return 0.12 + 0.76 * smoothstep(x);
+  if (t <= 72) {
+    const x = (t - 40) / 32;
+    return 0.1 + 0.78 * smoothstep(x);
   }
-  if (t <= 82) {
-    const x = (t - 70) / 12;
+  if (t <= 84) {
+    const x = (t - 72) / 12;
     return 0.88 + 0.04 * smoothstep(x);
   }
-  const x = (t - 82) / 28;
+  const x = (t - 84) / 26;
   return 0.92 + 0.08 * smoothstep(x);
 }
 

@@ -261,6 +261,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   await waitTilesIdle(2800, 2);
 
   state._ready = true;
+  const bootJump = Number(new URLSearchParams(location.search).get("flightT") || "");
+  if (Number.isFinite(bootJump) && bootJump > 0) {
+    state.elapsedSeconds = Math.min(FLIGHT_DURATION_SEC, bootJump);
+    console.info(`[cesium] debug flightT=${state.elapsedSeconds}s`);
+  }
   document.body.classList.add("is-cesium-ready");
   if (bootEm) bootEm.textContent = "Opening cockpit…";
   document.body.classList.add("is-ready");
@@ -392,15 +397,20 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const lookM = lookAheadMeters(geo.phase);
     const ahead = sampleAhead(path, distM, lookM);
     let hdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
-    if (elapsed < 12) hdg = DEP_RWY_HEADING;
+    /* Hold runway heading long after rotate — prevents whip on compressed climb-out */
+    if (elapsed < 28) hdg = DEP_RWY_HEADING;
     else if (elapsed > 100) hdg = ARR_RWY_HEADING;
+    else {
+      const softAhead = sampleAhead(path, distM, Math.max(lookM, 22000));
+      hdg = bearingDeg(sample.lat, sample.lon, softAhead.lat, softAhead.lon);
+    }
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
-    /* Cap turn rate — was step*1.6 → frantic heading snaps */
-    const maxDegPerSec = elapsed > 95 ? 8 : 5;
-    const maxStep = maxDegPerSec * Math.min(step, 0.1);
+    const maxDegPerSec = elapsed < 40 ? 1.8 : elapsed > 95 ? 5 : 2.8;
+    const cappedDt = Math.min(step, 0.08);
+    const maxStep = maxDegPerSec * cappedDt;
     if (dh > maxStep) dh = maxStep;
     if (dh < -maxStep) dh = -maxStep;
-    const blend = 1 - Math.exp(-Math.min(step, 0.1) * 1.1);
+    const blend = 1 - Math.exp(-cappedDt * 0.85);
     lastHeading = (lastHeading + dh * blend + 360) % 360;
     geo.heading = lastHeading;
     state.routeHeading = lastHeading;
@@ -439,8 +449,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state._prevAlt = geo.altitudeAMSL;
     geo.pitch = autopilotPitchDeg(geo.phase, altRate, elapsed);
     state.pitch = geo.pitch;
-    const turnRate = dh / Math.max(step, 1e-3);
-    geo.roll = Math.max(-7, Math.min(7, -turnRate * 0.07));
+    const turnRate = dh / Math.max(cappedDt, 1e-3);
+    geo.roll = Math.max(-4, Math.min(4, -turnRate * 0.04));
     state.roll = geo.roll;
 
     if (geo.quality !== lastQuality) {
