@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=seatdumt36a2mb";
+import { createCesiumWorld } from "./cesium-world.js?v=seedlockmt36k77b";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=seatdumt36a2mb";
+} from "./gmp-usn-route.js?v=seedlockmt36k77b";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -664,100 +664,125 @@ function syncMfdCamera() {
 }
 
 function measureBlackDuCenters(root, w, h) {
-  /* eacc0b6: belt scan + split 5 DU islands by largest x-gaps (no fx seeds) */
+  /*
+    Stable DU seats: belt → modeY → eacc fx seeds → grow full black rect.
+    Gap-split put island#4 center in the FO bezel gap (log: px≈1159 miss until pitch≠-0.02).
+  */
   const black = collectBlackMeshes(root);
   if (!black.length) return [];
   syncMfdCamera();
   root.updateMatrixWorld(true);
   const raycaster = new THREE.Raycaster();
-  const scanBelt = (y0f, y1f) => {
-    const out = [];
-    const step = 2;
-    const y0 = Math.floor(h * y0f);
-    const y1 = Math.floor(h * y1f);
-    const x0 = Math.floor(w * 0.29);
-    const x1 = Math.floor(w * 0.71);
-    for (let py = y0; py <= y1; py += step) {
-      for (let px = x0; px <= x1; px += step) {
-        raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
-        if (!raycaster.intersectObjects(black, false).length) continue;
-        out.push({ px, py });
-      }
-    }
-    return { hits: out, y0, y1 };
+  const hitAt = (px, py) => {
+    if (px < 0 || py < 0 || px >= w || py >= h) return false;
+    raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
+    return raycaster.intersectObjects(black, false).length > 0;
   };
-  /* eacc belt first; close-cam (_camBase.z≈0.38) may sit lower — widen once */
-  let scanned = scanBelt(0.66, 0.72);
-  if (scanned.hits.length < 40) scanned = scanBelt(0.6, 0.78);
-  const hits = scanned.hits;
-  const y0 = scanned.y0;
-  const y1 = scanned.y1;
+
+  const hits = [];
+  const step = 2;
+  for (let py = Math.floor(h * 0.62); py <= Math.floor(h * 0.78); py += step) {
+    for (let px = Math.floor(w * 0.28); px <= Math.floor(w * 0.72); px += step) {
+      if (hitAt(px, py)) hits.push({ px, py });
+    }
+  }
   // #region agent log
   dbgMfd("A", "flight.js:measure", "scan_hits", {
     hits: hits.length,
     w,
     h,
     camZ: state._camBase?.z,
-    y0,
-    y1,
   });
   // #endregion
-  if (hits.length < 40) return [];
+  if (hits.length < 30) return [];
 
-  const col = new Map();
-  hits.forEach((hh) => col.set(hh.px, (col.get(hh.px) || 0) + 1));
-  const xs = [...col.keys()].sort((a, b) => a - b);
-  if (xs.length < 10) return [];
-  const gaps = [];
-  for (let i = 1; i < xs.length; i++) {
-    gaps.push({ i, d: xs[i] - xs[i - 1] });
-  }
-  gaps.sort((a, b) => b.d - a.d);
-  const cuts = gaps
-    .slice(0, 4)
-    .map((g) => g.i)
-    .sort((a, b) => a - b);
-  const ranges = [];
-  let start = 0;
-  cuts.forEach((cut) => {
-    ranges.push(xs.slice(start, cut));
-    start = cut;
+  const yHist = new Map();
+  hits.forEach((hh) => {
+    const b = Math.round(hh.py / 4) * 4;
+    yHist.set(b, (yHist.get(b) || 0) + 1);
   });
-  ranges.push(xs.slice(start));
-  if (ranges.length !== 5 || ranges.some((r) => r.length < 2)) {
-    // #region agent log
-    dbgMfd("A", "flight.js:measure", "gap_split_fail", {
-      ranges: ranges.length,
-      xs: xs.length,
-    });
-    // #endregion
-    return [];
-  }
+  let modeY = Math.floor(h * 0.685);
+  let modeN = 0;
+  yHist.forEach((n, y) => {
+    if (n > modeN) {
+      modeN = n;
+      modeY = y;
+    }
+  });
 
-  return ranges.map((isle, i) => {
-    const set = new Set(isle);
-    const g = hits.filter((hh) => set.has(hh.px));
-    const minPx = Math.min(...g.map((hh) => hh.px));
-    const maxPx = Math.max(...g.map((hh) => hh.px));
-    const minPy = Math.min(...g.map((hh) => hh.py));
-    const maxPy = Math.max(...g.map((hh) => hh.py));
-    return {
+  const seeds = [0.339, 0.406, 0.5, 0.589, 0.656];
+  const out = [];
+  for (let i = 0; i < seeds.length; i++) {
+    let sx = Math.floor(w * seeds[i]);
+    let sy = modeY;
+    let found = false;
+    for (let dx = 0; dx <= Math.floor(w * 0.05); dx += 2) {
+      for (const sdx of dx === 0 ? [0] : [dx, -dx]) {
+        const x = sx + sdx;
+        for (const dy of [0, 4, -4, 8, -8, 12, -12, 16, -16, 20, -20]) {
+          if (hitAt(x, modeY + dy)) {
+            sx = x;
+            sy = modeY + dy;
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      if (found) break;
+    }
+    if (!found) {
+      // #region agent log
+      dbgMfd("A", "flight.js:measure", "seed_miss", { i, sx, modeY });
+      // #endregion
+      return [];
+    }
+
+    let minPx = sx;
+    let maxPx = sx;
+    while (minPx > 8 && hitAt(minPx - 2, sy)) minPx -= 2;
+    while (maxPx < w - 8 && hitAt(maxPx + 2, sy)) maxPx += 2;
+    const cx = Math.round((minPx + maxPx) / 2);
+
+    let minPy = sy;
+    let maxPy = sy;
+    while (minPy > 8 && hitAt(cx, minPy - 2)) minPy -= 2;
+    while (maxPy < h - 8 && hitAt(cx, maxPy + 2)) maxPy += 2;
+
+    let bw = maxPx - minPx;
+    let bh = maxPy - minPy;
+    if (bh > bw * 1.4) {
+      const mid = (minPy + maxPy) / 2;
+      const half = (bw * 1.08) / 2;
+      minPy = Math.round(mid - half);
+      maxPy = Math.round(mid + half);
+      bh = maxPy - minPy;
+    }
+    if (bw < 24 || bh < 24) return [];
+
+    out.push({
       projectIndex: i,
-      px: Math.round((minPx + maxPx) / 2),
-      py: Math.round((minPy + maxPy) / 2) + 12,
+      px: cx,
+      py: Math.round((minPy + maxPy) / 2),
       minPx,
       maxPx,
       minPy,
       maxPy,
-      wPx: Math.max(52, maxPx - minPx),
-      hPx: Math.max(56, maxPy - minPy + 18),
-      n: g.length,
-    };
+      wPx: bw,
+      hPx: bh,
+      n: Math.round((bw * bh) / 4),
+    });
+  }
+  // #region agent log
+  dbgMfd("A", "flight.js:measure", "seed_ok", {
+    modeY,
+    sample: out.map((c) => ({ i: c.projectIndex, px: c.px, py: c.py, wPx: c.wPx, hPx: c.hPx })),
   });
+  // #endregion
+  return out;
 }
 
 function findBlackDuCenters(w, h) {
-  /* eacc0b6 fallback NDC (lookBias 0.02/0.04 − zoom*0.04) */
   const expect = [
     { fx: 0.339, fy: 0.685 },
     { fx: 0.406, fy: 0.685 },
@@ -842,7 +867,7 @@ function dbgMfd(hypothesisId, location, message, data) {
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "seat-fix",
+      runId: "seed-lock",
       hypothesisId,
       location,
       message,
@@ -853,7 +878,12 @@ function dbgMfd(hypothesisId, location, message, data) {
 }
 // #endregion
 
-function placeMfdOnBlackDus(root) {
+function placeMfdOnBlackDus(root, opts = {}) {
+  const force = !!opts.force;
+  if (!force && state._mfdSeated && (state._mfdScreens || []).length >= 5) {
+    return true;
+  }
+
   const w = renderer.domElement.width;
   const h = renderer.domElement.height;
   if (!w || !h) {
@@ -863,9 +893,7 @@ function placeMfdOnBlackDus(root) {
     return false;
   }
 
-  /* kill floating HTML overlays — MFDs must be 3D children of black LCD */
   clearMfdClipOverlay();
-
   syncMfdCamera();
   root.updateMatrixWorld(true);
 
@@ -891,20 +919,14 @@ function placeMfdOnBlackDus(root) {
   });
   // #endregion
   if (centers.length < 5) {
-    console.warn("[mfd-panel] no DU centers");
-    // #region agent log
     dbgMfd("A", "flight.js:placeMfd", "fail_no_centers", { measuredN });
-    // #endregion
     return false;
   }
   centers = centers.slice(0, 5);
 
   const black = collectBlackMeshes(root);
   if (!black.length) {
-    console.warn("[mfd-panel] no black LCD");
-    // #region agent log
     dbgMfd("B", "flight.js:placeMfd", "fail_no_black", {});
-    // #endregion
     return false;
   }
 
@@ -912,21 +934,27 @@ function placeMfdOnBlackDus(root) {
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
-  /* small probe only — full-column scan hit DU top (py≈616 vs center≈650) → float above black */
-  const yProbe = [0, 2, -2, 4, -4, 6, -6, 8, -8, 12, -12];
 
   const sized = [];
   for (const c0 of centers) {
     let hit = null;
     let c = c0;
-    for (const dy of yProbe) {
-      const py = c0.py + dy;
-      ndc.set((c0.px / w) * 2 - 1, -((py / h) * 2 - 1));
-      raycaster.setFromCamera(ndc, camera);
-      hit = raycaster.intersectObjects(black, false)[0];
-      if (hit?.face) {
-        c = { ...c0, py };
-        break;
+    /* x+y neighborhood — log: index4 center sat in FO gap */
+    outer: for (let dx = 0; dx <= 28; dx += 2) {
+      for (const sx of dx === 0 ? [0] : [dx, -dx]) {
+        for (let dy = 0; dy <= 24; dy += 2) {
+          for (const sy of dy === 0 ? [0] : [dy, -dy]) {
+            const px = c0.px + sx;
+            const py = c0.py + sy;
+            ndc.set((px / w) * 2 - 1, -((py / h) * 2 - 1));
+            raycaster.setFromCamera(ndc, camera);
+            hit = raycaster.intersectObjects(black, false)[0];
+            if (hit?.face) {
+              c = { ...c0, px, py };
+              break outer;
+            }
+          }
+        }
       }
     }
     if (!hit?.face) {
@@ -954,14 +982,14 @@ function placeMfdOnBlackDus(root) {
     sized.push({ c, hit });
   }
 
-  prev.forEach((s) => {
-    if (s.el) s.el.remove();
-    if (!s.mesh) return;
-    if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
-    if (s.mesh.geometry) s.mesh.geometry.dispose();
-    if (s.mesh.material) {
-      if (s.mesh.material.map) s.mesh.material.map.dispose();
-      s.mesh.material.dispose();
+  prev.forEach((slot) => {
+    if (slot.el) slot.el.remove();
+    if (!slot.mesh) return;
+    if (slot.mesh.parent) slot.mesh.parent.remove(slot.mesh);
+    if (slot.mesh.geometry) slot.mesh.geometry.dispose();
+    if (slot.mesh.material) {
+      if (slot.mesh.material.map) slot.mesh.material.map.dispose();
+      slot.mesh.material.dispose();
     }
   });
   if (state._mfdGroup) cockpit.remove(state._mfdGroup);
@@ -975,9 +1003,9 @@ function placeMfdOnBlackDus(root) {
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    /* eacc0b6 fill — no 0.14 hard cap (log showed every DU clamped to 0.14→oversized float) */
-    const duW = Math.min(0.195, worldH * aspect * (c.wPx / w) * 1.22);
-    const duH = Math.min(0.175, worldH * (c.hPx / h) * 1.45);
+    /* fill grown black rect (~full LCD); avoid 0.195 hard inflate */
+    const duW = worldH * aspect * (c.wPx / w) * 0.96;
+    const duH = worldH * (c.hPx / h) * 0.96;
 
     const parent = hit.object;
     const local = hit.point.clone();
@@ -991,9 +1019,9 @@ function placeMfdOnBlackDus(root) {
     parent.getWorldScale(pw);
     const sx = Math.max(1e-4, Math.abs(pw.x));
     const sy = Math.max(1e-4, Math.abs(pw.y));
-    const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
-    const gw = duW / s;
-    const gh = duH / s;
+    const sc = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
+    const gw = duW / sc;
+    const gh = duH / sc;
 
     const mat = new THREE.MeshBasicMaterial({
       map: makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false),
@@ -1033,20 +1061,21 @@ function placeMfdOnBlackDus(root) {
 
   cockpit.add(group);
   state._mfdGroup = group;
+  state._mfdSeated = state._mfdScreens.length >= 5;
   if (typeof applyProject === "function") applyProject(-1, { maneuver: false });
   paintMfdScreens();
   tickMfdPop();
-  console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((s) => s.detect)));
+  console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((slot) => slot.detect)));
   // #region agent log
   dbgMfd("D", "flight.js:placeMfd", "place_ok", {
     n: state._mfdScreens.length,
-    detect: state._mfdScreens.map((s) => s.detect),
-    parents: state._mfdScreens.map((s) => s.mesh?.parent?.name),
-    sizes: state._mfdScreens.map((s) => {
-      const g = s.mesh?.geometry?.parameters;
+    detect: state._mfdScreens.map((slot) => slot.detect),
+    parents: state._mfdScreens.map((slot) => slot.mesh?.parent?.name),
+    sizes: state._mfdScreens.map((slot) => {
+      const g = slot.mesh?.geometry?.parameters;
       return g ? { width: g.width, height: g.height } : null;
     }),
-    visible: state._mfdScreens.map((s) => s.mesh?.visible),
+    visible: state._mfdScreens.map((slot) => slot.mesh?.visible),
   });
   // #endregion
   return state._mfdScreens.length >= 5;
@@ -1055,6 +1084,7 @@ function placeMfdOnBlackDus(root) {
 function installMfdScreens(root) {
   root.updateMatrixWorld(true);
   state._mfdScreens = [];
+  state._mfdSeated = false;
   state._mfdGroup = new THREE.Group();
   state._mfdGroup.name = "mfdPanelScreens";
   cockpit.add(state._mfdGroup);
@@ -1063,7 +1093,7 @@ function installMfdScreens(root) {
     state,
     camera,
     THREE,
-    placeMfdOnBlackDus: () => placeMfdOnBlackDus(root),
+    placeMfdOnBlackDus: () => placeMfdOnBlackDus(root, { force: true }),
   };
   // #region agent log
   dbgMfd("E", "flight.js:installMfd", "install_start", {
@@ -1072,14 +1102,15 @@ function installMfdScreens(root) {
   });
   // #endregion
   let tries = 0;
-  const maxTries = 40;
+  const maxTries = 24;
   const attempt = () => {
+    if (state._mfdSeated && (state._mfdScreens || []).length >= 5) return;
     tries += 1;
-    if (typeof frameSideScreens === "function") frameSideScreens("center");
+    /* do NOT frameSideScreens here — pitch thrash caused late seat (takeoff) */
     cameraRig.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
     root.updateMatrixWorld(true);
-    const ok = placeMfdOnBlackDus(root);
+    const ok = placeMfdOnBlackDus(root, { force: true });
     // #region agent log
     dbgMfd("E", "flight.js:installMfd", "attempt", {
       tries,
@@ -1088,10 +1119,10 @@ function installMfdScreens(root) {
     });
     // #endregion
     if (ok) {
-      console.info("[mfd-panel] eacc-seat ok tries=" + tries);
+      console.info("[mfd-panel] seat ok tries=" + tries);
       return;
     }
-    if (tries < maxTries) setTimeout(attempt, 280);
+    if (tries < maxTries) setTimeout(attempt, 200);
     else {
       // #region agent log
       dbgMfd("E", "flight.js:installMfd", "exhausted", {
@@ -1101,12 +1132,12 @@ function installMfdScreens(root) {
       // #endregion
     }
   };
-  setTimeout(attempt, 800);
+  setTimeout(attempt, 200);
   const onCesium = () => {
-    [500, 1500, 3000].forEach((ms) =>
+    [400, 1200].forEach((ms) =>
       setTimeout(() => {
-        if ((state._mfdScreens || []).length >= 5) return;
-        placeMfdOnBlackDus(root);
+        if (state._mfdSeated) return;
+        placeMfdOnBlackDus(root, { force: true });
       }, ms)
     );
   };
@@ -1620,7 +1651,7 @@ function frameSideScreens(side) {
     btn.classList.toggle("is-on", btn.dataset.look === side);
   });
   if (state._mfdRoot) {
-    setTimeout(() => placeMfdOnBlackDus(state._mfdRoot), 200);
+    setTimeout(() => placeMfdOnBlackDus(state._mfdRoot, { force: true }), 200);
   }
 }
 
@@ -1629,7 +1660,7 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
     frameSideScreens(btn.dataset.look);
     if (btn.dataset.look === "center" && state._mfdRoot) {
       requestAnimationFrame(() => {
-        setTimeout(() => placeMfdOnBlackDus(state._mfdRoot), 120);
+        setTimeout(() => placeMfdOnBlackDus(state._mfdRoot, { force: true }), 120);
       });
     }
   });
