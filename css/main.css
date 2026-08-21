@@ -980,7 +980,7 @@ body.is-ready .boot {
     display: none;
   }
   .float-gauges {
-    /* under project chips — never over bottom dock / look snaps */
+    /* top set in JS from #routeNav bottom — do not hardcode */
     left: max(0.45rem, env(safe-area-inset-left));
     top: calc(max(0.4rem, env(safe-area-inset-top)) + 5.9rem);
     bottom: auto;

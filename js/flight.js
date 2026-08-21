@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=bootfixmt3725dh";
+import { createCesiumWorld } from "./cesium-world.js?v=mo5fixmt376g60";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=bootfixmt3725dh";
+} from "./gmp-usn-route.js?v=mo5fixmt376g60";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -664,10 +664,6 @@ function syncMfdCamera() {
 }
 
 function measureBlackDuCenters(root, w, h) {
-  /*
-    Stable DU seats: belt → modeY → eacc fx seeds → grow full black rect.
-    Mobile: wider NDC belt + larger seed snap (portrait FOV shifts DU band).
-  */
   const black = collectBlackMeshes(root);
   if (!black.length) return [];
   syncMfdCamera();
@@ -681,11 +677,11 @@ function measureBlackDuCenters(root, w, h) {
 
   const mobile = isMobile();
   const hits = [];
-  const step = mobile ? 3 : 2;
-  const y0 = Math.floor(h * (mobile ? 0.52 : 0.62));
-  const y1 = Math.floor(h * (mobile ? 0.9 : 0.78));
-  const x0 = Math.floor(w * (mobile ? 0.08 : 0.28));
-  const x1 = Math.floor(w * (mobile ? 0.92 : 0.72));
+  const step = mobile ? 2 : 2;
+  const y0 = Math.floor(h * (mobile ? 0.48 : 0.62));
+  const y1 = Math.floor(h * (mobile ? 0.92 : 0.78));
+  const x0 = Math.floor(w * (mobile ? 0.04 : 0.28));
+  const x1 = Math.floor(w * (mobile ? 0.96 : 0.72));
   for (let py = y0; py <= y1; py += step) {
     for (let px = x0; px <= x1; px += step) {
       if (hitAt(px, py)) hits.push({ px, py });
@@ -697,7 +693,7 @@ function measureBlackDuCenters(root, w, h) {
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "mo-mfd",
+      runId: "mo5",
       hypothesisId: "A",
       location: "flight.js:measure",
       message: "scan_hits",
@@ -706,7 +702,7 @@ function measureBlackDuCenters(root, w, h) {
     }),
   }).catch(() => {});
   // #endregion
-  if (hits.length < (mobile ? 18 : 30)) return [];
+  if (hits.length < (mobile ? 12 : 30)) return [];
 
   const yHist = new Map();
   hits.forEach((hh) => {
@@ -722,8 +718,33 @@ function measureBlackDuCenters(root, w, h) {
     }
   });
 
+  /* mobile: contiguous black runs at modeY → exact 5 DU islands */
+  if (mobile) {
+    const fromRuns = measureByBlackRuns(hitAt, w, h, modeY, x0, x1);
+    // #region agent log
+    fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+      body: JSON.stringify({
+        sessionId: "88eb62",
+        runId: "mo5",
+        hypothesisId: "A",
+        location: "flight.js:measure",
+        message: "runs_result",
+        data: {
+          modeY,
+          n: fromRuns.length,
+          sample: fromRuns.map((c) => ({ i: c.projectIndex, px: c.px, py: c.py, wPx: c.wPx, hPx: c.hPx })),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    if (fromRuns.length === 5) return fromRuns;
+  }
+
   const seeds = [0.339, 0.406, 0.5, 0.589, 0.656];
-  const snapMax = Math.floor(w * (mobile ? 0.12 : 0.05));
+  const snapMax = Math.floor(w * (mobile ? 0.14 : 0.05));
   const out = [];
   for (let i = 0; i < seeds.length; i++) {
     let sx = Math.floor(w * seeds[i]);
@@ -732,7 +753,7 @@ function measureBlackDuCenters(root, w, h) {
     for (let dx = 0; dx <= snapMax; dx += 2) {
       for (const sdx of dx === 0 ? [0] : [dx, -dx]) {
         const x = sx + sdx;
-        for (const dy of [0, 4, -4, 8, -8, 12, -12, 16, -16, 24, -24, 32, -32]) {
+        for (const dy of [0, 4, -4, 8, -8, 12, -12, 16, -16, 24, -24, 32, -32, 40, -40]) {
           if (hitAt(x, modeY + dy)) {
             sx = x;
             sy = modeY + dy;
@@ -745,63 +766,101 @@ function measureBlackDuCenters(root, w, h) {
       if (found) break;
     }
     if (!found) {
-      // #region agent log
-      fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
-        body: JSON.stringify({
-          sessionId: "88eb62",
-          runId: "mo-mfd",
-          hypothesisId: "A",
-          location: "flight.js:measure",
-          message: "seed_miss",
-          data: { i, sx, modeY, mobile },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      /* mobile fallback: gap-split islands from hits */
-      if (mobile) return measureByGapSplit(hits, w, h);
+      if (mobile) {
+        const gap = measureByGapSplit(hits, w, h);
+        if (gap.length === 5) return gap;
+      }
       return [];
     }
 
-    let minPx = sx;
-    let maxPx = sx;
-    while (minPx > 8 && hitAt(minPx - 2, sy)) minPx -= 2;
-    while (maxPx < w - 8 && hitAt(maxPx + 2, sy)) maxPx += 2;
-    const cx = Math.round((minPx + maxPx) / 2);
-
-    let minPy = sy;
-    let maxPy = sy;
-    while (minPy > 8 && hitAt(cx, minPy - 2)) minPy -= 2;
-    while (maxPy < h - 8 && hitAt(cx, maxPy + 2)) maxPy += 2;
-
-    let bw = maxPx - minPx;
-    let bh = maxPy - minPy;
-    if (bh > bw * 1.4) {
-      const mid = (minPy + maxPy) / 2;
-      const half = (bw * 1.08) / 2;
-      minPy = Math.round(mid - half);
-      maxPy = Math.round(mid + half);
-      bh = maxPy - minPy;
-    }
-    if (bw < (mobile ? 16 : 24) || bh < (mobile ? 16 : 24)) {
-      if (mobile) return measureByGapSplit(hits, w, h);
+    const grown = growDuRect(hitAt, w, h, sx, sy, mobile);
+    if (!grown) {
+      if (mobile) {
+        const gap = measureByGapSplit(hits, w, h);
+        if (gap.length === 5) return gap;
+      }
       return [];
     }
+    out.push({ ...grown, projectIndex: i });
+  }
+  return out;
+}
 
-    out.push({
-      projectIndex: i,
-      px: cx,
-      py: Math.round((minPy + maxPy) / 2),
-      minPx,
-      maxPx,
-      minPy,
-      maxPy,
-      wPx: bw,
-      hPx: bh,
-      n: Math.round((bw * bh) / 4),
-    });
+function growDuRect(hitAt, w, h, sx, sy, mobile) {
+  let minPx = sx;
+  let maxPx = sx;
+  while (minPx > 8 && hitAt(minPx - 2, sy)) minPx -= 2;
+  while (maxPx < w - 8 && hitAt(maxPx + 2, sy)) maxPx += 2;
+  const cx = Math.round((minPx + maxPx) / 2);
+  let minPy = sy;
+  let maxPy = sy;
+  while (minPy > 8 && hitAt(cx, minPy - 2)) minPy -= 2;
+  while (maxPy < h - 8 && hitAt(cx, maxPy + 2)) maxPy += 2;
+  let bw = maxPx - minPx;
+  let bh = maxPy - minPy;
+  if (bh > bw * 1.4) {
+    const mid = (minPy + maxPy) / 2;
+    const half = (bw * 1.08) / 2;
+    minPy = Math.round(mid - half);
+    maxPy = Math.round(mid + half);
+    bh = maxPy - minPy;
+  }
+  const minSide = mobile ? 14 : 24;
+  if (bw < minSide || bh < minSide) return null;
+  return {
+    px: cx,
+    py: Math.round((minPy + maxPy) / 2),
+    minPx,
+    maxPx,
+    minPy,
+    maxPy,
+    wPx: bw,
+    hPx: bh,
+    n: Math.round((bw * bh) / 4),
+  };
+}
+
+function measureByBlackRuns(hitAt, w, h, modeY, x0, x1) {
+  const runs = [];
+  let start = null;
+  for (let px = x0; px <= x1; px += 2) {
+    if (hitAt(px, modeY)) {
+      if (start == null) start = px;
+    } else if (start != null) {
+      runs.push({ min: start, max: px - 2 });
+      start = null;
+    }
+  }
+  if (start != null) runs.push({ min: start, max: x1 });
+  const dus = runs
+    .map((r) => ({ ...r, w: r.max - r.min }))
+    .filter((r) => r.w >= Math.max(18, Math.floor(w * 0.028)))
+    .sort((a, b) => a.min - b.min);
+  if (dus.length < 5) return [];
+  /* pick 5: if more than 5, keep widest / most central cluster of 5 */
+  let pick = dus;
+  if (dus.length > 5) {
+    let best = null;
+    let bestScore = -1;
+    for (let i = 0; i <= dus.length - 5; i++) {
+      const slice = dus.slice(i, i + 5);
+      const span = slice[4].max - slice[0].min;
+      const mid = (slice[0].min + slice[4].max) / 2;
+      const score = 1000 - Math.abs(mid - w * 0.5) - span * 0.02;
+      if (score > bestScore) {
+        bestScore = score;
+        best = slice;
+      }
+    }
+    pick = best || dus.slice(0, 5);
+  }
+  const out = [];
+  for (let i = 0; i < 5; i++) {
+    const r = pick[i];
+    const sx = Math.round((r.min + r.max) / 2);
+    const grown = growDuRect(hitAt, w, h, sx, modeY, true);
+    if (!grown) return [];
+    out.push({ ...grown, projectIndex: i });
   }
   return out;
 }
@@ -833,22 +892,20 @@ function measureByGapSplit(hits, w, h) {
     const maxPx = Math.max(...g.map((hh) => hh.px));
     const minPy = Math.min(...g.map((hh) => hh.py));
     const maxPy = Math.max(...g.map((hh) => hh.py));
-    /* if island too wide (merged FO pair), use left/right third centers */
     let px = Math.round((minPx + maxPx) / 2);
-    let wPx = Math.max(40, maxPx - minPx);
-    if (wPx > w * 0.12 && i === 4) {
-      px = Math.round(minPx + (maxPx - minPx) * 0.72);
-      wPx = Math.max(40, Math.floor((maxPx - minPx) * 0.4));
-    } else if (wPx > w * 0.12 && i === 3) {
-      px = Math.round(minPx + (maxPx - minPx) * 0.28);
-      wPx = Math.max(40, Math.floor((maxPx - minPx) * 0.4));
+    let wPx = Math.max(36, maxPx - minPx);
+    if (wPx > w * 0.14) {
+      /* merged island — bias center toward outer third for i 0/4 */
+      const t = i <= 1 ? 0.28 : i >= 3 ? 0.72 : 0.5;
+      px = Math.round(minPx + (maxPx - minPx) * t);
+      wPx = Math.max(36, Math.floor((maxPx - minPx) * 0.38));
     }
     return {
       projectIndex: i,
       px,
       py: Math.round((minPy + maxPy) / 2),
       wPx,
-      hPx: Math.max(40, maxPy - minPy + 12),
+      hPx: Math.max(36, maxPy - minPy + 12),
       n: g.length,
     };
   });
@@ -991,8 +1048,39 @@ function placeMfdOnBlackDus(root, opts = {}) {
         }
       }
     }
+    if (!hit?.face && isMobile()) {
+      /* last chance: scan full column near seed fx */
+      for (let py = Math.floor(h * 0.45); py <= Math.floor(h * 0.95); py += 3) {
+        for (const ox of [0, 6, -6, 12, -12, 18, -18]) {
+          const px = c0.px + ox;
+          ndc.set((px / w) * 2 - 1, -((py / h) * 2 - 1));
+          raycaster.setFromCamera(ndc, camera);
+          hit = raycaster.intersectObjects(black, false)[0];
+          if (hit?.face) {
+            c = { ...c0, px, py };
+            break;
+          }
+        }
+        if (hit?.face) break;
+      }
+    }
     if (!hit?.face) {
       console.warn("[mfd-panel] miss seed", c0.projectIndex);
+      // #region agent log
+      fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+        body: JSON.stringify({
+          sessionId: "88eb62",
+          runId: "mo5",
+          hypothesisId: "C",
+          location: "flight.js:placeMfd",
+          message: "fail_ray_miss",
+          data: { projectIndex: c0.projectIndex, px: c0.px, py: c0.py, mobile: isMobile() },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       return false;
     }
     sized.push({ c, hit });
@@ -1020,7 +1108,7 @@ function placeMfdOnBlackDus(root, opts = {}) {
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
     /* fill grown black rect (~full LCD); avoid 0.195 hard inflate */
-    const fill = isMobile() ? 1.08 : 0.98;
+    const fill = isMobile() ? 1.14 : 0.98;
     const duW = worldH * aspect * (c.wPx / w) * fill;
     const duH = worldH * (c.hPx / h) * fill;
 
@@ -1700,11 +1788,42 @@ setInterval(() => {
     .join(":");
 }, 1000);
 
+function layoutMobileFloatGauges() {
+  const fg = document.getElementById("floatGauges");
+  const route = document.getElementById("routeNav");
+  if (!fg) return;
+  if (!isMobile() || !route) {
+    fg.style.top = "";
+    return;
+  }
+  const rr = route.getBoundingClientRect();
+  if (rr.width < 8 || rr.height < 8) return;
+  const top = Math.round(rr.bottom + 8);
+  fg.style.top = top + "px";
+  fg.style.bottom = "auto";
+  // #region agent log
+  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+    body: JSON.stringify({
+      sessionId: "88eb62",
+      runId: "mo5",
+      hypothesisId: "UI",
+      location: "flight.js:layoutMobileFloatGauges",
+      message: "fg_top",
+      data: { top, routeBottom: +rr.bottom.toFixed(1), routeH: +rr.height.toFixed(1), vw: window.innerWidth },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+}
+
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.6 : 1.5));
+  layoutMobileFloatGauges();
   /* mobile orientation / chrome UI resize invalidates NDC seats */
   if (state._mfdRoot) {
     window.clearTimeout(window.__mfdResizeT);
@@ -1714,6 +1833,10 @@ window.addEventListener("resize", () => {
     }, 280);
   }
 });
+layoutMobileFloatGauges();
+requestAnimationFrame(() => layoutMobileFloatGauges());
+setTimeout(layoutMobileFloatGauges, 400);
+setTimeout(layoutMobileFloatGauges, 1200);
 
 let prev = performance.now();
 let gaugeTick = 0;
