@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=lookuimt36yfgw";
+import { createCesiumWorld } from "./cesium-world.js?v=bootfixmt3725dh";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=lookuimt36yfgw";
+} from "./gmp-usn-route.js?v=bootfixmt3725dh";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1020,8 +1020,9 @@ function placeMfdOnBlackDus(root, opts = {}) {
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
     /* fill grown black rect (~full LCD); avoid 0.195 hard inflate */
-    const duW = worldH * aspect * (c.wPx / w) * 0.96;
-    const duH = worldH * (c.hPx / h) * 0.96;
+    const fill = isMobile() ? 1.08 : 0.98;
+    const duW = worldH * aspect * (c.wPx / w) * fill;
+    const duH = worldH * (c.hPx / h) * fill;
 
     const parent = hit.object;
     const local = hit.point.clone();
@@ -1847,24 +1848,17 @@ function fitBootType() {
   const copy = bootEn.parentElement;
   if (!copy) return;
   const solid = bootEn.querySelector(".boot-solid");
-  const svg = bootEn.querySelector(".boot-outline-svg");
+  const outline = bootEn.querySelector(".boot-outline-txt");
   bootEn.style.fontSize = "";
-  /* leave side room for outline filter + letterforms */
-  const pad = window.innerWidth <= 720 ? 0.88 : window.innerWidth <= 1100 ? 0.92 : 0.96;
-  const maxW = Math.floor(copy.clientWidth * pad);
-  if (maxW < 40) return;
+  const budget = Math.floor(copy.clientWidth * (window.innerWidth <= 720 ? 0.9 : 0.94));
+  if (budget < 40) return;
   let size = parseFloat(getComputedStyle(bootEn).fontSize);
-  for (let i = 0; i < 48; i++) {
-    const solidOverflow = solid ? solid.scrollWidth > maxW + 1 : false;
-    const svgOverflow = svg ? svg.getBoundingClientRect().width > copy.clientWidth + 2 : false;
-    if (!solidOverflow && !svgOverflow) break;
-    size *= 0.93;
+  for (let i = 0; i < 56; i++) {
+    const o = outline ? outline.scrollWidth > budget + 1 : false;
+    const s = solid ? solid.scrollWidth > budget + 1 : false;
+    if (!o && !s) break;
+    size *= 0.92;
     bootEn.style.fontSize = `${size.toFixed(2)}px`;
-    if (svg) svg.style.width = `${maxW}px`;
-  }
-  if (svg) {
-    const solidW = solid?.scrollWidth || maxW;
-    svg.style.width = `${Math.min(maxW, Math.max(solidW, Math.floor(copy.clientWidth * 0.9)))}px`;
   }
   // #region agent log
   fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
@@ -1872,16 +1866,20 @@ function fitBootType() {
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "mo-boot",
+      runId: "boot-css",
       hypothesisId: "BOOT",
       location: "flight.js:fitBootType",
       message: "boot_fit",
       data: {
         vw: window.innerWidth,
-        maxW,
+        budget,
         size: +size.toFixed(2),
+        outlineW: outline?.scrollWidth || 0,
         solidW: solid?.scrollWidth || 0,
         copyW: copy.clientWidth,
+        ok:
+          (!outline || outline.scrollWidth <= budget + 1) &&
+          (!solid || solid.scrollWidth <= budget + 1),
       },
       timestamp: Date.now(),
     }),

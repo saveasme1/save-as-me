@@ -695,7 +695,8 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
     radial-gradient(120% 90% at 80% 100%, #5f8fb8 0%, transparent 50%),
     linear-gradient(165deg, #d7ebf8 0%, #8eb8e0 42%, #4e7fa8 100%);
   transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.9s;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-sizing: border-box;
 }
 .boot-inner {
@@ -750,20 +751,16 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   overflow: visible;
   box-sizing: border-box;
 }
-.boot-en .boot-outline {
+.boot-en .boot-outline-txt {
   display: block;
   width: 100%;
-  line-height: 0;
-  color: transparent;
-  -webkit-text-stroke: 0;
-}
-.boot-en .boot-outline-svg {
-  display: block;
-  width: min(100%, 42rem);
   max-width: 100%;
-  height: auto;
-  margin: 0 auto;
-  overflow: visible;
+  box-sizing: border-box;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: clamp(1.1px, 0.22vw, 2.2px) #071018;
+  paint-order: stroke fill;
+  letter-spacing: -0.045em;
 }
 .boot-en .boot-solid {
   color: #071018;
@@ -851,13 +848,14 @@ body.is-ready .boot {
     font-size: clamp(0.52rem, 2.8vw, 0.64rem);
   }
   .boot-en {
-    font-size: clamp(1.05rem, 6.8vw, 1.85rem);
-    letter-spacing: -0.035em;
-    line-height: 1.08;
-    padding-inline: 0.05em;
+    font-size: clamp(0.95rem, 5.6vw, 1.55rem);
+    letter-spacing: -0.05em;
+    line-height: 1.1;
+    padding-inline: 0.35rem;
   }
-  .boot-en .boot-outline-svg {
-    width: 100%;
+  .boot-en .boot-outline-txt {
+    -webkit-text-stroke: 1.15px #071018;
+    letter-spacing: -0.06em;
   }
   .boot-ko {
     font-size: clamp(0.82rem, 3.4vw, 0.98rem);
