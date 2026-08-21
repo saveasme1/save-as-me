@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=cleanmdmt36pqv1";
+import { createCesiumWorld } from "./cesium-world.js?v=mobootmt36vdju";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=cleanmdmt36pqv1";
+} from "./gmp-usn-route.js?v=mobootmt36vdju";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -666,7 +666,7 @@ function syncMfdCamera() {
 function measureBlackDuCenters(root, w, h) {
   /*
     Stable DU seats: belt → modeY → eacc fx seeds → grow full black rect.
-    Gap-split put island#4 center in the FO bezel gap (log: px≈1159 miss until pitch≠-0.02).
+    Mobile: wider NDC belt + larger seed snap (portrait FOV shifts DU band).
   */
   const black = collectBlackMeshes(root);
   if (!black.length) return [];
@@ -679,14 +679,34 @@ function measureBlackDuCenters(root, w, h) {
     return raycaster.intersectObjects(black, false).length > 0;
   };
 
+  const mobile = isMobile();
   const hits = [];
-  const step = 2;
-  for (let py = Math.floor(h * 0.62); py <= Math.floor(h * 0.78); py += step) {
-    for (let px = Math.floor(w * 0.28); px <= Math.floor(w * 0.72); px += step) {
+  const step = mobile ? 3 : 2;
+  const y0 = Math.floor(h * (mobile ? 0.52 : 0.62));
+  const y1 = Math.floor(h * (mobile ? 0.9 : 0.78));
+  const x0 = Math.floor(w * (mobile ? 0.08 : 0.28));
+  const x1 = Math.floor(w * (mobile ? 0.92 : 0.72));
+  for (let py = y0; py <= y1; py += step) {
+    for (let px = x0; px <= x1; px += step) {
       if (hitAt(px, py)) hits.push({ px, py });
     }
   }
-  if (hits.length < 30) return [];
+  // #region agent log
+  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+    body: JSON.stringify({
+      sessionId: "88eb62",
+      runId: "mo-mfd",
+      hypothesisId: "A",
+      location: "flight.js:measure",
+      message: "scan_hits",
+      data: { hits: hits.length, w, h, mobile, y0, y1, x0, x1 },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+  if (hits.length < (mobile ? 18 : 30)) return [];
 
   const yHist = new Map();
   hits.forEach((hh) => {
@@ -703,15 +723,16 @@ function measureBlackDuCenters(root, w, h) {
   });
 
   const seeds = [0.339, 0.406, 0.5, 0.589, 0.656];
+  const snapMax = Math.floor(w * (mobile ? 0.12 : 0.05));
   const out = [];
   for (let i = 0; i < seeds.length; i++) {
     let sx = Math.floor(w * seeds[i]);
     let sy = modeY;
     let found = false;
-    for (let dx = 0; dx <= Math.floor(w * 0.05); dx += 2) {
+    for (let dx = 0; dx <= snapMax; dx += 2) {
       for (const sdx of dx === 0 ? [0] : [dx, -dx]) {
         const x = sx + sdx;
-        for (const dy of [0, 4, -4, 8, -8, 12, -12, 16, -16, 20, -20]) {
+        for (const dy of [0, 4, -4, 8, -8, 12, -12, 16, -16, 24, -24, 32, -32]) {
           if (hitAt(x, modeY + dy)) {
             sx = x;
             sy = modeY + dy;
@@ -724,6 +745,23 @@ function measureBlackDuCenters(root, w, h) {
       if (found) break;
     }
     if (!found) {
+      // #region agent log
+      fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+        body: JSON.stringify({
+          sessionId: "88eb62",
+          runId: "mo-mfd",
+          hypothesisId: "A",
+          location: "flight.js:measure",
+          message: "seed_miss",
+          data: { i, sx, modeY, mobile },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      /* mobile fallback: gap-split islands from hits */
+      if (mobile) return measureByGapSplit(hits, w, h);
       return [];
     }
 
@@ -747,7 +785,10 @@ function measureBlackDuCenters(root, w, h) {
       maxPy = Math.round(mid + half);
       bh = maxPy - minPy;
     }
-    if (bw < 24 || bh < 24) return [];
+    if (bw < (mobile ? 16 : 24) || bh < (mobile ? 16 : 24)) {
+      if (mobile) return measureByGapSplit(hits, w, h);
+      return [];
+    }
 
     out.push({
       projectIndex: i,
@@ -763,6 +804,54 @@ function measureBlackDuCenters(root, w, h) {
     });
   }
   return out;
+}
+
+function measureByGapSplit(hits, w, h) {
+  const col = new Map();
+  hits.forEach((hh) => col.set(hh.px, (col.get(hh.px) || 0) + 1));
+  const xs = [...col.keys()].sort((a, b) => a - b);
+  if (xs.length < 10) return [];
+  const gaps = [];
+  for (let i = 1; i < xs.length; i++) gaps.push({ i, d: xs[i] - xs[i - 1] });
+  gaps.sort((a, b) => b.d - a.d);
+  const cuts = gaps
+    .slice(0, 4)
+    .map((g) => g.i)
+    .sort((a, b) => a - b);
+  const ranges = [];
+  let start = 0;
+  cuts.forEach((cut) => {
+    ranges.push(xs.slice(start, cut));
+    start = cut;
+  });
+  ranges.push(xs.slice(start));
+  if (ranges.length !== 5 || ranges.some((r) => r.length < 2)) return [];
+  return ranges.map((isle, i) => {
+    const set = new Set(isle);
+    const g = hits.filter((hh) => set.has(hh.px));
+    const minPx = Math.min(...g.map((hh) => hh.px));
+    const maxPx = Math.max(...g.map((hh) => hh.px));
+    const minPy = Math.min(...g.map((hh) => hh.py));
+    const maxPy = Math.max(...g.map((hh) => hh.py));
+    /* if island too wide (merged FO pair), use left/right third centers */
+    let px = Math.round((minPx + maxPx) / 2);
+    let wPx = Math.max(40, maxPx - minPx);
+    if (wPx > w * 0.12 && i === 4) {
+      px = Math.round(minPx + (maxPx - minPx) * 0.72);
+      wPx = Math.max(40, Math.floor((maxPx - minPx) * 0.4));
+    } else if (wPx > w * 0.12 && i === 3) {
+      px = Math.round(minPx + (maxPx - minPx) * 0.28);
+      wPx = Math.max(40, Math.floor((maxPx - minPx) * 0.4));
+    }
+    return {
+      projectIndex: i,
+      px,
+      py: Math.round((minPy + maxPy) / 2),
+      wPx,
+      hPx: Math.max(40, maxPy - minPy + 12),
+      n: g.length,
+    };
+  });
 }
 
 function findBlackDuCenters(w, h) {
@@ -993,6 +1082,26 @@ function placeMfdOnBlackDus(root, opts = {}) {
   paintMfdScreens();
   tickMfdPop();
   console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((slot) => slot.detect)));
+  // #region agent log
+  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+    body: JSON.stringify({
+      sessionId: "88eb62",
+      runId: "mo-mfd",
+      hypothesisId: "D",
+      location: "flight.js:placeMfd",
+      message: "place_ok",
+      data: {
+        n: state._mfdScreens.length,
+        mobile: isMobile(),
+        vw: window.innerWidth,
+        detect: state._mfdScreens.map((s) => s.detect),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   return state._mfdScreens.length >= 5;
 }
 
@@ -1575,6 +1684,14 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
+  /* mobile orientation / chrome UI resize invalidates NDC seats */
+  if (state._mfdRoot) {
+    window.clearTimeout(window.__mfdResizeT);
+    window.__mfdResizeT = window.setTimeout(() => {
+      state._mfdSeated = false;
+      placeMfdOnBlackDus(state._mfdRoot, { force: true });
+    }, 280);
+  }
 });
 
 let prev = performance.now();
@@ -1712,19 +1829,44 @@ function fitBootType() {
   const solid = bootEn.querySelector(".boot-solid");
   const svg = bootEn.querySelector(".boot-outline-svg");
   bootEn.style.fontSize = "";
-  const maxW = copy.clientWidth;
+  /* leave side room for outline filter + letterforms */
+  const pad = window.innerWidth <= 720 ? 0.88 : window.innerWidth <= 1100 ? 0.92 : 0.96;
+  const maxW = Math.floor(copy.clientWidth * pad);
   if (maxW < 40) return;
   let size = parseFloat(getComputedStyle(bootEn).fontSize);
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 48; i++) {
     const solidOverflow = solid ? solid.scrollWidth > maxW + 1 : false;
-    if (!solidOverflow) break;
-    size *= 0.94;
+    const svgOverflow = svg ? svg.getBoundingClientRect().width > copy.clientWidth + 2 : false;
+    if (!solidOverflow && !svgOverflow) break;
+    size *= 0.93;
     bootEn.style.fontSize = `${size.toFixed(2)}px`;
+    if (svg) svg.style.width = `${maxW}px`;
   }
   if (svg) {
-    /* keep outline SVG matched to solid line optical width */
-    svg.style.width = `${Math.min(maxW, Math.max(solid?.scrollWidth || maxW, maxW * 0.92))}px`;
+    const solidW = solid?.scrollWidth || maxW;
+    svg.style.width = `${Math.min(maxW, Math.max(solidW, Math.floor(copy.clientWidth * 0.9)))}px`;
   }
+  // #region agent log
+  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+    body: JSON.stringify({
+      sessionId: "88eb62",
+      runId: "mo-boot",
+      hypothesisId: "BOOT",
+      location: "flight.js:fitBootType",
+      message: "boot_fit",
+      data: {
+        vw: window.innerWidth,
+        maxW,
+        size: +size.toFixed(2),
+        solidW: solid?.scrollWidth || 0,
+        copyW: copy.clientWidth,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 }
 fitBootType();
 if (document.fonts?.ready) document.fonts.ready.then(fitBootType).catch(() => {});
