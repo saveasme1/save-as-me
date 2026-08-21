@@ -420,6 +420,7 @@ const renderer = new THREE.WebGLRenderer({
   antialias: !isMobile(),
   powerPreference: "high-performance",
   alpha: false,
+  preserveDrawingBuffer: true,
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -787,29 +788,173 @@ function makeProjectPreview(project, index, highlight = false) {
 function paintMfdScreens() {
   const screens = state._mfdScreens || [];
   if (!screens.length) return;
-  const phase = state._mfdPhase | 0;
-  screens.forEach((slot, i) => {
-    let projectIndex = slot.projectIndex;
-    if (projectIndex < 0) {
-      projectIndex = (phase + i) % PROJECTS.length;
-    } else {
-      projectIndex = projectIndex % PROJECTS.length;
-    }
+  screens.forEach((slot) => {
+    const projectIndex = Math.max(0, slot.projectIndex) % PROJECTS.length;
     const highlight = state.project === projectIndex;
     const tex = makeProjectPreview(PROJECTS[projectIndex], projectIndex, highlight);
     if (slot.mesh.material.map) slot.mesh.material.map.dispose();
     slot.mesh.material.map = tex;
-    slot.mesh.material.emissiveMap = tex;
+    if ("emissiveMap" in slot.mesh.material) slot.mesh.material.emissiveMap = tex;
     slot.mesh.material.needsUpdate = true;
     slot.liveIndex = projectIndex;
   });
 }
 
-function installMfdScreens(root) {
+function findBlackDuCenters(w, h) {
   /*
-    Project plates seated on the main-panel DU bezel band under the glare shield.
-    (IDG model has no separate LCD meshes — overlays match the black DU windows.)
+    Measured black DU centers (front view, MFD hidden):
+    fracX 0.318 / 0.383 / 0.501 / 0.612 / 0.677 · fracY ≈ 0.653
+    size ≈ 0.062 × 0.091 of the frame
   */
+  /* measured black DU pixel centers (MFD hidden, front snap) */
+  const expect = [
+    { fx: 0.318, fy: 0.652 },
+    { fx: 0.383, fy: 0.652 },
+    { fx: 0.501, fy: 0.651 },
+    { fx: 0.612, fy: 0.653 },
+    { fx: 0.677, fy: 0.654 },
+  ];
+  return expect.map((e, i) => ({
+    projectIndex: i,
+    px: Math.floor(w * e.fx),
+    py: Math.floor(h * e.fy),
+    wPx: Math.floor(w * 0.066),
+    hPx: Math.floor(h * 0.095),
+    n: 100,
+  }));
+}
+
+function placeMfdOnBlackDus(root) {
+  const w = renderer.domElement.width;
+  const h = renderer.domElement.height;
+  if (!w || !h) return false;
+
+  if (state._mfdGroup) state._mfdGroup.visible = false;
+  renderer.render(scene, camera);
+  const centers = findBlackDuCenters(w, h);
+  if (state._mfdGroup) state._mfdGroup.visible = true;
+
+  if (centers.length < 5) {
+    console.warn("[mfd-panel] black DU detect incomplete", centers);
+    return false;
+  }
+  centers.length = 5;
+
+  /* normalize vertical aim — reject outlier columns that missed the LCD */
+  const goodPy = centers.filter((c) => c.n > 20).map((c) => c.py);
+  const rowPy =
+    goodPy.length > 0
+      ? goodPy.reduce((a, b) => a + b, 0) / goodPy.length
+      : Math.floor(h * 0.62);
+  centers.forEach((c) => {
+    if (c.n < 20 || Math.abs(c.py - rowPy) > h * 0.04) c.py = rowPy;
+  });
+
+  const meshes = [];
+  root.traverse((o) => {
+    if (!o.isMesh || !o.visible) return;
+    meshes.push(o);
+  });
+
+  let glareY = 0.63;
+  let glareZ = -1.15;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const names = mats.map((m) => String(m?.name || "").toLowerCase()).join("|");
+    if (!names.includes("brightness_panel_glare")) return;
+    const c = new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3());
+    glareY = c.y;
+    glareZ = c.z;
+  });
+  const faceY = glareY - 0.188;
+  const faceZ = glareZ + 0.04;
+
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const camPos = camera.getWorldPosition(new THREE.Vector3());
+  const toward = new THREE.Vector3();
+  const tilt = -0.42;
+
+  if (state._mfdGroup) {
+    cockpit.remove(state._mfdGroup);
+    state._mfdGroup.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        if (o.material.map) o.material.map.dispose();
+        o.material.dispose();
+      }
+    });
+  }
+
+  const group = new THREE.Group();
+  group.name = "mfdPanelScreens";
+  state._mfdScreens = [];
+
+  centers.forEach((c) => {
+    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(meshes, false);
+    const score = (hh) => {
+      const mats = Array.isArray(hh.object.material) ? hh.object.material : [hh.object.material];
+      const names = mats.map((m) => String(m?.name || "").toLowerCase()).join("|");
+      let s = 0;
+      if (names.includes("black")) s += 8;
+      if (names.includes("main_labels")) s += 5;
+      if (names.includes("glare") || names.includes("brightness")) s -= 8;
+      if (names.includes("glass")) s -= 6;
+      if (hh.point.y > 0.55 && hh.point.y < 0.72) s += 3;
+      if (hh.point.z < -1.08 && hh.point.z > -1.28) s += 2;
+      return s;
+    };
+    hits.sort((a, b) => score(b) - score(a));
+    const hit = hits.find((hh) => score(hh) >= 4) || hits[0];
+
+    let pos = new THREE.Vector3((c.projectIndex - 2) * 0.2, faceY, faceZ);
+    if (hit) {
+      toward.subVectors(camPos, hit.point).normalize();
+      /* keep the raycast hit so the plate projects back onto the same black window */
+      /* slight pull toward camera; depthTest off keeps it readable in the bezel */
+      pos = hit.point.clone().addScaledVector(toward, 0.0015);
+    }
+
+    const dist = pos.distanceTo(camPos);
+    const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+    const aspect = w / h;
+    /* match measured black bezel size */
+    const duW = worldH * aspect * (c.wPx / w) * 0.98;
+    const duH = worldH * (c.hPx / h) * 0.98;
+
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      toneMapped: false,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(duW, duH), mat);
+    mesh.position.copy(pos);
+    mesh.rotation.set(tilt, 0, 0);
+    mesh.renderOrder = 3;
+    mesh.userData.mfd = true;
+    group.add(mesh);
+    state._mfdScreens.push({
+      mesh,
+      projectIndex: c.projectIndex,
+      liveIndex: c.projectIndex,
+      detect: { px: Math.round(c.px), py: Math.round(c.py), w: Math.round(c.wPx), h: Math.round(c.hPx), n: c.n },
+    });
+  });
+
+  cockpit.add(group);
+  state._mfdGroup = group;
+  state._focusMfd = null;
+  paintMfdScreens();
+  console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((s) => s.detect)));
+  return true;
+}
+
+function installMfdScreens(root) {
+  /* provisional row — refined after first render by black-pixel detect */
   root.updateMatrixWorld(true);
   let glareY = 0.784;
   let glareZ = -1.188;
@@ -823,49 +968,64 @@ function installMfdScreens(root) {
     glareZ = c.z;
   });
 
-  const faceY = glareY - 0.168;
-  const faceZ = glareZ + 0.038;
+  const faceY = glareY - 0.185;
+  const faceZ = glareZ + 0.045;
   const tilt = -0.3;
-  const duW = 0.2;
-  const duH = 0.19;
-  const step = 0.222;
+  const duW = 0.19;
+  const duH = 0.18;
+  const step = 0.22;
   const slots = [
     { x: -step * 2, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 0 },
     { x: -step, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 1 },
-    { x: 0, y: faceY + 0.01, z: faceZ, w: duW * 0.95, h: duH * 0.9, projectIndex: 2 },
+    { x: 0, y: faceY, z: faceZ, w: duW * 0.96, h: duH * 0.96, projectIndex: 2 },
     { x: step, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 3 },
     { x: step * 2, y: faceY, z: faceZ, w: duW, h: duH, projectIndex: 4 },
-    { x: 0, y: faceY - 0.185, z: faceZ + 0.01, w: duW * 0.95, h: duH * 0.76, projectIndex: -1 },
   ];
 
   const group = new THREE.Group();
   group.name = "mfdPanelScreens";
   state._mfdScreens = [];
   slots.forEach((s) => {
-    const mat = new THREE.MeshStandardMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
-      emissive: 0xffffff,
-      emissiveIntensity: 1.4,
-      roughness: 0.3,
-      metalness: 0.02,
-      polygonOffset: true,
-      polygonOffsetFactor: -12,
-      polygonOffsetUnits: -12,
+      toneMapped: false,
+      depthTest: false,
+      depthWrite: false,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.h), mat);
     mesh.position.set(s.x, s.y, s.z);
     mesh.rotation.set(tilt, 0, 0);
+    mesh.renderOrder = 3;
     mesh.userData.mfd = true;
     group.add(mesh);
-    state._mfdScreens.push({ mesh, projectIndex: s.projectIndex, liveIndex: 0 });
+    state._mfdScreens.push({ mesh, projectIndex: s.projectIndex, liveIndex: s.projectIndex });
   });
   cockpit.add(group);
   state._mfdGroup = group;
   state._focusMfd = null;
   paintMfdScreens();
-  console.info(
-    "[mfd-panel] " + JSON.stringify({ faceY: +faceY.toFixed(3), faceZ: +faceZ.toFixed(3) })
-  );
+
+  state._mfdRoot = root;
+  window.__SAVEAS_DEBUG = {
+    state,
+    camera,
+    THREE,
+    placeMfdOnBlackDus: () => placeMfdOnBlackDus(root),
+    hideMfd: (v) => {
+      if (state._mfdGroup) state._mfdGroup.visible = !v;
+    },
+  };
+  let tries = 0;
+  const refine = () => {
+    tries += 1;
+    /* match the front snap used when measuring black DU pixels */
+    if (typeof frameSideScreens === "function") frameSideScreens("center");
+    cameraRig.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    if (placeMfdOnBlackDus(root) || tries >= 14) return;
+    requestAnimationFrame(refine);
+  };
+  setTimeout(() => requestAnimationFrame(refine), 700);
 }
 
 
@@ -1259,7 +1419,14 @@ function frameSideScreens(side) {
 }
 
 document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
-  btn.addEventListener("click", () => frameSideScreens(btn.dataset.look));
+  btn.addEventListener("click", () => {
+    frameSideScreens(btn.dataset.look);
+    if (btn.dataset.look === "center" && state._mfdRoot) {
+      requestAnimationFrame(() => {
+        setTimeout(() => placeMfdOnBlackDus(state._mfdRoot), 120);
+      });
+    }
+  });
 });
 
 const hint = document.createElement("div");
