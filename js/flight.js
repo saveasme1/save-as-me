@@ -1,14 +1,14 @@
-import * as THREE from "three";
+﻿import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=scrub-fix2";
+import { createCesiumWorld } from "./cesium-world.js?v=scrub-fix3";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=scrub-fix2";
+} from "./gmp-usn-route.js?v=scrub-fix3";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -17,14 +17,14 @@ const PROJECTS = [
   {
     eye: "PROJECT 01",
     name: "LOCAL",
-    title: "오프라인 상품을<br />온라인에서도 팔 수 있게.",
-    body: "실제 로컬 매장의 상품을 온라인 판매용 상품으로 다시 기획했습니다. 패키지, 상세페이지, 스마트스토어 구축, 상품 등록, 쿠팡 확장과 기본 운영 교육까지 연결했습니다.",
-    tags: ["상품 기획", "패키지", "스마트스토어", "쿠팡", "운영 교육"],
+    title: "?ㅽ봽?쇱씤 ?곹뭹??br />?⑤씪?몄뿉?쒕룄 ?????덇쾶.",
+    body: "?ㅼ젣 濡쒖뺄 留ㅼ옣???곹뭹???⑤씪???먮ℓ???곹뭹?쇰줈 ?ㅼ떆 湲고쉷?덉뒿?덈떎. ?⑦궎吏, ?곸꽭?섏씠吏, ?ㅻ쭏?몄뒪?좎뼱 援ъ텞, ?곹뭹 ?깅줉, 荑좏뙜 ?뺤옣怨?湲곕낯 ?댁쁺 援먯쑁源뚯? ?곌껐?덉뒿?덈떎.",
+    tags: ["?곹뭹 湲고쉷", "?⑦궎吏", "?ㅻ쭏?몄뒪?좎뼱", "荑좏뙜", "?댁쁺 援먯쑁"],
     link: "https://smartstore.naver.com/_mymura",
-    linkLabel: "스마트스토어 보기 ↗",
+    linkLabel: "?ㅻ쭏?몄뒪?좎뼱 蹂닿린 ??,
     art: "assets/symbols/01-local.svg",
     demos: null,
-    /* Day → night as missions progress (2nd sky era) */
+    /* Day ??night as missions progress (2nd sky era) */
     env: { turbidity: 1.8, elevation: 32, azimuth: 175, rayleigh: 2.2, exposure: 0.72, ground: 0x7f9a6a },
     alt: 4200,
     hdg: 42,
@@ -32,11 +32,11 @@ const PROJECTS = [
   {
     eye: "PROJECT 02",
     name: "SAVEAS",
-    title: "고객이 직접 만들고<br />그대로 주문하도록.",
-    body: "사용자가 웹에서 상품에 이미지와 문구를 넣고 직접 디자인한 뒤 바로 주문할 수 있는 커스텀 상품 쇼핑몰을 개발했습니다.",
-    tags: ["Web Editor", "POD", "주문 연동", "미리보기"],
+    title: "怨좉컼??吏곸젒 留뚮뱾怨?br />洹몃?濡?二쇰Ц?섎룄濡?",
+    body: "?ъ슜?먭? ?뱀뿉???곹뭹???대?吏? 臾멸뎄瑜??ｊ퀬 吏곸젒 ?붿옄?명븳 ??諛붾줈 二쇰Ц?????덈뒗 而ㅼ뒪? ?곹뭹 ?쇳븨紐곗쓣 媛쒕컻?덉뒿?덈떎.",
+    tags: ["Web Editor", "POD", "二쇰Ц ?곕룞", "誘몃━蹂닿린"],
     link: "https://save-as.co.kr",
-    linkLabel: "save-as.co.kr ↗",
+    linkLabel: "save-as.co.kr ??,
     art: "assets/symbols/02-saveas.svg",
     demos: null,
     env: { turbidity: 1.4, elevation: 40, azimuth: 160, rayleigh: 1.6, exposure: 0.78, ground: 0xa8b89a },
@@ -46,8 +46,8 @@ const PROJECTS = [
   {
     eye: "PROJECT 03",
     name: "MAKERBRIDGE",
-    title: "기존 쇼핑몰에<br />디자인 기능을 더했습니다.",
-    body: "카페24 상품 페이지 안에서 고객이 직접 텍스트와 이미지를 편집하고 제작용 데이터를 생성할 수 있는 웹 편집기 앱입니다.",
+    title: "湲곗〈 ?쇳븨紐곗뿉<br />?붿옄??湲곕뒫???뷀뻽?듬땲??",
+    body: "移댄럹24 ?곹뭹 ?섏씠吏 ?덉뿉??怨좉컼??吏곸젒 ?띿뒪?몄? ?대?吏瑜??몄쭛?섍퀬 ?쒖옉???곗씠?곕? ?앹꽦?????덈뒗 ???몄쭛湲??깆엯?덈떎.",
     tags: ["Cafe24", "TEXT", "IMAGE", "CUTLINE", "FINISHING"],
     link: null,
     art: "assets/symbols/03-makerbridge.svg",
@@ -64,8 +64,8 @@ const PROJECTS = [
   {
     eye: "PROJECT 04",
     name: "CURSOR MOBILE",
-    title: "PC 앞이 아니어도<br />개발은 계속됩니다.",
-    body: "PC에서 진행하던 Cursor 작업을 모바일로 이어 사용하고, 클라우드 환경을 통해 PC가 꺼진 상황에서도 작업할 수 있도록 확장한 개발 환경입니다.",
+    title: "PC ?욎씠 ?꾨땲?대룄<br />媛쒕컻? 怨꾩냽?⑸땲??",
+    body: "PC?먯꽌 吏꾪뻾?섎뜕 Cursor ?묒뾽??紐⑤컮?쇰줈 ?댁뼱 ?ъ슜?섍퀬, ?대씪?곕뱶 ?섍꼍???듯빐 PC媛 爰쇱쭊 ?곹솴?먯꽌???묒뾽?????덈룄濡??뺤옣??媛쒕컻 ?섍꼍?낅땲??",
     tags: ["Desktop", "Mobile", "Cloud", "Continuity"],
     link: null,
     art: "assets/symbols/04-cursor.svg",
@@ -77,8 +77,8 @@ const PROJECTS = [
   {
     eye: "PROJECT 05",
     name: "PWA",
-    title: "웹서비스를<br />앱처럼 사용하도록.",
-    body: "별도의 앱스토어 설치 없이 홈 화면에 추가하고 앱처럼 사용할 수 있는 PWA 기반 서비스를 개발합니다.",
+    title: "?뱀꽌鍮꾩뒪瑜?br />?깆쿂???ъ슜?섎룄濡?",
+    body: "蹂꾨룄???깆뒪?좎뼱 ?ㅼ튂 ?놁씠 ???붾㈃??異붽??섍퀬 ?깆쿂???ъ슜?????덈뒗 PWA 湲곕컲 ?쒕퉬?ㅻ? 媛쒕컻?⑸땲??",
     tags: ["PWA", "Installable", "Private", "Mobile"],
     link: null,
     art: "assets/symbols/05-pwa.svg",
@@ -341,7 +341,7 @@ function makeOverhead() {
     });
     ctx.fillStyle = "#4a4844";
     ctx.font = "16px monospace";
-    ctx.fillText("OVERHEAD  ·  SYS", 16, h - 12);
+    ctx.fillText("OVERHEAD  쨌  SYS", 16, h - 12);
   }, 1024, 640);
 }
 
@@ -480,7 +480,7 @@ const rim = new THREE.PointLight(0xfff0d8, 0.55, 6);
 rim.position.set(0, 1.8, -0.9);
 scene.add(rim);
 
-/* Fake exterior disabled — Cesium geographic world is the only exterior */
+/* Fake exterior disabled ??Cesium geographic world is the only exterior */
 const sky = new Sky();
 sky.scale.setScalar(45000);
 sky.visible = false;
@@ -517,14 +517,14 @@ scene.add(skyDome);
 state._skyDome = skyDome;
 /* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-/* Clouds: Cesium CloudCollection only (see cesium-cinematic-clouds.js) — no Three windshield sprites */
+/* Clouds: Cesium CloudCollection only (see cesium-cinematic-clouds.js) ??no Three windshield sprites */
 const cloudLayers = [];
 const cloudGroup = new THREE.Group();
 cloudGroup.visible = false;
 scene.add(cloudGroup);
 const clouds = [];
 
-/* Old OSM strip terrain removed — Cesium World Terrain is the exterior */
+/* Old OSM strip terrain removed ??Cesium World Terrain is the exterior */
 const terrainGroup = new THREE.Group();
 terrainGroup.visible = false;
 scene.add(terrainGroup);
@@ -550,11 +550,11 @@ cityGroup.visible = false;
 scene.add(cityGroup);
 
 const label = document.getElementById("routeLabel");
-if (label) label.textContent = `${routeLabelShort()} · CESIUM`;
+if (label) label.textContent = `${routeLabelShort()} 쨌 CESIUM`;
 
 
 function makeProjectPreview(project, index, highlight = false) {
-  /* square canvas — matches A320 DU black bezels */
+  /* square canvas ??matches A320 DU black bezels */
   const S = 512;
   const c = document.createElement("canvas");
   c.width = S;
@@ -593,7 +593,7 @@ function makeProjectPreview(project, index, highlight = false) {
   if (line) ctx.fillText(line, 36, y);
   ctx.fillStyle = "#9ad4de";
   ctx.font = "18px monospace";
-  ctx.fillText("TAP · OPEN MISSION", 28, S - 36);
+  ctx.fillText("TAP 쨌 OPEN MISSION", 28, S - 36);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.center.set(0.5, 0.5);
@@ -624,7 +624,7 @@ function tickMfdPop() {
     if (!slot.mesh) return;
     const want = state.project === slot.projectIndex ? 1 : 0;
     slot.pop = THREE.MathUtils.lerp(slot.pop || 0, want, 0.18);
-    /* stay on the LCD — only brighten / slight scale, never lift into cabin */
+    /* stay on the LCD ??only brighten / slight scale, never lift into cabin */
     const sc = 1 + slot.pop * 0.02;
     slot.mesh.scale.setScalar(sc);
     slot.mesh.visible = true;
@@ -655,7 +655,7 @@ function measureBlackDuCenters(root, w, h) {
   const raycaster = new THREE.Raycaster();
   const hits = [];
   const step = 2;
-  /* Wider belt — camera pitch shifts DU NDC after framing tweaks */
+  /* Wider belt ??camera pitch shifts DU NDC after framing tweaks */
   const y0 = Math.floor(h * 0.58);
   const y1 = Math.floor(h * 0.82);
   const x0 = Math.floor(w * 0.26);
@@ -742,7 +742,7 @@ function placeMfdOnBlackDus(root) {
   if (!w || !h) return false;
 
   const prev = (state._mfdScreens || []).slice();
-  /* do NOT hide existing screens before success — empty black DUs flash / stick on failure */
+  /* do NOT hide existing screens before success ??empty black DUs flash / stick on failure */
 
   let centers = measureBlackDuCenters(root, w, h);
   if (centers.length < 5) centers = findBlackDuCenters(w, h);
@@ -774,11 +774,11 @@ function placeMfdOnBlackDus(root) {
     sized.push({ c, hit });
   });
   if (sized.length < 5) {
-    console.warn(`[mfd-panel] black hits ${sized.length}/5 — keep prior screens`);
+    console.warn(`[mfd-panel] black hits ${sized.length}/5 ??keep prior screens`);
     return false;
   }
 
-  /* success confirmed — only now remove previous screens */
+  /* success confirmed ??only now remove previous screens */
   prev.forEach((s) => {
     if (!s.mesh) return;
     if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
@@ -894,7 +894,7 @@ function installMfdScreens(root) {
       return;
     }
     if (tries < maxTries) setTimeout(attempt, 280);
-    else console.warn("[mfd-panel] seating failed after retries — will retry on cesium-ready/resize");
+    else console.warn("[mfd-panel] seating failed after retries ??will retry on cesium-ready/resize");
   };
 
   setTimeout(attempt, 400);
@@ -967,7 +967,7 @@ function prepareCockpitMaterials(root) {
         ghost.needsUpdate = true;
         return ghost;
       }
-      /* Do NOT match bare "sky"/"cloud" — too broad for cockpit labels */
+      /* Do NOT match bare "sky"/"cloud" ??too broad for cockpit labels */
       const mapHint = [
         m.map?.name,
         m.map?.image?.currentSrc,
@@ -1096,7 +1096,7 @@ function prepareCockpitMaterials(root) {
 
 function fitCockpitView(root) {
   /*
-    Blender/FG Z-up exported via glTF → Three Y-up.
+    Blender/FG Z-up exported via glTF ??Three Y-up.
     Rotate Y -90 so FG +X (nose) faces camera -Z.
   */
   root.rotation.set(0, -Math.PI / 2, 0);
@@ -1183,7 +1183,7 @@ function applyProject(index, { maneuver = true } = {}) {
 
   if (index < 0) {
     clearStage();
-    el.metaIndex.textContent = "— / 05";
+    el.metaIndex.textContent = "??/ 05";
     el.metaName.textContent = "READY";
     setEnv(PROJECTS[0].env);
     cityGroup.visible = false;
@@ -1241,11 +1241,11 @@ function applyProject(index, { maneuver = true } = {}) {
 }
 
 function syncRouteHud() {
-  if (el.gDep) el.gDep.textContent = `${ROUTE_META.depName} · ${ROUTE_META.depIcao}`;
-  if (el.gArr) el.gArr.textContent = `${ROUTE_META.arrName} · ${ROUTE_META.arrIcao}`;
+  if (el.gDep) el.gDep.textContent = `${ROUTE_META.depName} 쨌 ${ROUTE_META.depIcao}`;
+  if (el.gArr) el.gArr.textContent = `${ROUTE_META.arrName} 쨌 ${ROUTE_META.arrIcao}`;
   if (el.gEte) el.gEte.textContent = formatRouteDuration(ROUTE_META.durationSec);
   const label = document.getElementById("routeLabel");
-  if (label) label.textContent = `${routeLabelShort()} · ${formatRouteDuration()}`;
+  if (label) label.textContent = `${routeLabelShort()} 쨌 ${formatRouteDuration()}`;
 }
 syncRouteHud();
 
@@ -1263,12 +1263,6 @@ function scrubFlightFromEvent(ev) {
   if (!Number.isFinite(clientX) || rect.width < 1) return false;
   const u = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
   const t = world.seekNormalized(u);
-  /* Apply camera immediately — don't wait for next RAF */
-  try {
-    world.tick(1 / 60, state.keys || {}, true);
-  } catch (err) {
-    console.warn("[scrub] tick", err);
-  }
   updateGauges();
   console.info(`[scrub] -> ${(u * 100).toFixed(0)}% t=${Number(t).toFixed(1)}s`);
   return true;
@@ -1314,11 +1308,9 @@ function bindFlightScrubber() {
     const cur = world.state?.elapsedSeconds || 0;
     if (ev.key === "ArrowRight" || ev.key === "ArrowUp") {
       world.seek(cur + 2);
-      world.tick?.(1 / 60, state.keys || {}, true);
       ev.preventDefault();
     } else if (ev.key === "ArrowLeft" || ev.key === "ArrowDown") {
       world.seek(cur - 2);
-      world.tick?.(1 / 60, state.keys || {}, true);
       ev.preventDefault();
     }
     updateGauges();
@@ -1334,7 +1326,7 @@ function updateGauges() {
     const hdg = ((fs.heading % 360) + 360) % 360;
     el.gAlt.textContent = altFt.toLocaleString("en-US");
     el.gSpd.textContent = String(spd);
-    el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}°`;
+    el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}째`;
     const remain = Math.max(0, FLIGHT_DURATION_SEC - (fs.elapsedSeconds || 0));
     if (el.gEte) el.gEte.textContent = formatRouteDuration(remain);
     const prog = Math.max(0, Math.min(1, (fs.elapsedSeconds || 0) / FLIGHT_DURATION_SEC));
@@ -1350,7 +1342,7 @@ function updateGauges() {
   const hdg = (p.hdg + state.flightHeading * (180 / Math.PI) + state.yaw * 35 + 3600) % 360;
   el.gAlt.textContent = Math.round(alt).toLocaleString("en-US");
   el.gSpd.textContent = String(Math.round(spd));
-  el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}°`;
+  el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}째`;
 }
 
 document.querySelectorAll(".route-item").forEach((btn) => {
@@ -1379,7 +1371,7 @@ document.getElementById("closeSystem")?.addEventListener("click", () => {
 window.addEventListener(
   "pointermove",
   (e) => {
-    /* UI panels: never steer the view — only drag on canvas does */
+    /* UI panels: never steer the view ??only drag on canvas does */
     if (el.flightUi && !isMobile()) {
       const nx = (e.clientX / window.innerWidth) * 2 - 1;
       const ny = (e.clientY / window.innerHeight) * 2 - 1;
@@ -1490,7 +1482,7 @@ canvasEl.addEventListener("pointermove", (e) => {
     state.lookSnap = null;
   }
   const sens = isMobile() ? 0.0036 : 0.0028;
-  /* keep look inside the windscreen — no fuselage/exterior peek */
+  /* keep look inside the windscreen ??no fuselage/exterior peek */
   const yawMax = THREE.MathUtils.clamp(0.34 - state.zoom * 0.12, 0.2, 0.34);
   const pitchMin = -0.18;
   const pitchMax = 0.08;
@@ -1512,7 +1504,7 @@ function endDrag(e) {
 canvasEl.addEventListener("pointerup", endDrag);
 canvasEl.addEventListener("pointercancel", endDrag);
 
-/* Aim at captain / FO panel LCDs — no floating focus plates */
+/* Aim at captain / FO panel LCDs ??no floating focus plates */
 const LOOK_PRESETS = {
   left: { yaw: 0.26, pitch: -0.06, zoom: 0.58, side: -0.1, lift: 0.02 },
   center: { yaw: 0, pitch: -0.02, zoom: 0.28, side: 0, lift: 0 },
@@ -1551,13 +1543,13 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "←→ 좌우 시선 · ↑ 하늘 · ↓ 지형(항로 불변) · LCD 탭 · 드래그";
+hint.textContent = "?먥넂 醫뚯슦 ?쒖꽑 쨌 ???섎뒛 쨌 ??吏????줈 遺덈?) 쨌 LCD ??쨌 ?쒕옒洹?;
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
 setTimeout(() => hint.classList.remove("is-on"), 4500);
 setInterval(() => {
   if (reduce) return;
-  /* only refresh textures when nothing is selected — avoid fighting the pop highlight */
+  /* only refresh textures when nothing is selected ??avoid fighting the pop highlight */
   if (state.project >= 0) return;
   paintMfdScreens();
 }, 5500);
@@ -1632,7 +1624,7 @@ function animate(now) {
     const yawDeg = state._cesium.state.userYawOffset || 0;
     const pitchDeg = state._cesium.state.userPitchOffset || 0;
     state.tYaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -0.22, 0.22);
-    /* Three.js +X pitch looks down — invert so ↑ looks to sky in cockpit too */
+    /* Three.js +X pitch looks down ??invert so ??looks to sky in cockpit too */
     state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, -0.28, 0.22);
     state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3);
   }
@@ -1640,7 +1632,7 @@ function animate(now) {
     state.tSpeed = Math.max(state.tSpeed, 1.15);
   }
 
-  /* while not dragging, ease toward held pose — always stay inside windscreen */
+  /* while not dragging, ease toward held pose ??always stay inside windscreen */
   const yawMax = 0.28;
   const pitchMin = -0.2;
   const pitchMax = 0.12;
@@ -1657,7 +1649,7 @@ function animate(now) {
   const vy = reduce ? 0 : Math.cos(state.vibe * 1.15) * 0.0014;
   const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
   state.zoom += (state.tZoom - state.zoom) * 0.16;
-  /* modest lateral bias only — never slide outside the cabin */
+  /* modest lateral bias only ??never slide outside the cabin */
   if (state.lookSnap !== "left" && state.lookSnap !== "right") {
     state.tZoomSide = THREE.MathUtils.clamp(-state.yaw * (0.18 + state.zoom * 0.22), -0.18, 0.18);
     state.snapLift += (0 - state.snapLift) * 0.18;
@@ -1707,7 +1699,6 @@ createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug
     state._cesium = world;
     window.__SAVEAS_SEEK = (u) => {
       world.seekNormalized(u);
-      world.tick?.(1 / 60, state.keys || {}, true);
       updateGauges();
     };
     bindFlightScrubber();
@@ -1721,7 +1712,7 @@ createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug
     finishBootLoad();
   });
 
-/* Boot loading bar — creep while Cesium boots, snap to 100% on ready */
+/* Boot loading bar ??creep while Cesium boots, snap to 100% on ready */
 const bootFill = document.getElementById("bootLoadFill");
 const bootPct = document.getElementById("bootLoadPct");
 const bootLabel = document.getElementById("bootLoadLabel");

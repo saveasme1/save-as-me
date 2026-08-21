@@ -1,4 +1,4 @@
-import {
+﻿import {
   ARRIVAL_TRANSITION,
   ARR_RWY_HEADING,
   DEPARTURE_TRANSITION,
@@ -18,9 +18,9 @@ import {
   sampleAhead,
   samplePathByDistance,
   timeToDistanceProgress,
-} from "./gmp-usn-route.js?v=scrub-land1";
+} from "./gmp-usn-route.js?v=scrub-fix3";
 import { addVirtualAirport } from "./virtual-airport.js";
-import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=scrub-land1";
+import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=scrub-fix3";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
@@ -43,7 +43,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 
   const token = readIonToken();
   if (!token) {
-    console.warn("[cesium] No ion token — set via js/cesium-token.local.js (gitignored)");
+    console.warn("[cesium] No ion token ??set via js/cesium-token.local.js (gitignored)");
   } else {
     Cesium.Ion.defaultAccessToken = token;
   }
@@ -95,11 +95,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
         new Cesium.UrlTemplateImageryProvider({
           url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
           maximumLevel: 18,
-          credit: "Imagery © Esri",
+          credit: "Imagery 짤 Esri",
         })
       );
       placed = true;
-      console.info("[cesium] imagery: Esri World Imagery (Han River corridor — avoids Bing RKSS blur)");
+      console.info("[cesium] imagery: Esri World Imagery (Han River corridor ??avoids Bing RKSS blur)");
     } catch (e) {
       console.warn("[cesium] Esri imagery failed", e);
     }
@@ -114,7 +114,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       }
     }
   } catch (e) {
-    console.warn("[cesium] imagery setup failed — keeping viewer default", e);
+    console.warn("[cesium] imagery setup failed ??keeping viewer default", e);
   }
 
   viewer.scene.globe.enableLighting = false;
@@ -141,7 +141,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     `[cesium-route] pts=${path.points.length} km=${(path.totalDistM / 1000).toFixed(1)} duration=${FLIGHT_DURATION_SEC}s`
   );
 
-  /* Virtual airports — readable runway when real pads are security-blurred */
+  /* Virtual airports ??readable runway when real pads are security-blurred */
   const depApt = addVirtualAirport(Cesium, viewer, {
     lat: DEPARTURE_TRANSITION[0].lat,
     lon: DEPARTURE_TRANSITION[0].lon,
@@ -165,7 +165,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     debug: debug || new URLSearchParams(location.search).has("cloudDebug"),
   });
 
-  /* Geographic autopilot — never written by keyboard */
+  /* Geographic autopilot ??never written by keyboard */
   const geo = {
     routeProgress: 0,
     latitude: DEPARTURE_TRANSITION[0].lat,
@@ -257,7 +257,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   const bootLoadLabel = document.getElementById("bootLoadLabel");
   if (bootLoadLabel) bootLoadLabel.textContent = "TERRAIN";
 
-  /* Preload virtual runway — stay low, look along strip (not into muddy ground) */
+  /* Preload virtual runway ??stay low, look along strip (not into muddy ground) */
   const startHdg = DEP_RWY_HEADING;
   setCam(g0.lon, g0.lat, 900, startHdg, -6);
   await waitTilesIdle(2800, 2);
@@ -318,9 +318,9 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 
   /**
    * Keyboard = VIEW ONLY
-   * LEFT/RIGHT → yawOffset
-   * UP → look up (positive pitch offset)
-   * DOWN → look down (negative pitch offset)
+   * LEFT/RIGHT ??yawOffset
+   * UP ??look up (positive pitch offset)
+   * DOWN ??look down (negative pitch offset)
    * Never touches lat/lon/route/autopilot altitude/heading
    */
   function applyUserView(keys, dt) {
@@ -345,30 +345,35 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   let lastWall = performance.now();
   let lastQuality = "HIGH";
 
-  function tick(dt, keys, tabVisible) {
+  function tick(dt, keys, tabVisible, opts = {}) {
     if (!state._ready) {
       lastWall = performance.now();
       return state;
     }
+    const freezeTime = !!opts.freezeTime;
     const now = performance.now();
-    if (!tabVisible) {
+    if (!tabVisible && !freezeTime) {
       lastWall = now;
       return state;
     }
-    let step = (now - lastWall) / 1000;
+    let step = freezeTime ? 0 : (now - lastWall) / 1000;
     lastWall = now;
-    if (!Number.isFinite(step) || step < 0) step = dt;
-    step = Math.min(0.25, Math.max(dt, step));
-
-    fpsAccum += step;
-    fpsFrames += 1;
-    if (fpsAccum >= 0.5) {
-      fpsShow = Math.round(fpsFrames / fpsAccum);
-      fpsAccum = 0;
-      fpsFrames = 0;
+    if (!freezeTime) {
+      if (!Number.isFinite(step) || step < 0) step = dt;
+      step = Math.min(0.25, Math.max(dt, step));
     }
 
-    if (!state._heldAtEnd) {
+    if (!freezeTime) {
+      fpsAccum += step;
+      fpsFrames += 1;
+      if (fpsAccum >= 0.5) {
+        fpsShow = Math.round(fpsFrames / fpsAccum);
+        fpsAccum = 0;
+        fpsFrames = 0;
+      }
+    }
+
+    if (!freezeTime && !state._heldAtEnd) {
       state.elapsedSeconds = Math.min(FLIGHT_DURATION_SEC, state.elapsedSeconds + step);
     }
     if (state.elapsedSeconds >= FLIGHT_DURATION_SEC - 0.05) {
@@ -413,7 +418,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       hdg = DEP_RWY_HEADING;
     } else if (onArrLeg || distM >= path.totalDistM - 80) {
       hdg = ARR_RWY_HEADING;
-      /* Hard snap — no catch-up crab while moving 176° */
+      /* Hard snap ??no catch-up crab while moving 176째 */
       if (!state._arrHdgLocked) {
         lastHeading = ARR_RWY_HEADING;
         state._arrHdgLocked = true;
@@ -427,7 +432,12 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       hdg = bearingDeg(sample.lat, sample.lon, softAhead.lat, softAhead.lon);
     }
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
-    if (state._arrHdgLocked) {
+    if (freezeTime) {
+      if (elapsed < 28) lastHeading = DEP_RWY_HEADING;
+      else if (onArrLeg || elapsed >= 73) lastHeading = ARR_RWY_HEADING;
+      else lastHeading = hdg;
+      dh = 0;
+    } else if (state._arrHdgLocked) {
       lastHeading = ARR_RWY_HEADING;
       dh = 0;
     } else {
@@ -470,7 +480,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const terrainH = terrainAtCached(sample.lat, sample.lon);
     geo.terrainHeight = terrainH;
     state.terrainHeight = terrainH;
-    /* Plant on deck only after flare — keep clear of hills until then */
+    /* Plant on deck only after flare ??keep clear of hills until then */
     const onGround =
       elapsed >= 107 ||
       state._heldAtEnd ||
@@ -486,18 +496,24 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       : Math.max(autoAlt, terrainH + minClear);
     /* Cap vertical rate so Cesium doesn't slam into terrain tiles */
     const prevAlt = state._prevAlt ?? targetAlt;
-    const maxSink = onGround ? 8 : elapsed > 100 ? 22 : elapsed > 90 ? 28 : 60;
-    const maxClimb = 40;
-    const dAlt = targetAlt - prevAlt;
-    const maxDown = -maxSink * Math.max(step, 1e-3);
-    const maxUp = maxClimb * Math.max(step, 1e-3);
-    geo.altitudeAMSL = prevAlt + Math.max(maxDown, Math.min(maxUp, dAlt));
+    let geoAlt;
+    if (freezeTime || opts.snapPose) {
+      geoAlt = targetAlt;
+    } else {
+      const maxSink = onGround ? 8 : elapsed > 100 ? 22 : elapsed > 90 ? 28 : 60;
+      const maxClimb = 40;
+      const dAlt = targetAlt - prevAlt;
+      const maxDown = -maxSink * Math.max(step, 1e-3);
+      const maxUp = maxClimb * Math.max(step, 1e-3);
+      geoAlt = prevAlt + Math.max(maxDown, Math.min(maxUp, dAlt));
+    }
+    geo.altitudeAMSL = geoAlt;
     if (onGround) geo.altitudeAMSL = Math.max(USN_ELEV_M + 5, terrainH + 5);
     geo.altitudeAGL = geo.altitudeAMSL - terrainH;
     state.altitudeAMSL = geo.altitudeAMSL;
     state.altitudeAGL = geo.altitudeAGL;
 
-    const altRate = (geo.altitudeAMSL - prevAlt) / Math.max(step, 1e-3);
+    const altRate = freezeTime ? 0 : (geo.altitudeAMSL - prevAlt) / Math.max(step, 1e-3);
     state._prevAlt = geo.altitudeAMSL;
     if (onGround) {
       geo.pitch = 0;
@@ -524,7 +540,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       console.warn("[clouds] update", e);
     }
 
-    /* Look ahead on final — keep horizon, never dive into dirt */
+    /* Look ahead on final ??keep horizon, never dive into dirt */
     const camH = Math.max(geo.altitudeAMSL, (geo.terrainHeight || 0) + (onGround ? 5 : 8));
     let horizonBias = -4.8;
     if (onGround) {
@@ -565,13 +581,13 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     if (debugEl) {
       debugEl.textContent = [
         `PHASE ${geo.phase.toUpperCase()}  Q ${geo.quality}`,
-        `LEG ${geo.activeWaypointFrom} → ${geo.activeWaypointTo}`,
+        `LEG ${geo.activeWaypointFrom} ??${geo.activeWaypointTo}`,
         `T ${elapsed.toFixed(1)}s / ${FLIGHT_DURATION_SEC}s`,
         `ROUTE ${(routeU * 100).toFixed(1)}%`,
         `LAT ${geo.latitude.toFixed(4)}  LON ${geo.longitude.toFixed(4)}`,
         `ALT ${Math.round(geo.altitudeAMSL)} m  AGL ${Math.round(geo.altitudeAGL)} m`,
-        `HDG ${geo.heading.toFixed(0)}°  IAS ${Math.round(geo.indicatedAirspeedKt)}  GS ${Math.round(geo.groundSpeedKt)}`,
-        `VIEW yaw ${view.yawOffset.toFixed(1)}°  pitch ${view.pitchOffset.toFixed(1)}°`,
+        `HDG ${geo.heading.toFixed(0)}째  IAS ${Math.round(geo.indicatedAirspeedKt)}  GS ${Math.round(geo.groundSpeedKt)}`,
+        `VIEW yaw ${view.yawOffset.toFixed(1)}째  pitch ${view.pitchOffset.toFixed(1)}째`,
         `FPS ${fpsShow}  DIST ${(path.totalDistM / 1000).toFixed(1)} km`,
       ].join("\n");
     }
@@ -595,6 +611,9 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state._gsSmooth = 0;
     const onArr = String(sample.fromId || "").startsWith("ARR_");
     lastHeading = onArr || t >= 73 ? ARR_RWY_HEADING : t < 28 ? DEP_RWY_HEADING : lastHeading;
+    /* Apply camera now without advancing clock */
+    lastWall = performance.now();
+    tick(0, {}, true, { freezeTime: true });
     console.info(`[cesium] seek t=${state.elapsedSeconds.toFixed(1)}s`);
     return state.elapsedSeconds;
   }
