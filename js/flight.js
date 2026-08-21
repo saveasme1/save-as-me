@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=mobootmt36vdju";
+import { createCesiumWorld } from "./cesium-world.js?v=lookuimt36yfgw";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=mobootmt36vdju";
+} from "./gmp-usn-route.js?v=lookuimt36yfgw";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -429,12 +429,12 @@ function makeBrushed() {
 /* ========== renderer / scene ========== */
 const mount = document.getElementById("webgl");
 const renderer = new THREE.WebGLRenderer({
-  antialias: !isMobile(),
+  antialias: true,
   powerPreference: "high-performance",
   alpha: true,
   preserveDrawingBuffer: true,
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.6 : 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1601,10 +1601,30 @@ canvasEl.addEventListener("pointermove", (e) => {
   const yawMax = THREE.MathUtils.clamp(0.34 - state.zoom * 0.12, 0.2, 0.34);
   const pitchMin = -0.18;
   const pitchMax = 0.08;
-  state.yaw = THREE.MathUtils.clamp(state.yaw - dx * sens, -yawMax, yawMax);
-  state.pitch = THREE.MathUtils.clamp(state.pitch - dy * sens, pitchMin, pitchMax);
+  /* natural look: drag right → look right, drag down → look down (+X pitch looks down) */
+  state.yaw = THREE.MathUtils.clamp(state.yaw + dx * sens, -yawMax, yawMax);
+  state.pitch = THREE.MathUtils.clamp(state.pitch + dy * sens, pitchMin, pitchMax);
   state.tYaw = state.yaw;
   state.tPitch = state.pitch;
+  // #region agent log
+  if (!window.__lookDbgN) window.__lookDbgN = 0;
+  if (window.__lookDbgN < 8) {
+    window.__lookDbgN += 1;
+    fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+      body: JSON.stringify({
+        sessionId: "88eb62",
+        runId: "look-fix",
+        hypothesisId: "LOOK",
+        location: "flight.js:pointermove",
+        message: "look_delta",
+        data: { dx, dy, yaw: +state.yaw.toFixed(4), pitch: +state.pitch.toFixed(4) },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }
+  // #endregion
 });
 
 function endDrag(e) {
@@ -1683,7 +1703,7 @@ window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.6 : 1.5));
   /* mobile orientation / chrome UI resize invalidates NDC seats */
   if (state._mfdRoot) {
     window.clearTimeout(window.__mfdResizeT);

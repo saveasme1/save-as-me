@@ -19,7 +19,7 @@
   sampleAhead,
   samplePathByDistance,
   timeToDistanceProgress,
-} from "./gmp-usn-route.js?v=no-clouds1";
+} from "./gmp-usn-route.js?v=lookuimt36yfgw";
 import { addVirtualAirport } from "./virtual-airport.js";
 
 function readIonToken() {
@@ -71,7 +71,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     creditContainer: document.getElementById("cesiumCredit") || undefined,
     terrain: terrainOpt,
     requestRenderMode: false,
-    msaaSamples: mobile ? 1 : 2,
+    msaaSamples: mobile ? 2 : 4,
   });
 
   if (!terrainOpt && Cesium.createWorldTerrainAsync) {
@@ -640,16 +640,17 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 }
 
 function applyQuality(q, mobile, viewer) {
+  /* mobile was 0.6–0.8 → shimmering/blocky exterior; keep near-native */
   if (mobile) {
     if (q === "HIGH") {
-      viewer.resolutionScale = 0.8;
-      viewer.scene.globe.maximumScreenSpaceError = 1.6;
+      viewer.resolutionScale = 1;
+      viewer.scene.globe.maximumScreenSpaceError = 1.15;
     } else if (q === "MEDIUM") {
-      viewer.resolutionScale = 0.7;
-      viewer.scene.globe.maximumScreenSpaceError = 2.2;
+      viewer.resolutionScale = 0.92;
+      viewer.scene.globe.maximumScreenSpaceError = 1.5;
     } else {
-      viewer.resolutionScale = 0.6;
-      viewer.scene.globe.maximumScreenSpaceError = 3.2;
+      viewer.resolutionScale = 0.82;
+      viewer.scene.globe.maximumScreenSpaceError = 2.1;
     }
     return;
   }
