@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=boot-fit3";
+import { createCesiumWorld } from "./cesium-world.js?v=scrub-land1";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=boot-fit3";
+} from "./gmp-usn-route.js?v=scrub-land1";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1249,6 +1249,53 @@ function syncRouteHud() {
 }
 syncRouteHud();
 
+/* Click / drag progress to jump flight time (inspect any segment) */
+function scrubFlightFromEvent(ev) {
+  const world = state._cesium;
+  if (!world?.seekNormalized) return;
+  const track = document.getElementById("fgProgressTrack") || document.getElementById("fgProgress");
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const clientX = ev.touches?.[0]?.clientX ?? ev.clientX;
+  const u = Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+  world.seekNormalized(u);
+  updateGauges();
+}
+const fgProgress = document.getElementById("fgProgress");
+if (fgProgress) {
+  let dragging = false;
+  const start = (ev) => {
+    dragging = true;
+    scrubFlightFromEvent(ev);
+    ev.preventDefault();
+  };
+  const move = (ev) => {
+    if (!dragging) return;
+    scrubFlightFromEvent(ev);
+    ev.preventDefault();
+  };
+  const end = () => {
+    dragging = false;
+  };
+  fgProgress.addEventListener("pointerdown", start);
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+  fgProgress.addEventListener("keydown", (ev) => {
+    const world = state._cesium;
+    if (!world?.seek) return;
+    const cur = world.state?.elapsedSeconds || 0;
+    if (ev.key === "ArrowRight" || ev.key === "ArrowUp") {
+      world.seek(cur + 2);
+      ev.preventDefault();
+    } else if (ev.key === "ArrowLeft" || ev.key === "ArrowDown") {
+      world.seek(cur - 2);
+      ev.preventDefault();
+    }
+    updateGauges();
+  });
+}
+
 function updateGauges() {
   const fs = state._cesium?.state;
   if (fs) {
@@ -1263,6 +1310,8 @@ function updateGauges() {
     const prog = Math.max(0, Math.min(1, (fs.elapsedSeconds || 0) / FLIGHT_DURATION_SEC));
     if (el.gFlightBar) el.gFlightBar.style.transform = `scaleX(${prog})`;
     if (el.gFlightPct) el.gFlightPct.textContent = `${Math.round(prog * 100)}%`;
+    const scrub = document.getElementById("fgProgress");
+    if (scrub) scrub.setAttribute("aria-valuenow", String(Math.round(prog * 100)));
     return;
   }
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];

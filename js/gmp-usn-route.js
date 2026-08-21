@@ -208,6 +208,7 @@ export function timeToDistanceProgress(elapsed, duration, totalDistM) {
 /** Altitude AMSL vs elapsed time (seconds), cinematic envelope */
 export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsed));
+  /* Approach sink capped ~18–22 m/s — prior keys dove 50–110 m/s (crash look) */
   const keys = [
     [0, GMP_ELEV_M + 12],
     [5, GMP_ELEV_M + 70],
@@ -217,15 +218,17 @@ export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
     [35, 6000],
     [45, 7000],
     [55, 7200],
-    [70, 6800],
-    [78, 3200],
-    [88, 1400],
-    [96, 520],
-    [100, 220],
-    [103, 90],
-    [105.5, USN_ELEV_M + 10], /* flare */
-    [107, USN_ELEV_M + 4], /* touchdown */
-    [110, USN_ELEV_M + 3], /* roll-out */
+    [68, 5200],
+    [73, 2600], /* final handoff */
+    [80, 1500],
+    [88, 780],
+    [94, 380],
+    [98, 190],
+    [102, 85],
+    [105, 38],
+    [106.5, USN_ELEV_M + 12],
+    [107.5, USN_ELEV_M + 5], /* touchdown */
+    [110, USN_ELEV_M + 4],
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];
@@ -281,10 +284,10 @@ export function autopilotPitchDeg(phase, altRateMps, elapsed = 0) {
   }
   if (phase === "climb") return 4 + rateP;
   if (phase === "cruise") return 1.5 + rateP * 0.25;
-  if (phase === "descent") return -1.5 + rateP;
-  if (elapsed >= 105.5) return 0;
-  if (elapsed > 103) return 1.0;
-  return -1.2 + rateP * 0.35;
+  if (phase === "descent") return -1.2 + rateP * 0.4;
+  if (elapsed >= 106.5) return 0;
+  if (elapsed > 104) return 0.8;
+  return -0.8 + rateP * 0.25;
 }
 
 /**

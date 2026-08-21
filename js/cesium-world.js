@@ -18,9 +18,9 @@ import {
   sampleAhead,
   samplePathByDistance,
   timeToDistanceProgress,
-} from "./gmp-usn-route.js?v=final-snap2";
+} from "./gmp-usn-route.js?v=scrub-land1";
 import { addVirtualAirport } from "./virtual-airport.js";
-import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=final-snap2";
+import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=scrub-land1";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
@@ -470,27 +470,38 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const terrainH = terrainAtCached(sample.lat, sample.lon);
     geo.terrainHeight = terrainH;
     state.terrainHeight = terrainH;
+    /* Plant on deck only after flare — keep clear of hills until then */
     const onGround =
-      elapsed >= 106.8 ||
+      elapsed >= 107 ||
       state._heldAtEnd ||
-      (elapsed >= 105.8 && autoAlt <= USN_ELEV_M + 12);
+      (elapsed >= 106.2 && autoAlt <= USN_ELEV_M + 8);
     let minClear =
-      geo.phase === "departure" ? 8 : geo.phase === "approach" ? 25 : geo.phase === "cruise" ? 400 : 120;
-    if (elapsed > 100) minClear = 10;
-    if (elapsed > 104) minClear = 5;
-    if (onGround) {
-      geo.altitudeAMSL = Math.max(USN_ELEV_M + 4, terrainH + 4);
-      geo.pitch = 0;
-    } else {
-      geo.altitudeAMSL = Math.max(autoAlt, terrainH + minClear);
-    }
+      geo.phase === "departure" ? 8 : geo.phase === "approach" ? 40 : geo.phase === "cruise" ? 400 : 120;
+    if (elapsed > 96) minClear = 28;
+    if (elapsed > 100) minClear = 18;
+    if (elapsed > 104) minClear = 10;
+    if (elapsed > 106) minClear = 6;
+    let targetAlt = onGround
+      ? Math.max(USN_ELEV_M + 5, terrainH + 5)
+      : Math.max(autoAlt, terrainH + minClear);
+    /* Cap vertical rate so Cesium doesn't slam into terrain tiles */
+    const prevAlt = state._prevAlt ?? targetAlt;
+    const maxSink = onGround ? 8 : elapsed > 100 ? 22 : elapsed > 90 ? 28 : 60;
+    const maxClimb = 40;
+    const dAlt = targetAlt - prevAlt;
+    const maxDown = -maxSink * Math.max(step, 1e-3);
+    const maxUp = maxClimb * Math.max(step, 1e-3);
+    geo.altitudeAMSL = prevAlt + Math.max(maxDown, Math.min(maxUp, dAlt));
+    if (onGround) geo.altitudeAMSL = Math.max(USN_ELEV_M + 5, terrainH + 5);
     geo.altitudeAGL = geo.altitudeAMSL - terrainH;
     state.altitudeAMSL = geo.altitudeAMSL;
     state.altitudeAGL = geo.altitudeAGL;
 
-    const altRate = (geo.altitudeAMSL - state._prevAlt) / Math.max(step, 1e-3);
+    const altRate = (geo.altitudeAMSL - prevAlt) / Math.max(step, 1e-3);
     state._prevAlt = geo.altitudeAMSL;
-    if (!onGround) {
+    if (onGround) {
+      geo.pitch = 0;
+    } else {
       geo.pitch = autopilotPitchDeg(geo.phase, altRate, elapsed);
     }
     state.pitch = geo.pitch;
@@ -513,22 +524,22 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       console.warn("[clouds] update", e);
     }
 
-    /* Look ahead on final — never bury nose into dirt */
-    const camH = geo.altitudeAMSL;
-    let horizonBias = -5.0;
+    /* Look ahead on final — keep horizon, never dive into dirt */
+    const camH = Math.max(geo.altitudeAMSL, (geo.terrainHeight || 0) + (onGround ? 5 : 8));
+    let horizonBias = -4.8;
     if (onGround) {
-      horizonBias = -3.8;
+      horizonBias = -3.2;
     } else if (geo.phase === "departure" && elapsed < 8) {
       horizonBias = -5.0;
     } else if (geo.phase === "climb" || geo.phase === "cruise") {
       horizonBias = -4.4;
     } else if (geo.phase === "descent") {
-      horizonBias = -4.8;
+      horizonBias = -4.5;
     } else if (geo.phase === "approach") {
-      horizonBias = elapsed > 104 ? -4.2 : -4.6;
+      horizonBias = elapsed > 104 ? -3.6 : -4.0;
     }
     if (state._horizonBias == null) state._horizonBias = horizonBias;
-    state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 2);
+    state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 2.2);
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
     const renderPitch = state._horizonBias + view.pitchOffset;
@@ -568,6 +579,30 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     return state;
   }
 
+  function seek(seconds) {
+    const t = Math.max(0, Math.min(FLIGHT_DURATION_SEC, Number(seconds) || 0));
+    state.elapsedSeconds = t;
+    state._heldAtEnd = t >= FLIGHT_DURATION_SEC - 0.05;
+    if (state._heldAtEnd) state.elapsedSeconds = FLIGHT_DURATION_SEC;
+    state._arrHdgLocked = false;
+    state._horizonBias = null;
+    /* Reset motion probes so seek doesn't invent sideways GS */
+    const distM = timeToDistanceProgress(state.elapsedSeconds, FLIGHT_DURATION_SEC, path.totalDistM);
+    const sample = samplePathByDistance(path, distM);
+    state._prevLat = sample.lat;
+    state._prevLon = sample.lon;
+    state._prevAlt = altitudeAtElapsed(state.elapsedSeconds);
+    state._gsSmooth = 0;
+    const onArr = String(sample.fromId || "").startsWith("ARR_");
+    lastHeading = onArr || t >= 73 ? ARR_RWY_HEADING : t < 28 ? DEP_RWY_HEADING : lastHeading;
+    console.info(`[cesium] seek t=${state.elapsedSeconds.toFixed(1)}s`);
+    return state.elapsedSeconds;
+  }
+
+  function seekNormalized(u) {
+    return seek(Math.max(0, Math.min(1, Number(u) || 0)) * FLIGHT_DURATION_SEC);
+  }
+
   function resize() {
     viewer.resize();
     applyQuality(lastQuality, isMobile(), viewer);
@@ -579,6 +614,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state,
     path,
     tick,
+    seek,
+    seekNormalized,
     resize,
     clouds: cloudSys,
     FLIGHT_DURATION_SEC,

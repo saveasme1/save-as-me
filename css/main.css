@@ -311,11 +311,15 @@ body.is-cesium-ready #cesiumContainer {
   max-width: 7.2rem;
   min-width: 0;
 }
-.fg-progress {
+﻿.fg-progress {
   display: flex;
   flex-direction: column;
   gap: 0.22rem;
   width: 100%;
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: none;
+  padding: 0.2rem 0;
 }
 .fg-progress-meta {
   display: flex;
@@ -339,11 +343,11 @@ body.is-cesium-ready #cesiumContainer {
   font-variant-numeric: tabular-nums;
 }
 .fg-progress-track {
-  height: 2px;
+  height: 6px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
   overflow: hidden;
-  width: 100%;
+  position: relative;
 }
 .fg-progress-fill {
   height: 100%;
@@ -352,7 +356,9 @@ body.is-cesium-ready #cesiumContainer {
   background: linear-gradient(90deg, #f0c45a, #ffe29a);
   border-radius: inherit;
   will-change: transform;
+  pointer-events: none;
 }
+
 .float-gauges .fg-body {
   display: flex;
   flex-direction: column;
