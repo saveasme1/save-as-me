@@ -1061,3 +1061,29 @@ body.is-ready .boot {
     width: min(100%, 400px);
   }
 }
+
+
+/* MFD project screens — clipped to measured black DU rects (screen-space) */
+#mfdClipLayer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.mfd-clip {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  transform-origin: center center;
+  background: #0b121c;
+}
+.mfd-clip-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+body:not(.is-cockpit-ready) #mfdClipLayer {
+  display: none;
+}
