@@ -176,15 +176,13 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   const bootEm = document.querySelector("#boot em");
   if (bootEm) bootEm.textContent = "Gimpo terrain loading…";
 
-  setCam(g0.lon, g0.lat, 900, 136, -35);
-  await waitTilesIdle(5000, 3);
-  setCam(g0.lon, g0.lat, 320, 136, -14);
-  await waitTilesIdle(5000, 4);
-  setCam(g1.lon, g1.lat, 280, 136, -12);
-  await waitTilesIdle(4000, 3);
-  /* final departure pose: along runway, sky + field readable */
-  setCam(g0.lon, g0.lat, 160, 136, -11);
+  setCam(g0.lon, g0.lat, 600, 136, -22);
+  await waitTilesIdle(3500, 2);
+  setCam(g0.lon, g0.lat, 280, 136, -12);
   await waitTilesIdle(3500, 3);
+  /* final departure pose: along runway, sky + field readable */
+  setCam(g0.lon, g0.lat, 170, 136, -11);
+  await waitTilesIdle(2500, 2);
 
   state._ready = true;
   document.body.classList.add("is-cesium-ready");

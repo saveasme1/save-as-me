@@ -619,12 +619,13 @@ function tickMfdPop() {
     slot.mesh.scale.setScalar(sc);
     slot.mesh.visible = true;
     if (slot.mesh.material) {
-      slot.mesh.material.depthTest = true;
+      /* always draw above black LCD (transparent Three + Cesium stack) */
+      slot.mesh.material.depthTest = false;
       slot.mesh.material.depthWrite = false;
       slot.mesh.material.opacity = 1;
       slot.mesh.material.transparent = true;
     }
-    slot.mesh.renderOrder = 3;
+    slot.mesh.renderOrder = 20;
   });
 }
 
@@ -812,7 +813,7 @@ function placeMfdOnBlackDus(root) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
-    mesh.renderOrder = 5;
+    mesh.renderOrder = 20;
     mesh.userData.mfd = true;
     mesh.visible = true;
     parent.add(mesh);
@@ -857,16 +858,45 @@ function installMfdScreens(root) {
     THREE,
     placeMfdOnBlackDus: () => placeMfdOnBlackDus(root),
   };
+
   let tries = 0;
-  const refine = () => {
+  const maxTries = 40;
+  const attempt = () => {
     tries += 1;
     if (typeof frameSideScreens === "function") frameSideScreens("center");
     cameraRig.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
-    if (placeMfdOnBlackDus(root) || tries >= 8) return;
-    requestAnimationFrame(refine);
+    root.updateMatrixWorld(true);
+    const w = renderer.domElement.width;
+    const h = renderer.domElement.height;
+    if (!w || !h) {
+      if (tries < maxTries) setTimeout(attempt, 250);
+      return;
+    }
+    if (placeMfdOnBlackDus(root)) {
+      console.info(`[mfd-panel] seated ok tries=${tries}`);
+      return;
+    }
+    if (tries < maxTries) setTimeout(attempt, 280);
+    else console.warn("[mfd-panel] seating failed after retries — will retry on cesium-ready/resize");
   };
-  setTimeout(() => requestAnimationFrame(refine), 1000);
+
+  setTimeout(attempt, 400);
+  /* again after Cesium exterior fades in (boot / camera settle) */
+  const onCesium = () => {
+    if (state._mfdScreens?.length >= 5) return;
+    setTimeout(() => placeMfdOnBlackDus(root), 200);
+    setTimeout(() => placeMfdOnBlackDus(root), 900);
+  };
+  if (document.body.classList.contains("is-cesium-ready")) onCesium();
+  else {
+    const obs = new MutationObserver(() => {
+      if (!document.body.classList.contains("is-cesium-ready")) return;
+      obs.disconnect();
+      onCesium();
+    });
+    obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+  }
 }
 
 
@@ -1329,6 +1359,10 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
+  if (state._mfdRoot) {
+    clearTimeout(state._mfdResizeTimer);
+    state._mfdResizeTimer = setTimeout(() => placeMfdOnBlackDus(state._mfdRoot), 180);
+  }
 });
 
 let prev = performance.now();
