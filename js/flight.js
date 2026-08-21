@@ -537,9 +537,33 @@ function addPhotoCloud(url, w, h, z, opacity) {
     cloudLayers.push({ mesh: m, baseZ: z, speed: 6 + Math.random() * 10, opacity });
   });
 }
-addPhotoCloud("assets/sky/clouds-front.jpg", 110, 42, -38, 0.42);
-if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 160, 60, -70, 0.32);
-if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 220, 80, -140, 0.22);
+addPhotoCloud("assets/sky/clouds-front.jpg", 220, 48, -38, 0.38);
+if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 280, 70, -70, 0.28);
+if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 360, 90, -140, 0.2);
+/* side wings of cloud so side windows match the forward world */
+if (!isMobile()) {
+  loader.load("assets/sky/clouds-front.jpg", (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    [-1, 1].forEach((side) => {
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(160, 50),
+        new THREE.MeshBasicMaterial({
+          map: tex.clone(),
+          transparent: true,
+          opacity: 0.3,
+          depthWrite: false,
+          toneMapped: false,
+          side: THREE.DoubleSide,
+        })
+      );
+      m.position.set(side * 55, 12, -20);
+      m.rotation.y = side * -0.85;
+      scene.add(m);
+      cloudLayers.push({ mesh: m, baseZ: -20, speed: 5, opacity: 0.3 });
+    });
+  });
+}
 
 const softCloud = canvasTex((ctx, w, h) => {
   ctx.clearRect(0, 0, w, h);
@@ -641,10 +665,48 @@ function gradeAerialCanvas(ctx, w, h) {
 }
 
 const terrainGroup = new THREE.Group();
-terrainGroup.position.set(0, -3.8, -28);
+terrainGroup.position.set(0, -3.8, 0);
 scene.add(terrainGroup);
 state._terrain = null;
 state._routeReady = false;
+state.flightHeading = 0;
+state.keys = { left: false, right: false, up: false, down: false };
+
+/* 360° ground under the ship — side windows see the same world as the nose */
+(function addWorldGround() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 512;
+  const g = c.getContext("2d");
+  const rad = g.createRadialGradient(256, 256, 40, 256, 256, 256);
+  rad.addColorStop(0, "#7a9a5e");
+  rad.addColorStop(0.35, "#6a8a52");
+  rad.addColorStop(0.7, "#5a7a62");
+  rad.addColorStop(1, "#4a6a78");
+  g.fillStyle = rad;
+  g.fillRect(0, 0, 512, 512);
+  /* soft patch noise */
+  for (let i = 0; i < 80; i++) {
+    g.fillStyle = `rgba(${90 + Math.random() * 40},${110 + Math.random() * 50},${70 + Math.random() * 30},${0.08 + Math.random() * 0.12})`;
+    g.beginPath();
+    g.arc(Math.random() * 512, Math.random() * 512, 8 + Math.random() * 40, 0, Math.PI * 2);
+    g.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(14, 14);
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(1200, 72),
+    new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: true })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.6;
+  terrainGroup.add(ground);
+  state._groundTex = tex;
+})();
+
+scene.fog = new THREE.FogExp2(0x87b8e8, 0.00055);
 
 async function buildGmpUsnTerrain() {
   const z = ROUTE.zoom;
@@ -707,10 +769,10 @@ async function buildGmpUsnTerrain() {
     toneMapped: false,
     fog: false,
   });
-  /* Distant horizon ribbon — cruise window, not close-up field */
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(160, 280, 1, rows), mat);
+  /* Distant horizon ribbon — wide enough for side windows */
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(520, 360, 1, rows), mat);
   strip.rotation.x = -Math.PI / 2.55;
-  strip.position.set(0, 0, -55);
+  strip.position.set(0, 0.4, -40);
   terrainGroup.add(strip);
 
   state._terrain = { strip, tex, mat };
@@ -1230,7 +1292,7 @@ function updateGauges() {
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];
   const alt = p.alt + state.speed * 35 + Math.sin(state.vibe) * 10;
   const spd = 240 + state.speed * 90 + state.velocity * 35;
-  const hdg = (p.hdg + state.yaw * 35 + 360) % 360;
+  const hdg = (p.hdg + state.flightHeading * (180 / Math.PI) + state.yaw * 35 + 3600) % 360;
   el.gAlt.textContent = Math.round(alt).toLocaleString("en-US");
   el.gSpd.textContent = String(Math.round(spd));
   el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}°`;
@@ -1287,10 +1349,26 @@ window.addEventListener(
 );
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowUp" || e.key === "=" || e.key === "+") {
+  if (e.key === "ArrowLeft") {
+    state.keys.left = true;
+    e.preventDefault();
+  }
+  if (e.key === "ArrowRight") {
+    state.keys.right = true;
+    e.preventDefault();
+  }
+  if (e.key === "ArrowUp") {
+    state.keys.up = true;
+    e.preventDefault();
+  }
+  if (e.key === "ArrowDown") {
+    state.keys.down = true;
+    e.preventDefault();
+  }
+  if (e.key === "=" || e.key === "+") {
     state.tZoom = THREE.MathUtils.clamp(state.tZoom + 0.08, 0, 1);
   }
-  if (e.key === "ArrowDown" || e.key === "-" || e.key === "_") {
+  if (e.key === "-" || e.key === "_") {
     state.tZoom = THREE.MathUtils.clamp(state.tZoom - 0.08, 0, 1);
   }
   if (e.key === "Escape") applyProject(-1, { maneuver: false });
@@ -1299,6 +1377,13 @@ window.addEventListener("keydown", (e) => {
     cityGroup.visible = true;
     setEnv(PROJECTS[4].env);
   }
+});
+
+window.addEventListener("keyup", (e) => {
+  if (e.key === "ArrowLeft") state.keys.left = false;
+  if (e.key === "ArrowRight") state.keys.right = false;
+  if (e.key === "ArrowUp") state.keys.up = false;
+  if (e.key === "ArrowDown") state.keys.down = false;
 });
 
 const raycaster = new THREE.Raycaster();
@@ -1413,7 +1498,7 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "패널 LCD 탭 → 프로젝트 · 좌측/우측 화면으로 조준 · 드래그 회전";
+hint.textContent = "방향키 ←→ 선회 · ↑↓ 피치 · LCD 탭 프로젝트 · 드래그 시선";
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
 setTimeout(() => hint.classList.remove("is-on"), 4500);
@@ -1451,15 +1536,44 @@ function animate(now) {
     state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
+  /* arrow keys: bank + turn (L/R), pitch (U/D) */
+  const k = state.keys || {};
+  const turnRate = 0.55;
+  const pitchRate = 0.4;
+  const rollMax = 0.42;
+  if (k.left) {
+    state.tRoll = Math.min(rollMax, state.tRoll + dt * 1.4);
+    state.flightHeading += dt * turnRate * (0.55 + Math.abs(state.roll) * 1.2);
+    state.tYaw = THREE.MathUtils.clamp(state.tYaw + dt * 0.35, -0.45, 0.45);
+  } else if (k.right) {
+    state.tRoll = Math.max(-rollMax, state.tRoll - dt * 1.4);
+    state.flightHeading -= dt * turnRate * (0.55 + Math.abs(state.roll) * 1.2);
+    state.tYaw = THREE.MathUtils.clamp(state.tYaw - dt * 0.35, -0.45, 0.45);
+  } else if (!state.dragging) {
+    state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3.2);
+  }
+  if (k.up) {
+    state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate, -0.28, 0.22);
+  } else if (k.down) {
+    state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate, -0.28, 0.22);
+  } else if (!state.dragging && Math.abs(state.tPitch) > 0.02) {
+    state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.6);
+  }
+  if (k.left || k.right || k.up || k.down) {
+    state.tSpeed = Math.max(state.tSpeed, 1.25);
+  }
+
   /* while not dragging, ease toward held pose — always stay inside windscreen */
-  const yawMax = THREE.MathUtils.clamp(0.34 - state.zoom * 0.12, 0.2, 0.34);
+  const yawMax = THREE.MathUtils.clamp(0.42 - state.zoom * 0.1, 0.28, 0.45);
+  const pitchMin = -0.28;
+  const pitchMax = 0.22;
   state.tYaw = THREE.MathUtils.clamp(state.tYaw, -yawMax, yawMax);
-  state.tPitch = THREE.MathUtils.clamp(state.tPitch, -0.18, 0.08);
+  state.tPitch = THREE.MathUtils.clamp(state.tPitch, pitchMin, pitchMax);
   state.yaw += (state.tYaw - state.yaw) * (state.dragging ? 1 : 0.28);
   state.pitch += (state.tPitch - state.pitch) * (state.dragging ? 1 : 0.28);
   state.yaw = THREE.MathUtils.clamp(state.yaw, -yawMax, yawMax);
-  state.pitch = THREE.MathUtils.clamp(state.pitch, -0.18, 0.08);
-  state.roll += (state.tRoll - state.roll) * 0.16;
+  state.pitch = THREE.MathUtils.clamp(state.pitch, pitchMin, pitchMax);
+  state.roll += (state.tRoll - state.roll) * 0.2;
   state.vibe += dt;
 
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0012;
@@ -1486,28 +1600,37 @@ function animate(now) {
 
 
   if (state._skyDome) {
-    state._skyDome.rotation.y += dt * (0.02 + state.speed * 0.035);
+    /* forward flight: sky scrolls opposite heading (not reverse) */
+    state._skyDome.rotation.y = -state.flightHeading * 0.35 - state.flightT * Math.PI * 2 * 0.04;
   }
 
-  /* compressed GMP→USN — faster scroll, no needsUpdate spam */
+  /* compressed GMP→USN — scroll so ground moves aft (forward flight) */
   state.flightT = (state.flightT + dt * (0.09 + state.speed * 0.12)) % 1;
   if (state._terrain?.tex) {
-    state._terrain.tex.offset.y = 1 - state.flightT;
-    terrainGroup.position.x = state.yaw * 5;
-    terrainGroup.rotation.z = -state.yaw * 0.06;
+    state._terrain.tex.offset.y = state.flightT;
   }
+  if (state._groundTex) {
+    state._groundTex.offset.y = (state._groundTex.offset.y + dt * (0.08 + state.speed * 0.1)) % 1;
+    state._groundTex.offset.x = -state.flightHeading * 0.15;
+  }
+  /* world turns with banked heading — side windows see same ground */
+  terrainGroup.rotation.y = -state.flightHeading;
+  terrainGroup.rotation.z = -state.roll * 0.35;
+  terrainGroup.position.x = 0;
 
   for (const layer of cloudLayers) {
-    layer.mesh.position.x = state.yaw * (-8 - layer.speed * 0.6);
+    layer.mesh.position.x = Math.sin(-state.flightHeading) * (-8 - layer.speed * 0.6);
     layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 3;
     if (layer.mesh.material.map) {
-      layer.mesh.material.map.offset.x += dt * (0.018 + state.speed * 0.025);
+      /* clouds drift aft / sideways with turn — not toward the nose */
+      layer.mesh.material.map.offset.x -= dt * (0.018 + state.speed * 0.025);
     }
   }
 
   for (const s of clouds) {
+    /* move toward +Z past the ship (from ahead → aft = forward flight) */
     s.position.z += dt * (40 + state.speed * 70);
-    s.position.x += state.yaw * dt * 10;
+    s.position.x += (-state.flightHeading * 40 + state.yaw * 8) * dt;
     if (s.position.z > 90) {
       s.position.z = -1200 - Math.random() * 400;
       s.position.x = (Math.random() - 0.5) * 1800;
