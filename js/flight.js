@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=mo5fixmt376g60";
+import { createCesiumWorld } from "./cesium-world.js?v=fgexpmt37d0i2";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=mo5fixmt376g60";
+} from "./gmp-usn-route.js?v=fgexpmt37d0i2";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1377,6 +1377,7 @@ function clearStage() {
 function show(card) {
   clearStage();
   card.classList.remove("is-hidden");
+  scheduleMobileFloatGauges();
 }
 
 function setEnv(env) {
@@ -1406,6 +1407,7 @@ function applyProject(index, { maneuver = true } = {}) {
   document.querySelectorAll(".route-item").forEach((b) => {
     b.classList.toggle("is-active", Number(b.dataset.index) === index);
   });
+  scheduleMobileFloatGauges();
 
   if (index < 0) {
     clearStage();
@@ -1414,6 +1416,7 @@ function applyProject(index, { maneuver = true } = {}) {
     setEnv(PROJECTS[0].env);
     cityGroup.visible = false;
     paintMfdScreens();
+    scheduleMobileFloatGauges();
     return;
   }
 
@@ -1454,6 +1457,7 @@ function applyProject(index, { maneuver = true } = {}) {
   setEnv(p.env);
   cityGroup.visible = index === 4;
   paintMfdScreens();
+  scheduleMobileFloatGauges();
 
   if (maneuver && !reduce) {
     state.tRoll = index % 2 === 0 ? -0.05 : 0.045;
@@ -1791,31 +1795,64 @@ setInterval(() => {
 function layoutMobileFloatGauges() {
   const fg = document.getElementById("floatGauges");
   const route = document.getElementById("routeNav");
+  const stage = document.getElementById("stage");
   if (!fg) return;
   if (!isMobile() || !route) {
     fg.style.top = "";
+    if (stage) stage.style.removeProperty("--stage-top");
     return;
   }
   const rr = route.getBoundingClientRect();
   if (rr.width < 8 || rr.height < 8) return;
-  const top = Math.round(rr.bottom + 8);
+  let anchorBottom = rr.bottom;
+  let anchor = "route";
+  const cards = [el.project, el.system, el.contact, el.hero].filter(Boolean);
+  for (const card of cards) {
+    if (card.classList.contains("is-hidden")) continue;
+    const cr = card.getBoundingClientRect();
+    if (cr.height < 8 || cr.width < 8) continue;
+    if (cr.top < window.innerHeight * 0.55 && cr.bottom > anchorBottom) {
+      anchorBottom = cr.bottom;
+      anchor = card.id || "card";
+    }
+  }
+  const top = Math.round(anchorBottom + 8);
   fg.style.top = top + "px";
   fg.style.bottom = "auto";
+  if (stage) {
+    stage.style.setProperty("--stage-top", Math.round(rr.bottom + 6) + "px");
+  }
   // #region agent log
   fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
     body: JSON.stringify({
       sessionId: "88eb62",
-      runId: "mo5",
+      runId: "fg-expand",
       hypothesisId: "UI",
       location: "flight.js:layoutMobileFloatGauges",
       message: "fg_top",
-      data: { top, routeBottom: +rr.bottom.toFixed(1), routeH: +rr.height.toFixed(1), vw: window.innerWidth },
+      data: {
+        top,
+        anchor,
+        routeBottom: +rr.bottom.toFixed(1),
+        routeH: +rr.height.toFixed(1),
+        activeIdx: state.project,
+        projectHidden: !!el.project?.classList.contains("is-hidden"),
+        vw: window.innerWidth,
+      },
       timestamp: Date.now(),
     }),
   }).catch(() => {});
   // #endregion
+}
+
+function scheduleMobileFloatGauges() {
+  layoutMobileFloatGauges();
+  requestAnimationFrame(() => {
+    layoutMobileFloatGauges();
+    requestAnimationFrame(layoutMobileFloatGauges);
+  });
 }
 
 window.addEventListener("resize", () => {
@@ -1823,7 +1860,7 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.6 : 1.5));
-  layoutMobileFloatGauges();
+  scheduleMobileFloatGauges();
   /* mobile orientation / chrome UI resize invalidates NDC seats */
   if (state._mfdRoot) {
     window.clearTimeout(window.__mfdResizeT);
@@ -1833,10 +1870,15 @@ window.addEventListener("resize", () => {
     }, 280);
   }
 });
-layoutMobileFloatGauges();
-requestAnimationFrame(() => layoutMobileFloatGauges());
-setTimeout(layoutMobileFloatGauges, 400);
-setTimeout(layoutMobileFloatGauges, 1200);
+scheduleMobileFloatGauges();
+setTimeout(scheduleMobileFloatGauges, 400);
+setTimeout(scheduleMobileFloatGauges, 1200);
+if (typeof ResizeObserver !== "undefined") {
+  const ro = new ResizeObserver(() => scheduleMobileFloatGauges());
+  const routeEl = document.getElementById("routeNav");
+  if (routeEl) ro.observe(routeEl);
+  [el.project, el.system, el.contact, el.hero].forEach((n) => n && ro.observe(n));
+}
 
 let prev = performance.now();
 let gaugeTick = 0;

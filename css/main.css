@@ -930,7 +930,7 @@ body.is-ready .boot {
     margin: 0;
     padding: 0.3rem;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     border-radius: 12px;
     background: rgba(246, 244, 238, 0.7);
     border: 1px solid rgba(255,255,255,0.55);
@@ -957,6 +957,15 @@ body.is-ready .boot {
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+  /* active chip expands downward — gauges must re-pin under #routeNav */
+  .route-item.is-active {
+    max-width: min(11rem, 58vw);
+    align-self: stretch;
+  }
+  .route-item.is-active span {
+    -webkit-line-clamp: 3;
+    white-space: normal;
   }
 
   /* One bottom dock: gauges + actions */
@@ -1047,10 +1056,11 @@ body.is-ready .boot {
   .stage {
     left: 0.55rem;
     right: 0.55rem;
-    top: calc(max(0.4rem, env(safe-area-inset-top)) + 5.3rem);
+    /* under brand+route; JS also nudges via --stage-top when gauges/route grow */
+    top: var(--stage-top, calc(max(0.4rem, env(safe-area-inset-top)) + 5.3rem));
     bottom: calc(8.4rem + env(safe-area-inset-bottom));
     align-items: flex-start;
-    justify-content: flex-end;
+    justify-content: flex-start;
     padding-top: 0;
   }
   .view-hint {
