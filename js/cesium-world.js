@@ -71,7 +71,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     creditContainer: document.getElementById("cesiumCredit") || undefined,
     terrain: terrainOpt,
     requestRenderMode: false,
-    msaaSamples: mobile ? 2 : 4,
+    msaaSamples: 4,
   });
 
   if (!terrainOpt && Cesium.createWorldTerrainAsync) {
@@ -131,7 +131,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   }
   viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.screenSpaceCameraController.enableInputs = false;
-  if ("tileCacheSize" in viewer.scene.globe) viewer.scene.globe.tileCacheSize = mobile ? 140 : 240;
+  if ("tileCacheSize" in viewer.scene.globe) viewer.scene.globe.tileCacheSize = mobile ? 200 : 240;
   if (viewer.cesiumWidget?.creditContainer) viewer.cesiumWidget.creditContainer.style.display = "";
 
   applyQuality("HIGH", mobile, viewer);
@@ -321,22 +321,47 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
    * DOWN ??look down (negative pitch offset)
    * Never touches lat/lon/route/autopilot altitude/heading
    */
-  function applyUserView(keys, dt) {
-    const yawMax = 9;
-    const pitchUp = 12;
-    const pitchDn = -16;
+  function applyUserView(keys, dt, opts = {}) {
+    const yawMax = 14;
+    const pitchUp = 14;
+    const pitchDn = -24;
+    const hold = !!opts.holdLook || !!view._holdLook;
     if (keys?.left) view._yawTarget = Math.min(yawMax, view._yawTarget + dt * 24);
     else if (keys?.right) view._yawTarget = Math.max(-yawMax, view._yawTarget - dt * 24);
-    else view._yawTarget += (0 - view._yawTarget) * Math.min(1, dt * 3.4);
+    else if (!hold) view._yawTarget += (0 - view._yawTarget) * Math.min(1, dt * 3.4);
 
     if (keys?.up) view._pitchTarget = Math.min(pitchUp, view._pitchTarget + dt * 28);
     else if (keys?.down) view._pitchTarget = Math.max(pitchDn, view._pitchTarget - dt * 32);
-    else view._pitchTarget += (0 - view._pitchTarget) * Math.min(1, dt * 3.0);
+    else if (!hold) view._pitchTarget += (0 - view._pitchTarget) * Math.min(1, dt * 3.0);
 
     view.yawOffset += (view._yawTarget - view.yawOffset) * Math.min(1, dt * 5);
     view.pitchOffset += (view._pitchTarget - view.pitchOffset) * Math.min(1, dt * 5);
     state.userYawOffset = view.yawOffset;
     state.userPitchOffset = view.pitchOffset;
+  }
+
+  function nudgeLook(dxPx, dyPx) {
+    const yawMax = 14;
+    const pitchUp = 14;
+    const pitchDn = -24;
+    const sens = 0.048;
+    view._holdLook = true;
+    view._yawTarget = Math.max(-yawMax, Math.min(yawMax, view._yawTarget + dxPx * sens));
+    view._pitchTarget = Math.max(pitchDn, Math.min(pitchUp, view._pitchTarget - dyPx * sens));
+    view.yawOffset = view._yawTarget;
+    view.pitchOffset = view._pitchTarget;
+    state.userYawOffset = view.yawOffset;
+    state.userPitchOffset = view.pitchOffset;
+  }
+
+  function resetLook() {
+    view._holdLook = false;
+    view._yawTarget = 0;
+    view._pitchTarget = 0;
+    view.yawOffset = 0;
+    view.pitchOffset = 0;
+    state.userYawOffset = 0;
+    state.userPitchOffset = 0;
   }
 
   let lastHeading = DEP_RWY_HEADING;
@@ -385,7 +410,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     geo.quality = qualityPhase(elapsed);
     state.phase = geo.phase;
 
-    applyUserView(keys, step);
+    applyUserView(keys, step, opts);
 
     const routeU = getCinematicRouteProgress(elapsed);
     geo.routeProgress = routeU;
@@ -627,6 +652,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   return {
     viewer,
     state,
+    nudgeLook,
+    resetLook,
     path,
     tick,
     seek,
@@ -640,28 +667,47 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 }
 
 function applyQuality(q, mobile, viewer) {
-  /* mobile was 0.6–0.8 → shimmering/blocky exterior; keep near-native */
   if (mobile) {
     if (q === "HIGH") {
       viewer.resolutionScale = 1;
-      viewer.scene.globe.maximumScreenSpaceError = 1.15;
+      viewer.scene.globe.maximumScreenSpaceError = 0.9;
     } else if (q === "MEDIUM") {
-      viewer.resolutionScale = 0.92;
-      viewer.scene.globe.maximumScreenSpaceError = 1.5;
+      viewer.resolutionScale = 1;
+      viewer.scene.globe.maximumScreenSpaceError = 1.15;
     } else {
-      viewer.resolutionScale = 0.82;
-      viewer.scene.globe.maximumScreenSpaceError = 2.1;
+      viewer.resolutionScale = 0.96;
+      viewer.scene.globe.maximumScreenSpaceError = 1.35;
     }
+    // #region agent log
+    fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+      body: JSON.stringify({
+        sessionId: "88eb62",
+        runId: "look-q",
+        hypothesisId: "Q",
+        location: "cesium-world.js:applyQuality",
+        message: "quality_applied",
+        data: {
+          q,
+          mobile: true,
+          resolutionScale: viewer.resolutionScale,
+          mse: viewer.scene.globe.maximumScreenSpaceError,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     return;
   }
   if (q === "HIGH") {
     viewer.resolutionScale = 1;
     viewer.scene.globe.maximumScreenSpaceError = 0.85;
   } else if (q === "MEDIUM") {
-    viewer.resolutionScale = 0.9;
-    viewer.scene.globe.maximumScreenSpaceError = 1.4;
+    viewer.resolutionScale = 0.95;
+    viewer.scene.globe.maximumScreenSpaceError = 1.2;
   } else {
-    viewer.resolutionScale = 0.72;
-    viewer.scene.globe.maximumScreenSpaceError = 2.6;
+    viewer.resolutionScale = 0.85;
+    viewer.scene.globe.maximumScreenSpaceError = 1.8;
   }
 }

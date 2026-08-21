@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fgexpmt37d0i2";
+import { createCesiumWorld } from "./cesium-world.js?v=lookqmt37jg0f";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fgexpmt37d0i2";
+} from "./gmp-usn-route.js?v=lookqmt37jg0f";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -434,7 +434,7 @@ const renderer = new THREE.WebGLRenderer({
   alpha: true,
   preserveDrawingBuffer: true,
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.6 : 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 2 : 1.75));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1689,16 +1689,27 @@ canvasEl.addEventListener("pointermove", (e) => {
     state.dragMoved = true;
     state.lookSnap = null;
   }
-  const sens = isMobile() ? 0.0036 : 0.0028;
-  /* keep look inside the windscreen — no fuselage/exterior peek */
-  const yawMax = THREE.MathUtils.clamp(0.34 - state.zoom * 0.12, 0.2, 0.34);
-  const pitchMin = -0.18;
-  const pitchMax = 0.08;
-  /* natural look: drag right → look right, drag down → look down (+X pitch looks down) */
-  state.yaw = THREE.MathUtils.clamp(state.yaw + dx * sens, -yawMax, yawMax);
-  state.pitch = THREE.MathUtils.clamp(state.pitch + dy * sens, pitchMin, pitchMax);
-  state.tYaw = state.yaw;
-  state.tPitch = state.pitch;
+  if (state._cesium?.nudgeLook) {
+    state._cesium.nudgeLook(dx, dy);
+    const yawDeg = state._cesium.state.userYawOffset || 0;
+    const pitchDeg = state._cesium.state.userPitchOffset || 0;
+    const yawMax = 0.32;
+    const pitchMin = -0.28;
+    const pitchMax = 0.42;
+    state.yaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -yawMax, yawMax);
+    state.pitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, pitchMin, pitchMax);
+    state.tYaw = state.yaw;
+    state.tPitch = state.pitch;
+  } else {
+    const sens = isMobile() ? 0.0042 : 0.0032;
+    const yawMax = THREE.MathUtils.clamp(0.4 - state.zoom * 0.1, 0.24, 0.4);
+    const pitchMin = -0.28;
+    const pitchMax = 0.42;
+    state.yaw = THREE.MathUtils.clamp(state.yaw + dx * sens, -yawMax, yawMax);
+    state.pitch = THREE.MathUtils.clamp(state.pitch + dy * sens, pitchMin, pitchMax);
+    state.tYaw = state.yaw;
+    state.tPitch = state.pitch;
+  }
   // #region agent log
   if (!window.__lookDbgN) window.__lookDbgN = 0;
   if (window.__lookDbgN < 8) {
@@ -1712,7 +1723,15 @@ canvasEl.addEventListener("pointermove", (e) => {
         hypothesisId: "LOOK",
         location: "flight.js:pointermove",
         message: "look_delta",
-        data: { dx, dy, yaw: +state.yaw.toFixed(4), pitch: +state.pitch.toFixed(4) },
+        data: {
+          dx,
+          dy,
+          yaw: +state.yaw.toFixed(4),
+          pitch: +state.pitch.toFixed(4),
+          cesiumPitch: state._cesium?.state?.userPitchOffset ?? null,
+          cesiumYaw: state._cesium?.state?.userYawOffset ?? null,
+          mobile: isMobile(),
+        },
         timestamp: Date.now(),
       }),
     }).catch(() => {});
@@ -1741,6 +1760,7 @@ const LOOK_PRESETS = {
 
 function frameSideScreens(side) {
   const p = LOOK_PRESETS[side] || LOOK_PRESETS.center;
+  state._cesium?.resetLook?.();
   state.lookSnap = side;
   state.tYaw = p.yaw;
   state.tPitch = p.pitch;
@@ -1859,7 +1879,7 @@ window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.6 : 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 2 : 1.75));
   scheduleMobileFloatGauges();
   /* mobile orientation / chrome UI resize invalidates NDC seats */
   if (state._mfdRoot) {
@@ -1928,12 +1948,11 @@ function animate(now) {
     } else if (!state.dragging && Math.abs(state.tPitch) > 0.015) {
       state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
     }
-  } else if (!state.dragging && state.lookSnap === "center") {
+  } else if (!state.dragging) {
     const yawDeg = state._cesium.state.userYawOffset || 0;
     const pitchDeg = state._cesium.state.userPitchOffset || 0;
-    state.tYaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -0.22, 0.22);
-    /* Three.js +X pitch looks down — invert so ↑ looks to sky in cockpit too */
-    state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, -0.28, 0.22);
+    state.tYaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -0.32, 0.32);
+    state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, -0.28, 0.42);
     state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3);
   }
   if (k.left || k.right || k.up || k.down) {
@@ -1941,9 +1960,9 @@ function animate(now) {
   }
 
   /* while not dragging, ease toward held pose — always stay inside windscreen */
-  const yawMax = 0.28;
-  const pitchMin = -0.2;
-  const pitchMax = 0.12;
+  const yawMax = 0.32;
+  const pitchMin = -0.28;
+  const pitchMax = 0.42;
   state.tYaw = THREE.MathUtils.clamp(state.tYaw, -yawMax, yawMax);
   state.tPitch = THREE.MathUtils.clamp(state.tPitch, pitchMin, pitchMax);
   state.yaw += (state.tYaw - state.yaw) * (state.dragging ? 1 : 0.28);
@@ -1982,7 +2001,9 @@ function animate(now) {
   }
 
   if (state._cesium) {
-    state._cesium.tick(dt, state.keys, state._tabVisible);
+    state._cesium.tick(dt, state.keys, state._tabVisible, {
+      holdLook: state.lookSnap == null,
+    });
     const fs = state._cesium.state;
     if (fs) {
       const norm = Math.min(1.35, (fs.indicatedAirspeedKt || 0) / 420);
