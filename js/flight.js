@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=final-snap2";
+import { createCesiumWorld } from "./cesium-world.js?v=boot-fit3";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=final-snap2";
+} from "./gmp-usn-route.js?v=boot-fit3";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1640,6 +1640,33 @@ createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug
 const bootFill = document.getElementById("bootLoadFill");
 const bootPct = document.getElementById("bootLoadPct");
 const bootLabel = document.getElementById("bootLoadLabel");
+const bootEn = document.getElementById("bootEn");
+
+/** Shrink headline until both lines fit the copy column (PC + mobile). */
+function fitBootType() {
+  if (!bootEn) return;
+  const copy = bootEn.parentElement;
+  if (!copy) return;
+  const lines = [...bootEn.querySelectorAll(".boot-line")];
+  if (!lines.length) return;
+  bootEn.style.fontSize = "";
+  const maxW = copy.clientWidth;
+  if (maxW < 40) return;
+  let size = parseFloat(getComputedStyle(bootEn).fontSize);
+  for (let i = 0; i < 32; i++) {
+    const overflow = lines.some((line) => line.scrollWidth > maxW + 1);
+    if (!overflow) break;
+    size *= 0.93;
+    bootEn.style.fontSize = `${size.toFixed(2)}px`;
+  }
+}
+fitBootType();
+if (document.fonts?.ready) document.fonts.ready.then(fitBootType).catch(() => {});
+window.addEventListener("resize", () => {
+  window.clearTimeout(window.__bootFitT);
+  window.__bootFitT = window.setTimeout(fitBootType, 80);
+});
+
 let bootProgress = 0;
 let bootDone = false;
 function setBootProgress(p) {
