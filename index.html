@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/main.css" />
   <link
     rel="stylesheet"
@@ -87,23 +87,34 @@
   </aside>
 
   <div class="float-gauges" id="floatGauges" aria-label="flight instruments">
-    <div class="fg-meters">
-      <div><span>ALT</span><b id="gAlt">000</b></div>
-      <div><span>SPD</span><b id="gSpd">000</b></div>
-      <div><span>HDG</span><b id="gHdg">000°</b></div>
+    <div class="fg-progress" aria-label="flight progress">
+      <div class="fg-progress-meta">
+        <span>PROGRESS</span>
+        <b id="gFlightPct">0%</b>
+      </div>
+      <div class="fg-progress-track">
+        <div class="fg-progress-fill" id="gFlightBar" style="transform:scaleX(0)"></div>
+      </div>
     </div>
-    <div class="fg-route" id="fgRoute">
-      <div class="fg-leg">
-        <span>FROM</span>
-        <b id="gDep">Ulsan · USN</b>
+    <div class="fg-body">
+      <div class="fg-meters">
+        <div><span>ALT</span><b id="gAlt">000</b></div>
+        <div><span>SPD</span><b id="gSpd">000</b></div>
+        <div><span>HDG</span><b id="gHdg">000°</b></div>
       </div>
-      <div class="fg-leg">
-        <span>TO</span>
-        <b id="gArr">Gimpo · GMP</b>
-      </div>
-      <div class="fg-leg fg-time">
-        <span>ETE</span>
-        <b id="gEte">1:50</b>
+      <div class="fg-route" id="fgRoute">
+        <div class="fg-leg">
+          <span>FROM</span>
+          <b id="gDep">Ulsan · USN</b>
+        </div>
+        <div class="fg-leg">
+          <span>TO</span>
+          <b id="gArr">Gimpo · GMP</b>
+        </div>
+        <div class="fg-leg fg-time">
+          <span>ETE</span>
+          <b id="gEte">1:50</b>
+        </div>
       </div>
     </div>
   </div>
@@ -177,15 +188,30 @@
   </footer>
 
   <div class="boot" id="boot">
-    <div class="boot-typo">
-      <p class="boot-en">Take a fast and safe leap forward for your business</p>
+    <div class="boot-inner">
+      <p class="boot-mark">SAVEAS FOR BIZ</p>
+      <h1 class="boot-en" aria-label="Take a fast and safe leap forward for your business">
+        <span>Take a fast</span>
+        <span>and safe leap</span>
+        <span>forward for</span>
+        <span>your business.</span>
+      </h1>
       <p class="boot-ko">당신의 사업을 가장 빠르게, 안전하게 도약시켜드립니다.</p>
+      <div class="boot-load" aria-live="polite">
+        <div class="boot-load-row">
+          <span id="bootLoadLabel">LOADING EXPERIENCE</span>
+          <b id="bootLoadPct">0%</b>
+        </div>
+        <div class="boot-load-track">
+          <div class="boot-load-fill" id="bootLoadFill" style="transform:scaleX(0)"></div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js"></script>
   <script src="js/cesium-token.js"></script>
   <script src="js/cesium-token.local.js"></script>
-  <script type="module" src="js/flight.js?v=sky30-1"></script>
+  <script type="module" src="js/flight.js?v=boot-bar1"></script>
 </body>
 </html>

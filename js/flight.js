@@ -131,6 +131,8 @@ const el = {
   gDep: document.getElementById("gDep"),
   gArr: document.getElementById("gArr"),
   gEte: document.getElementById("gEte"),
+  gFlightBar: document.getElementById("gFlightBar"),
+  gFlightPct: document.getElementById("gFlightPct"),
   pEye: document.getElementById("pEye"),
   pTitle: document.getElementById("pTitle"),
   pBody: document.getElementById("pBody"),
@@ -1233,6 +1235,9 @@ function updateGauges() {
     el.gHdg.textContent = `${String(Math.round(hdg)).padStart(3, "0")}°`;
     const remain = Math.max(0, FLIGHT_DURATION_SEC - (fs.elapsedSeconds || 0));
     if (el.gEte) el.gEte.textContent = formatRouteDuration(remain);
+    const prog = Math.max(0, Math.min(1, (fs.elapsedSeconds || 0) / FLIGHT_DURATION_SEC));
+    if (el.gFlightBar) el.gFlightBar.style.transform = `scaleX(${prog})`;
+    if (el.gFlightPct) el.gFlightPct.textContent = `${Math.round(prog * 100)}%`;
     return;
   }
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];
@@ -1596,15 +1601,42 @@ document.addEventListener("visibilitychange", () => {
 createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug") })
   .then((world) => {
     state._cesium = world;
-    document.body.classList.add("is-ready");
+    finishBootLoad();
     console.info(
       `[cesium] ready routeKm=${world.path.totalDistM / 1000} duration=${world.FLIGHT_DURATION_SEC}s`
     );
   })
   .catch((err) => {
     console.error("[cesium] init failed", err);
-    document.body.classList.add("is-ready");
+    finishBootLoad();
   });
+
+/* Boot loading bar — creep while Cesium boots, snap to 100% on ready */
+const bootFill = document.getElementById("bootLoadFill");
+const bootPct = document.getElementById("bootLoadPct");
+const bootLabel = document.getElementById("bootLoadLabel");
+let bootProgress = 0;
+let bootDone = false;
+function setBootProgress(p) {
+  bootProgress = Math.max(0, Math.min(1, p));
+  if (bootFill) bootFill.style.transform = `scaleX(${bootProgress})`;
+  if (bootPct) bootPct.textContent = `${Math.round(bootProgress * 100)}%`;
+}
+const bootTimer = setInterval(() => {
+  if (bootDone) return;
+  const next = bootProgress + (bootProgress < 0.7 ? 0.012 : 0.004);
+  setBootProgress(Math.min(0.9, next));
+}, 80);
+function finishBootLoad() {
+  if (bootDone) return;
+  bootDone = true;
+  clearInterval(bootTimer);
+  setBootProgress(1);
+  if (bootLabel) bootLabel.textContent = "READY";
+  requestAnimationFrame(() => {
+    setTimeout(() => document.body.classList.add("is-ready"), 220);
+  });
+}
 
 applyProject(-1, { maneuver: false });
 requestAnimationFrame(animate);
