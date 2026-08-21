@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { DecalGeometry } from "three/addons/geometries/DecalGeometry.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -537,10 +536,10 @@ function addPhotoCloud(url, w, h, z, opacity) {
     cloudLayers.push({ mesh: m, baseZ: z, speed: 6 + Math.random() * 10, opacity });
   });
 }
-addPhotoCloud("assets/sky/clouds-front.jpg", 220, 48, -38, 0.38);
-if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 280, 70, -70, 0.28);
-if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 360, 90, -140, 0.2);
-/* side wings of cloud so side windows match the forward world */
+addPhotoCloud("assets/sky/clouds-front.jpg", 220, 48, -90, 0.22);
+if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 280, 70, -130, 0.18);
+if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 360, 90, -200, 0.14);
+/* side wings of cloud so side windows match the forward world — keep far from cockpit */
 if (!isMobile()) {
   loader.load("assets/sky/clouds-front.jpg", (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -551,16 +550,17 @@ if (!isMobile()) {
         new THREE.MeshBasicMaterial({
           map: tex.clone(),
           transparent: true,
-          opacity: 0.3,
+          opacity: 0.22,
           depthWrite: false,
           toneMapped: false,
           side: THREE.DoubleSide,
+          depthTest: true,
         })
       );
-      m.position.set(side * 55, 12, -20);
-      m.rotation.y = side * -0.85;
+      m.position.set(side * 90, 30, -80);
+      m.rotation.y = side * -0.55;
       scene.add(m);
-      cloudLayers.push({ mesh: m, baseZ: -20, speed: 5, opacity: 0.3 });
+      cloudLayers.push({ mesh: m, baseZ: -80, speed: 5, opacity: 0.22 });
     });
   });
 }
@@ -587,13 +587,14 @@ const softCloud = canvasTex((ctx, w, h) => {
 const cloudGroup = new THREE.Group();
 scene.add(cloudGroup);
 const clouds = [];
-const nCloud = isMobile() ? 6 : 12;
+/* soft cloud sprites were projecting as white slabs into the windshield — disabled */
+const nCloud = 0;
 for (let i = 0; i < nCloud; i++) {
-  const mat = new THREE.SpriteMaterial({ map: softCloud, transparent: true, depthWrite: false, opacity: 0.5 });
+  const mat = new THREE.SpriteMaterial({ map: softCloud, transparent: true, depthWrite: false, opacity: 0.35 });
   const s = new THREE.Sprite(mat);
-  const sc = 70 + Math.random() * 180;
-  s.scale.set(sc, sc * 0.4, 1);
-  s.position.set((Math.random() - 0.5) * 2200, 40 + Math.random() * 160, -140 - Math.random() * 1800);
+  const sc = 40 + Math.random() * 90;
+  s.scale.set(sc, sc * 0.38, 1);
+  s.position.set((Math.random() - 0.5) * 1800, 90 + Math.random() * 140, -500 - Math.random() * 1600);
   cloudGroup.add(s);
   clouds.push(s);
 }
@@ -806,8 +807,8 @@ function makeProjectPreview(project, index, highlight = false) {
   c.height = S;
   const ctx = c.getContext("2d");
   const g = ctx.createLinearGradient(0, 0, S, S);
-  g.addColorStop(0, highlight ? "#1a2433" : "#0c121c");
-  g.addColorStop(1, highlight ? "#243044" : "#151c28");
+  g.addColorStop(0, highlight ? "#243044" : "#152030");
+  g.addColorStop(1, highlight ? "#2e3e55" : "#1c2a3c");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, S, S);
   ctx.strokeStyle = highlight ? "rgba(240,196,90,0.9)" : "rgba(120,160,190,0.4)";
@@ -841,6 +842,8 @@ function makeProjectPreview(project, index, highlight = false) {
   ctx.fillText("TAP · OPEN MISSION", 28, S - 36);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.center.set(0.5, 0.5);
+  tex.rotation = -Math.PI / 2;
   return tex;
 }
 
@@ -851,22 +854,11 @@ function paintMfdScreens() {
     const projectIndex = Math.max(0, slot.projectIndex) % PROJECTS.length;
     const highlight = state.project === projectIndex;
     const tex = makeProjectPreview(PROJECTS[projectIndex], projectIndex, highlight);
-    const apply = (mesh) => {
-      if (!mesh?.material) return;
-      const prev = mesh.material.map;
-      mesh.material.map = tex;
-      mesh.material.needsUpdate = true;
-      if (prev && prev !== tex) prev.dispose();
-    };
-    apply(slot.decal);
-    /* pop plate gets its own texture copy so dispose stays safe */
-    if (slot.mesh?.material) {
-      const popTex = makeProjectPreview(PROJECTS[projectIndex], projectIndex, highlight);
-      const prev = slot.mesh.material.map;
-      slot.mesh.material.map = popTex;
-      slot.mesh.material.needsUpdate = true;
-      if (prev && prev !== popTex) prev.dispose();
-    }
+    if (!slot.mesh?.material) return;
+    const prev = slot.mesh.material.map;
+    slot.mesh.material.map = tex;
+    slot.mesh.material.needsUpdate = true;
+    if (prev && prev !== tex) prev.dispose();
     slot.liveIndex = projectIndex;
   });
 }
@@ -874,47 +866,110 @@ function paintMfdScreens() {
 function tickMfdPop() {
   const screens = state._mfdScreens || [];
   if (!screens.length) return;
-  const camPos = camera.getWorldPosition(new THREE.Vector3());
   screens.forEach((slot) => {
+    if (!slot.mesh) return;
     const want = state.project === slot.projectIndex ? 1 : 0;
-    slot.pop = THREE.MathUtils.lerp(slot.pop || 0, want, 0.16);
-    if (slot.decal) {
-      slot.decal.visible = slot.pop < 0.85;
-      if (slot.decal.material) {
-        slot.decal.material.transparent = true;
-        slot.decal.material.opacity = 1 - slot.pop * 0.9;
-      }
-    }
-    if (!slot.mesh || !slot.basePos) return;
-    if (!slot.popDir) slot.popDir = new THREE.Vector3(0, 0, 1);
-    slot.popDir.copy(camPos).sub(slot.basePos).normalize();
-    const lift = slot.pop * 0.11;
-    const sc = 0.92 + slot.pop * 0.22;
-    slot.mesh.visible = slot.pop > 0.02;
-    slot.mesh.position.copy(slot.basePos).addScaledVector(slot.popDir, lift);
+    slot.pop = THREE.MathUtils.lerp(slot.pop || 0, want, 0.18);
+    /* stay on the LCD — only brighten / slight scale, never lift into cabin */
+    const sc = 1 + slot.pop * 0.02;
     slot.mesh.scale.setScalar(sc);
-    slot.mesh.lookAt(camPos);
-    slot.mesh.material.depthTest = false;
-    slot.mesh.renderOrder = 6;
+    slot.mesh.visible = true;
+    if (slot.mesh.material) {
+      slot.mesh.material.depthTest = true;
+      slot.mesh.material.depthWrite = false;
+      slot.mesh.material.opacity = 1;
+      slot.mesh.material.transparent = true;
+    }
+    slot.mesh.renderOrder = 3;
+  });
+}
+
+function collectBlackMeshes(root) {
+  const black = [];
+  root.traverse((o) => {
+    if (!o.isMesh || !o.visible) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (mats.some((m) => String(m?.name || "").toLowerCase() === "black")) black.push(o);
+  });
+  return black;
+}
+
+function measureBlackDuCenters(root, w, h) {
+  const black = collectBlackMeshes(root);
+  if (!black.length) return [];
+  const raycaster = new THREE.Raycaster();
+  const hits = [];
+  const step = 2;
+  const y0 = Math.floor(h * 0.66);
+  const y1 = Math.floor(h * 0.72);
+  const x0 = Math.floor(w * 0.29);
+  const x1 = Math.floor(w * 0.71);
+  for (let py = y0; py <= y1; py += step) {
+    for (let px = x0; px <= x1; px += step) {
+      raycaster.setFromCamera(new THREE.Vector2((px / w) * 2 - 1, -((py / h) * 2 - 1)), camera);
+      if (!raycaster.intersectObjects(black, false).length) continue;
+      hits.push({ px, py });
+    }
+  }
+  if (hits.length < 40) return [];
+
+  /* split sorted unique x into 5 groups by cutting at the 4 largest gaps */
+  const col = new Map();
+  hits.forEach((hh) => col.set(hh.px, (col.get(hh.px) || 0) + 1));
+  const xs = [...col.keys()].sort((a, b) => a - b);
+  if (xs.length < 10) return [];
+  const gaps = [];
+  for (let i = 1; i < xs.length; i++) {
+    gaps.push({ i, d: xs[i] - xs[i - 1] });
+  }
+  gaps.sort((a, b) => b.d - a.d);
+  const cuts = gaps
+    .slice(0, 4)
+    .map((g) => g.i)
+    .sort((a, b) => a - b);
+  const ranges = [];
+  let start = 0;
+  cuts.forEach((cut) => {
+    ranges.push(xs.slice(start, cut));
+    start = cut;
+  });
+  ranges.push(xs.slice(start));
+  if (ranges.length !== 5 || ranges.some((r) => r.length < 2)) return [];
+
+  return ranges.map((isle, i) => {
+    const set = new Set(isle);
+    const g = hits.filter((hh) => set.has(hh.px));
+    const minPx = Math.min(...g.map((hh) => hh.px));
+    const maxPx = Math.max(...g.map((hh) => hh.px));
+    const minPy = Math.min(...g.map((hh) => hh.py));
+    const maxPy = Math.max(...g.map((hh) => hh.py));
+    return {
+      projectIndex: i,
+      px: Math.round((minPx + maxPx) / 2),
+      py: Math.round((minPy + maxPy) / 2) + 12,
+      wPx: Math.max(52, maxPx - minPx),
+      hPx: Math.max(56, maxPy - minPy + 18),
+      n: g.length,
+    };
   });
 }
 
 function findBlackDuCenters(w, h) {
-  /* square black DU windows — fill the full bezel */
   const expect = [
-    { fx: 0.318, fy: 0.652 },
-    { fx: 0.383, fy: 0.652 },
-    { fx: 0.501, fy: 0.651 },
-    { fx: 0.612, fy: 0.653 },
-    { fx: 0.677, fy: 0.654 },
+    { fx: 0.339, fy: 0.685 },
+    { fx: 0.406, fy: 0.685 },
+    { fx: 0.5, fy: 0.685 },
+    { fx: 0.589, fy: 0.685 },
+    { fx: 0.656, fy: 0.685 },
   ];
-  const side = Math.floor(Math.min(w, h) * 0.088);
+  const wPx = Math.floor(w * 0.078);
+  const hPx = Math.floor(h * 0.08);
   return expect.map((e, i) => ({
     projectIndex: i,
     px: Math.floor(w * e.fx),
     py: Math.floor(h * e.fy),
-    wPx: side,
-    hPx: side,
+    wPx,
+    hPx,
     n: 100,
   }));
 }
@@ -924,37 +979,52 @@ function placeMfdOnBlackDus(root) {
   const h = renderer.domElement.height;
   if (!w || !h) return false;
 
-  const prevPop = new Map();
-  (state._mfdScreens || []).forEach((s) => prevPop.set(s.projectIndex, s.pop || 0));
-
-  if (state._mfdGroup) state._mfdGroup.visible = false;
+  const prev = (state._mfdScreens || []).slice();
+  prev.forEach((s) => {
+    if (s.mesh) s.mesh.visible = false;
+  });
   renderer.render(scene, camera);
-  const centers = findBlackDuCenters(w, h);
-  if (state._mfdGroup) state._mfdGroup.visible = true;
-  if (centers.length < 5) return false;
+
+  let centers = measureBlackDuCenters(root, w, h);
+  if (centers.length < 5) centers = findBlackDuCenters(w, h);
   centers.length = 5;
 
-  const meshes = [];
-  root.traverse((o) => {
-    if (o.isMesh && o.visible) meshes.push(o);
-  });
+  const black = collectBlackMeshes(root);
+  if (!black.length) {
+    prev.forEach((s) => {
+      if (s.mesh) s.mesh.visible = true;
+    });
+    return false;
+  }
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const camPos = camera.getWorldPosition(new THREE.Vector3());
   const toward = new THREE.Vector3();
-  const eye = new THREE.Euler();
 
-  (state._mfdScreens || []).forEach((s) => {
-    [s.decal, s.mesh].forEach((m) => {
-      if (!m) return;
-      if (m.parent) m.parent.remove(m);
-      if (m.geometry) m.geometry.dispose();
-      if (m.material) {
-        if (m.material.map) m.material.map.dispose();
-        m.material.dispose();
-      }
+  const sized = [];
+  centers.forEach((c) => {
+    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObjects(black, false)[0];
+    if (!hit || !hit.face) return;
+    sized.push({ c, hit });
+  });
+  if (sized.length < 5) {
+    prev.forEach((s) => {
+      if (s.mesh) s.mesh.visible = true;
     });
+    return false;
+  }
+
+  prev.forEach((s) => {
+    if (!s.mesh) return;
+    if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
+    if (s.mesh.geometry) s.mesh.geometry.dispose();
+    if (s.mesh.material) {
+      if (s.mesh.material.map) s.mesh.material.map.dispose();
+      s.mesh.material.dispose();
+    }
   });
   if (state._mfdGroup) cockpit.remove(state._mfdGroup);
 
@@ -962,82 +1032,68 @@ function placeMfdOnBlackDus(root) {
   group.name = "mfdPanelScreens";
   state._mfdScreens = [];
 
-  centers.forEach((c) => {
-    ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
-    raycaster.setFromCamera(ndc, camera);
-    const hits = raycaster.intersectObjects(meshes, false);
-    const hit =
-      hits.find((hh) => {
-        const mats = Array.isArray(hh.object.material) ? hh.object.material : [hh.object.material];
-        return mats.some((m) => String(m?.name || "").toLowerCase().includes("black"));
-      }) || hits[0];
-    if (!hit || !hit.face) return;
-
+  sized.forEach(({ c, hit }) => {
     toward.subVectors(camPos, hit.point).normalize();
     const dist = hit.distance;
     const worldH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
     const aspect = w / h;
-    const duSide = worldH * Math.min(aspect * (c.wPx / w), c.hPx / h) * 1.35;
-    const duW = duSide;
-    const duH = duSide;
-    /* thin projection volume — thick decals look like mid-air slabs */
-    const duD = 0.022;
+    const duW = Math.min(0.195, worldH * aspect * (c.wPx / w) * 1.22);
+    const duH = Math.min(0.175, worldH * (c.hPx / h) * 1.45);
 
-    const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
-    if (n.dot(toward) < 0) n.negate();
-    /* panel-aligned orientation (pitch with MIP), yaw from face normal */
-    const yaw = Math.atan2(n.x, n.z);
-    eye.set(-0.34, yaw, 0);
+    const parent = hit.object;
+    const local = hit.point.clone();
+    parent.worldToLocal(local);
+    let nLocal = hit.face.normal.clone().normalize();
+    const nWorld = nLocal.clone().transformDirection(parent.matrixWorld).normalize();
+    if (nWorld.dot(toward) < 0) nLocal = nLocal.negate();
+    local.addScaledVector(nLocal, 0.0003);
 
-    const tex = makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false);
-    const decalMat = new THREE.MeshBasicMaterial({
-      map: tex,
-      transparent: true,
-      depthTest: true,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -4,
-      polygonOffsetUnits: -4,
-      toneMapped: false,
-    });
-    let decal = null;
-    try {
-      const geo = new DecalGeometry(hit.object, hit.point.clone(), eye, new THREE.Vector3(duW, duH, duD));
-      decal = new THREE.Mesh(geo, decalMat);
-      decal.renderOrder = 2;
-      decal.userData.mfd = true;
-      scene.add(decal);
-    } catch (err) {
-      console.warn("[mfd-decal]", err);
-    }
+    const pw = new THREE.Vector3();
+    parent.getWorldScale(pw);
+    const sx = Math.max(1e-4, Math.abs(pw.x));
+    const sy = Math.max(1e-4, Math.abs(pw.y));
+    /* keep nearly uniform — tiny axis scale blows a plane into the cabin */
+    const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
+    const gw = duW / s;
+    const gh = duH / s;
 
-    const popMat = new THREE.MeshBasicMaterial({
-      map: tex,
+    const mat = new THREE.MeshBasicMaterial({
+      map: makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false),
+      color: 0xffffff,
       toneMapped: false,
       depthTest: false,
       depthWrite: false,
       transparent: true,
     });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(duW, duH), popMat);
-    mesh.visible = false;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
+    mesh.position.copy(local);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
+    mesh.renderOrder = 5;
     mesh.userData.mfd = true;
-    mesh.renderOrder = 6;
-    group.add(mesh);
+    mesh.visible = true;
+    parent.add(mesh);
 
     state._mfdScreens.push({
       mesh,
-      decal,
       projectIndex: c.projectIndex,
       liveIndex: c.projectIndex,
-      basePos: hit.point.clone().addScaledVector(toward, 0.004),
-      popDir: toward.clone(),
-      pop: prevPop.get(c.projectIndex) || 0,
-      detect: { px: Math.round(c.px), py: Math.round(c.py), parent: hit.object.name },
+      basePos: local.clone(),
+      popDir: nLocal.clone(),
+      pop: 0,
+      detect: {
+        px: Math.round(c.px),
+        py: Math.round(c.py),
+        parent: parent.name,
+        side: +duW.toFixed(3),
+        h: +duH.toFixed(3),
+        n: c.n,
+      },
     });
   });
 
   cockpit.add(group);
   state._mfdGroup = group;
+  if (typeof applyProject === "function") applyProject(-1, { maneuver: false });
   paintMfdScreens();
   tickMfdPop();
   console.info("[mfd-panel] " + JSON.stringify(state._mfdScreens.map((s) => s.detect)));
@@ -1063,10 +1119,10 @@ function installMfdScreens(root) {
     if (typeof frameSideScreens === "function") frameSideScreens("center");
     cameraRig.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
-    if (placeMfdOnBlackDus(root) || tries >= 14) return;
+    if (placeMfdOnBlackDus(root) || tries >= 8) return;
     requestAnimationFrame(refine);
   };
-  setTimeout(() => requestAnimationFrame(refine), 700);
+  setTimeout(() => requestAnimationFrame(refine), 1000);
 }
 
 
@@ -1126,6 +1182,11 @@ function prepareCockpitMaterials(root) {
         if (m.map) m.map = null;
         m.color?.set?.(0xffe8d0);
         m.emissive?.set?.(0x000000);
+      } else if (n === "black") {
+        /* LCD glass stays for depth/ray hits; project planes paint the pixels */
+        m.polygonOffset = true;
+        m.polygonOffsetFactor = 2;
+        m.polygonOffsetUnits = 2;
       } else if (m.transparent && m.opacity < 0.2) {
         m.depthWrite = false;
       } else {
@@ -1388,7 +1449,7 @@ window.addEventListener("keyup", (e) => {
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
 function tryOpenMfdAt(clientX, clientY) {
-  const targets = (state._mfdScreens || []).flatMap((s) => [s.decal, s.mesh].filter(Boolean));
+  const targets = (state._mfdScreens || []).map((s) => s.mesh).filter(Boolean);
   if (!targets.length) return false;
   const rect = renderer.domElement.getBoundingClientRect();
   pointerNdc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -1396,9 +1457,7 @@ function tryOpenMfdAt(clientX, clientY) {
   raycaster.setFromCamera(pointerNdc, camera);
   const hits = raycaster.intersectObjects(targets, false);
   if (!hits.length) return false;
-  const slot = state._mfdScreens.find(
-    (s) => s.mesh === hits[0].object || s.decal === hits[0].object
-  );
+  const slot = state._mfdScreens.find((s) => s.mesh === hits[0].object);
   if (!slot) return false;
   applyProject(slot.liveIndex ?? 0);
   return true;
