@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=mfdltrmt38gjgi";
+import { createCesiumWorld } from "./cesium-world.js?v=fovlookmt38miie";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=mfdltrmt38gjgi";
+} from "./gmp-usn-route.js?v=fovlookmt38miie";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -649,7 +649,22 @@ function mfdLookBias() {
   return (isMobile() ? 0.02 : 0.04) - state.zoom * 0.04;
 }
 
+function applyViewportFov() {
+  const aspect = Math.max(0.35, renderer.domElement.width / Math.max(1, renderer.domElement.height));
+  let baseFov = 68;
+  if (isMobile()) {
+    const targetHFov = 78;
+    baseFov = THREE.MathUtils.radToDeg(
+      2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(targetHFov * 0.5)) / aspect)
+    );
+    baseFov = THREE.MathUtils.clamp(baseFov, 78, 108);
+  }
+  camera.fov = baseFov - state.zoom * 4 + Math.abs(state.yaw) * 1.5;
+  camera.updateProjectionMatrix();
+}
+
 function syncMfdCamera() {
+  applyViewportFov();
   const lookBias = mfdLookBias();
   const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
   const dolly = (state.zoom - 0.28) * (isMobile() ? 0.38 : 0.45);
@@ -1300,6 +1315,12 @@ function placeMfdOnBlackDus(root, opts = {}) {
         px: state._mfdScreens.map((s) => s.detect.px),
         sizes: state._mfdScreens.map((s) => ({ w: s.detect.wPx, h: s.detect.hPx })),
         vw: window.innerWidth,
+        fov: +camera.fov.toFixed(1),
+        aspect: +(renderer.domElement.width / Math.max(1, renderer.domElement.height)).toFixed(3),
+        edgeFx: {
+          L: +(state._mfdScreens[0].detect.px / renderer.domElement.width).toFixed(3),
+          R: +(state._mfdScreens[4].detect.px / renderer.domElement.width).toFixed(3),
+        },
       },
       timestamp: Date.now(),
     }),
@@ -1332,9 +1353,35 @@ function installMfdScreens(root) {
     cameraRig.updateMatrixWorld(true);
     camera.updateMatrixWorld(true);
     root.updateMatrixWorld(true);
-    const ok = placeMfdOnBlackDus(root, { force: true });
+    if (isMobile() && tries === 1) frameSideScreens("center");
+    const ok = placeMfdOnBlackDus(root, { force: true, remeasure: true });
     if (ok) {
-      console.info("[mfd-panel] seat ok tries=" + tries);
+      console.info("[mfd-panel] seat ok tries=" + tries + " fov=" + camera.fov.toFixed(1));
+      // #region agent log
+      fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+        body: JSON.stringify({
+          sessionId: "88eb62",
+          runId: "fov-fit",
+          hypothesisId: "FOV",
+          location: "flight.js:installMfd",
+          message: "seat_framed",
+          data: {
+            fov: +camera.fov.toFixed(1),
+            zoom: +state.zoom.toFixed(3),
+            pitch: +state.pitch.toFixed(3),
+            edgeFx: state._mfdScreens?.length
+              ? {
+                  L: +(state._mfdScreens[0].detect.px / renderer.domElement.width).toFixed(3),
+                  R: +(state._mfdScreens[4].detect.px / renderer.domElement.width).toFixed(3),
+                }
+              : null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       return;
     }
     if (tries < maxTries) setTimeout(attempt, 200);
@@ -1450,8 +1497,14 @@ function fitCockpitView(root) {
   state._camBase = {
     x: center.x,
     y: box.min.y + Math.min(Math.max(size.y * 0.52, 1.05), 1.45),
-    z: center.z + size.z * 0.12,
+    z: center.z + size.z * (isMobile() ? 0.2 : 0.12),
   };
+  if (isMobile()) {
+    state.tZoom = 0.02;
+    state.zoom = 0.02;
+    state.tPitch = 0.08;
+    state.pitch = 0.08;
+  }
   state._cockpitReady = true;
   console.info("[cockpit]", {
     size: size.toArray().map((v) => +v.toFixed(2)),
@@ -1810,16 +1863,16 @@ canvasEl.addEventListener("pointermove", (e) => {
     const pitchDeg = state._cesium.state.userPitchOffset || 0;
     const yawMax = 0.32;
     const pitchMin = -0.28;
-    const pitchMax = 0.42;
+    const pitchMax = isMobile() ? 0.78 : 0.5;
     state.yaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -yawMax, yawMax);
     state.pitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, pitchMin, pitchMax);
     state.tYaw = state.yaw;
     state.tPitch = state.pitch;
   } else {
-    const sens = isMobile() ? 0.0042 : 0.0032;
+    const sens = isMobile() ? 0.0048 : 0.0032;
     const yawMax = THREE.MathUtils.clamp(0.4 - state.zoom * 0.1, 0.24, 0.4);
     const pitchMin = -0.28;
-    const pitchMax = 0.42;
+    const pitchMax = isMobile() ? 0.78 : 0.5;
     state.yaw = THREE.MathUtils.clamp(state.yaw + dx * sens, -yawMax, yawMax);
     state.pitch = THREE.MathUtils.clamp(state.pitch + dy * sens, pitchMin, pitchMax);
     state.tYaw = state.yaw;
@@ -1872,9 +1925,15 @@ const LOOK_PRESETS = {
   center: { yaw: 0, pitch: -0.02, zoom: 0.28, side: 0, lift: 0 },
   right: { yaw: -0.26, pitch: -0.06, zoom: 0.58, side: 0.1, lift: 0.02 },
 };
+const LOOK_PRESETS_MOBILE = {
+  left: { yaw: 0.2, pitch: 0.1, zoom: 0.06, side: -0.06, lift: 0.01 },
+  center: { yaw: 0, pitch: 0.08, zoom: 0.02, side: 0, lift: 0 },
+  right: { yaw: -0.2, pitch: 0.1, zoom: 0.06, side: 0.06, lift: 0.01 },
+};
 
 function frameSideScreens(side) {
-  const p = LOOK_PRESETS[side] || LOOK_PRESETS.center;
+  const table = isMobile() ? LOOK_PRESETS_MOBILE : LOOK_PRESETS;
+  const p = table[side] || table.center;
   state._cesium?.resetLook?.();
   state.lookSnap = side;
   state.tYaw = p.yaw;
@@ -2061,7 +2120,7 @@ function animate(now) {
     const yawDeg = state._cesium.state.userYawOffset || 0;
     const pitchDeg = state._cesium.state.userPitchOffset || 0;
     state.tYaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -0.32, 0.32);
-    state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, -0.28, 0.42);
+    state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, -0.28, isMobile() ? 0.78 : 0.5);
     state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3);
   }
   if (k.left || k.right || k.up || k.down) {
@@ -2100,9 +2159,7 @@ function animate(now) {
     base.y + vy * 2 - state.zoom * 0.03 + state.snapLift,
     base.z - dolly
   );
-  const baseFov = isMobile() ? 66 : 68;
-  camera.fov = baseFov - state.zoom * 5 + Math.abs(state.yaw) * 2;
-  camera.updateProjectionMatrix();
+  applyViewportFov();
 
 
   if (state._skyDome) {
