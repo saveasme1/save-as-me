@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { createCesiumWorld } from "./cesium-world.js";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -419,20 +420,22 @@ const mount = document.getElementById("webgl");
 const renderer = new THREE.WebGLRenderer({
   antialias: !isMobile(),
   powerPreference: "high-performance",
-  alpha: false,
+  alpha: true,
   preserveDrawingBuffer: true,
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile() ? 1.15 : 1.35));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setClearColor(0x87b8e8, 1);
+renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.72;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = false;
 mount.appendChild(renderer.domElement);
-mount.style.background = "#7eb6e8";
+mount.style.background = "transparent";
 
 const scene = new THREE.Scene();
+scene.background = null;
+scene.fog = null;
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 40000);
 camera.position.set(0, 1.15, 1.35);
 
@@ -466,10 +469,10 @@ const rim = new THREE.PointLight(0xfff0d8, 0.55, 6);
 rim.position.set(0, 1.8, -0.9);
 scene.add(rim);
 
-/* Procedural Sky + photoreal blue dome + moving clouds (2nd sky era) */
+/* Fake exterior disabled — Cesium geographic world is the only exterior */
 const sky = new Sky();
 sky.scale.setScalar(45000);
-sky.visible = true;
+sky.visible = false;
 scene.add(sky);
 const skyU = sky.material.uniforms;
 skyU.turbidity.value = 1.8;
@@ -498,305 +501,46 @@ const skyDome = new THREE.Mesh(
     toneMapped: false,
   })
 );
+skyDome.visible = false;
 scene.add(skyDome);
 state._skyDome = skyDome;
+/* photoreal sky textures intentionally not applied (Cesium atmosphere) */
 
-loader.load("assets/sky/puresky-2k.jpg", (tex) => {
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.mapping = THREE.EquirectangularReflectionMapping;
-  skyDome.material.map = tex;
-  skyDome.material.color.set(0xffffff);
-  skyDome.material.needsUpdate = true;
-  scene.background = tex;
-});
-
-new RGBELoader().load("assets/sky/khronos-env.hdr", (hdr) => {
-  hdr.mapping = THREE.EquirectangularReflectionMapping;
-  scene.environment = hdr;
-});
-
-/* Photo cloud layers (parallax) */
+/* Photo cloud layers — disabled (Cesium exterior only) */
 const cloudLayers = [];
-function addPhotoCloud(url, w, h, z, opacity) {
-  loader.load(url, (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.wrapS = THREE.RepeatWrapping;
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
-      new THREE.MeshBasicMaterial({
-        map: tex,
-        transparent: true,
-        opacity,
-        depthWrite: false,
-        toneMapped: false,
-      })
-    );
-    m.position.set(0, h * 0.08, z);
-    scene.add(m);
-    cloudLayers.push({ mesh: m, baseZ: z, speed: 6 + Math.random() * 10, opacity });
-  });
-}
-addPhotoCloud("assets/sky/clouds-front.jpg", 220, 48, -90, 0.22);
-if (!isMobile()) addPhotoCloud("assets/sky/clouds-drama.jpg", 280, 70, -130, 0.18);
-if (!isMobile()) addPhotoCloud("assets/sky/sky-clouds.jpg", 360, 90, -200, 0.14);
-/* side wings of cloud so side windows match the forward world — keep far from cockpit */
-if (!isMobile()) {
-  loader.load("assets/sky/clouds-front.jpg", (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.wrapS = THREE.RepeatWrapping;
-    [-1, 1].forEach((side) => {
-      const m = new THREE.Mesh(
-        new THREE.PlaneGeometry(160, 50),
-        new THREE.MeshBasicMaterial({
-          map: tex.clone(),
-          transparent: true,
-          opacity: 0.22,
-          depthWrite: false,
-          toneMapped: false,
-          side: THREE.DoubleSide,
-          depthTest: true,
-        })
-      );
-      m.position.set(side * 90, 30, -80);
-      m.rotation.y = side * -0.55;
-      scene.add(m);
-      cloudLayers.push({ mesh: m, baseZ: -80, speed: 5, opacity: 0.22 });
-    });
-  });
-}
-
-const softCloud = canvasTex((ctx, w, h) => {
-  ctx.clearRect(0, 0, w, h);
-  [
-    [0.32, 0.55, 0.3],
-    [0.52, 0.48, 0.26],
-    [0.68, 0.58, 0.22],
-    [0.45, 0.64, 0.2],
-  ].forEach(([x, y, r]) => {
-    const g = ctx.createRadialGradient(w * x, h * y, 0, w * x, h * y, w * r);
-    g.addColorStop(0, "rgba(255,255,255,0.95)");
-    g.addColorStop(0.45, "rgba(255,255,255,0.4)");
-    g.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(w * x, h * y, w * r, 0, Math.PI * 2);
-    ctx.fill();
-  });
-}, 256, 128);
-
+function addPhotoCloud() {}
 const cloudGroup = new THREE.Group();
+cloudGroup.visible = false;
 scene.add(cloudGroup);
 const clouds = [];
-/* soft cloud sprites were projecting as white slabs into the windshield — disabled */
-const nCloud = 0;
-for (let i = 0; i < nCloud; i++) {
-  const mat = new THREE.SpriteMaterial({ map: softCloud, transparent: true, depthWrite: false, opacity: 0.35 });
-  const s = new THREE.Sprite(mat);
-  const sc = 40 + Math.random() * 90;
-  s.scale.set(sc, sc * 0.38, 1);
-  s.position.set((Math.random() - 0.5) * 1800, 90 + Math.random() * 140, -500 - Math.random() * 1600);
-  cloudGroup.add(s);
-  clouds.push(s);
-}
 
-/* ========== GMP → USN real corridor (not random) ========== */
-const ROUTE = {
-  /* explicit airway-ish samples: Gimpo → Seoul basin → inland → Daegu → Ulsan coast */
-  waypoints: [
-    { name: "GMP", lat: 37.5583, lon: 126.7906 },
-    { name: "SEL", lat: 37.46, lon: 127.02 },
-    { name: "ICN-E", lat: 37.2, lon: 127.35 },
-    { name: "CJJ", lat: 36.72, lon: 127.5 },
-    { name: "TAE", lat: 35.9, lon: 128.55 },
-    { name: "USN", lat: 35.5935, lon: 129.3519 },
-  ],
-  zoom: 9,
-  samples: isMobile() ? 10 : 14,
-  cols: isMobile() ? 3 : 5,
-};
-
-function lonLatToTile(lon, lat, z) {
-  const n = 2 ** z;
-  const x = ((lon + 180) / 360) * n;
-  const latRad = (lat * Math.PI) / 180;
-  const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n;
-  return { x, y, n };
-}
-
-function lerpRoute(t) {
-  const pts = ROUTE.waypoints;
-  const clamped = THREE.MathUtils.clamp(t, 0, 0.9999);
-  const f = clamped * (pts.length - 1);
-  const i = Math.floor(f);
-  const u = f - i;
-  const a = pts[i];
-  const b = pts[Math.min(i + 1, pts.length - 1)];
-  return {
-    lat: a.lat + (b.lat - a.lat) * u,
-    lon: a.lon + (b.lon - a.lon) * u,
-    name: u < 0.5 ? a.name : b.name,
-  };
-}
-
-function loadTileImage(z, x, y) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    const done = (v) => {
-      clearTimeout(timer);
-      resolve(v);
-    };
-    const timer = setTimeout(() => done(null), 4500);
-    img.onload = () => done(img);
-    img.onerror = () => done(null);
-    img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
-  });
-}
-
-function gradeAerialCanvas(ctx, w, h) {
-  /* wash to distant blue-gray — kill near forest greens */
-  ctx.fillStyle = "rgba(90,120,155,0.72)";
-  ctx.fillRect(0, 0, w, h);
-  const haze = ctx.createLinearGradient(0, 0, 0, h);
-  haze.addColorStop(0, "rgba(170,205,235,0.7)");
-  haze.addColorStop(0.5, "rgba(130,165,200,0.45)");
-  haze.addColorStop(1, "rgba(80,105,130,0.55)");
-  ctx.fillStyle = haze;
-  ctx.fillRect(0, 0, w, h);
-}
-
+/* Old OSM strip terrain removed — Cesium World Terrain is the exterior */
 const terrainGroup = new THREE.Group();
-/* cruise high — ground is a thin distant band, not a forest wall */
-terrainGroup.position.set(0, -85, 0);
+terrainGroup.visible = false;
 scene.add(terrainGroup);
 state._terrain = null;
-state._routeReady = false;
+state.altLift = 85;
+
+state._routeReady = true;
 state.flightHeading = 0;
 state.altLift = 85;
 state.keys = { left: false, right: false, up: false, down: false };
-
-/* distant muted earth disk only — no near trees */
-(function addWorldGround() {
-  const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 256;
-  const g = c.getContext("2d");
-  const rad = g.createRadialGradient(128, 128, 20, 128, 128, 128);
-  rad.addColorStop(0, "#4a5a62");
-  rad.addColorStop(0.5, "#3a4a55");
-  rad.addColorStop(1, "#2a3a4a");
-  g.fillStyle = rad;
-  g.fillRect(0, 0, 256, 256);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(4, 4);
-  const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(2400, 64),
-    new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: true })
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -8;
-  terrainGroup.add(ground);
-  state._groundTex = tex;
-})();
-
-scene.fog = new THREE.FogExp2(0x8eb8e0, 0.00022);
-
-async function buildGmpUsnTerrain() {
-  const z = ROUTE.zoom;
-  const tileSize = 256;
-  const cols = ROUTE.cols;
-  const half = Math.floor(cols / 2);
-  const rows = ROUTE.samples;
-  const canvas = document.createElement("canvas");
-  canvas.width = tileSize * cols;
-  canvas.height = tileSize * rows;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#6a8498";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const jobs = [];
-  for (let i = 0; i < rows; i++) {
-    const t = i / Math.max(1, rows - 1);
-    const { lat, lon } = lerpRoute(t);
-    const tile = lonLatToTile(lon, lat, z);
-    const cx = Math.floor(tile.x);
-    const cy = Math.floor(tile.y);
-    jobs.push(
-      Promise.all(
-        Array.from({ length: cols }, (_, ci) => loadTileImage(z, cx + (ci - half), cy))
-      ).then((imgs) => {
-        imgs.forEach((img, ci) => {
-          if (!img) return;
-          ctx.drawImage(img, ci * tileSize, i * tileSize, tileSize, tileSize);
-        });
-      })
-    );
-  }
-  await Promise.all(jobs);
-  gradeAerialCanvas(ctx, canvas.width, canvas.height);
-
-  ctx.fillStyle = "rgba(255,230,120,0.95)";
-  ctx.font = "bold 24px sans-serif";
-  ctx.fillText("GMP · SEOUL GIMPO", 16, 32);
-  ctx.fillText("USN · ULSAN", 16, canvas.height - 18);
-  ctx.font = "16px monospace";
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.fillText("ROUTE GMP→SEL→CJJ→TAE→USN", 16, 56);
-  ctx.strokeStyle = "rgba(255, 220, 90, 0.55)";
-  ctx.lineWidth = 3;
-  ctx.setLineDash([10, 8]);
-  ctx.beginPath();
-  ctx.moveTo(canvas.width * 0.5, 10);
-  ctx.lineTo(canvas.width * 0.5, canvas.height - 10);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = THREE.ClampToEdgeWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
-
-  const mat = new THREE.MeshBasicMaterial({
-    map: tex,
-    toneMapped: false,
-    fog: false,
-  });
-  /* far below horizon only — never fills the windscreen with trees */
-  const strip = new THREE.Mesh(new THREE.PlaneGeometry(900, 500, 1, rows), mat);
-  strip.rotation.x = -Math.PI / 2.15;
-  strip.position.set(0, -35, -220);
-  strip.scale.set(1, 1, 1);
-  terrainGroup.add(strip);
-
-  state._terrain = { strip, tex, mat };
-  state._routeReady = true;
-  const label = document.getElementById("routeLabel");
-  if (label) label.textContent = "GMP → USN · REAL ROUTE";
-}
-
-buildGmpUsnTerrain().catch((err) => console.warn("terrain", err));
+state._cesium = null;
+state._tabVisible = true;
 
 const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(12000, 96),
-  new THREE.MeshStandardMaterial({ color: 0x7f9a6a, roughness: 1, metalness: 0, envMapIntensity: 0.2 })
+  new THREE.CircleGeometry(2, 8),
+  new THREE.MeshBasicMaterial({ visible: false })
 );
-ground.rotation.x = -Math.PI / 2;
-ground.position.y = -180;
 ground.visible = false;
 scene.add(ground);
 
 const cityGroup = new THREE.Group();
 cityGroup.visible = false;
 scene.add(cityGroup);
-const cityMat = new THREE.MeshStandardMaterial({ color: 0xffd090, emissive: 0xffaa55, emissiveIntensity: 0.45 });
-for (let i = 0; i < (isMobile() ? 20 : 50); i++) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2 + Math.random() * 10, 2.2), cityMat);
-  m.position.set((Math.random() - 0.5) * 800, -115 + Math.random() * 8, -280 - Math.random() * 1400);
-  cityGroup.add(m);
-}
+
+const label = document.getElementById("routeLabel");
+if (label) label.textContent = "GMP → USN · CESIUM AIRWAY";
 
 
 function makeProjectPreview(project, index, highlight = false) {
@@ -1273,12 +1017,7 @@ function tickEnv() {
   state._sunEl += (e.elevation - state._sunEl) * k;
   state._sunAz += (e.azimuth - state._sunAz) * k;
   setSun(state._sunEl, state._sunAz);
-  ground.material.color.lerp(new THREE.Color(e.ground), k);
-  /* night: dim cloud layers */
   const night = Math.max(0, 1 - e.elevation / 40);
-  for (const layer of cloudLayers) {
-    layer.mesh.material.opacity += (layer.opacity * (1 - night * 0.75) - layer.mesh.material.opacity) * k;
-  }
   hemi.intensity += ((0.95 - night * 0.55) - hemi.intensity) * k;
   sun.intensity += ((2.4 - night * 1.6) - sun.intensity) * k;
 }
@@ -1349,6 +1088,17 @@ function applyProject(index, { maneuver = true } = {}) {
 }
 
 function updateGauges() {
+  const fs = state._cesium?.state;
+  if (fs) {
+    const altFt = Math.round(fs.altitudeAMSL * 3.28084);
+    const spd = Math.round(
+      fs.phase === "cruise" ? 420 : fs.phase === "approach" || fs.phase === "departure" ? 180 : 320
+    );
+    el.gAlt.textContent = altFt.toLocaleString("en-US");
+    el.gSpd.textContent = String(spd);
+    el.gHdg.textContent = `${String(Math.round(fs.heading)).padStart(3, "0")}°`;
+    return;
+  }
   const p = state.project >= 0 ? PROJECTS[state.project] : PROJECTS[0];
   const alt = 22000 + state.altLift * 220 + state.speed * 40 + Math.sin(state.vibe) * 12;
   const spd = 240 + state.speed * 90 + state.velocity * 35;
@@ -1556,7 +1306,7 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "←→ 살짝 선회 · ↑ 상승 · ↓ 하강(한계) · LCD 탭 · 드래그 시선";
+hint.textContent = "←→↑↓ 잠깐 시선 오프셋(항로 불변) · LCD 탭 · 드래그 시선";
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
 setTimeout(() => hint.classList.remove("is-on"), 4500);
@@ -1594,41 +1344,47 @@ function animate(now) {
     state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
-  /* arrow keys: mild bank/turn, climb/descend with floors */
+  /* arrow keys: Cesium owns geographic route — keys only nudge offsets in cesium-world */
   const k = state.keys || {};
-  const turnRate = 0.16;
-  const pitchRate = 0.55;
-  const rollMax = 0.16;
-  const headingMax = 0.38;
-  if (k.left) {
-    state.tRoll = Math.min(rollMax, state.tRoll + dt * 0.7);
-    state.flightHeading = THREE.MathUtils.clamp(
-      state.flightHeading + dt * turnRate,
-      -headingMax,
-      headingMax
-    );
-    state.tYaw = THREE.MathUtils.clamp(state.tYaw + dt * 0.12, -0.22, 0.22);
-  } else if (k.right) {
-    state.tRoll = Math.max(-rollMax, state.tRoll - dt * 0.7);
-    state.flightHeading = THREE.MathUtils.clamp(
-      state.flightHeading - dt * turnRate,
-      -headingMax,
-      headingMax
-    );
-    state.tYaw = THREE.MathUtils.clamp(state.tYaw - dt * 0.12, -0.22, 0.22);
+  if (!state._cesium) {
+    const turnRate = 0.16;
+    const pitchRate = 0.55;
+    const rollMax = 0.16;
+    const headingMax = 0.38;
+    if (k.left) {
+      state.tRoll = Math.min(rollMax, state.tRoll + dt * 0.7);
+      state.flightHeading = THREE.MathUtils.clamp(
+        state.flightHeading + dt * turnRate,
+        -headingMax,
+        headingMax
+      );
+      state.tYaw = THREE.MathUtils.clamp(state.tYaw + dt * 0.12, -0.22, 0.22);
+    } else if (k.right) {
+      state.tRoll = Math.max(-rollMax, state.tRoll - dt * 0.7);
+      state.flightHeading = THREE.MathUtils.clamp(
+        state.flightHeading - dt * turnRate,
+        -headingMax,
+        headingMax
+      );
+      state.tYaw = THREE.MathUtils.clamp(state.tYaw - dt * 0.12, -0.22, 0.22);
+    } else if (!state.dragging) {
+      state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3.5);
+    }
+    if (k.up) {
+      state.altLift = Math.min(140, state.altLift + dt * 38);
+      state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate, -0.2, 0.12);
+    } else if (k.down) {
+      state.altLift = Math.max(55, state.altLift - dt * 28);
+      state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate, -0.2, 0.12);
+    } else if (!state.dragging && Math.abs(state.tPitch) > 0.015) {
+      state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
+    }
   } else if (!state.dragging) {
-    state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3.5);
-  }
-  /* ↑ climb (nose UP) / ↓ descend (nose DOWN) — Three.js +X pitch looks down, so invert */
-  if (k.up) {
-    state.altLift = Math.min(140, state.altLift + dt * 38);
-    state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate, -0.2, 0.12);
-  } else if (k.down) {
-    /* floor: stay above the terrain band */
-    state.altLift = Math.max(55, state.altLift - dt * 28);
-    state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate, -0.2, 0.12);
-  } else if (!state.dragging && Math.abs(state.tPitch) > 0.015) {
-    state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
+    const yawOff = state._cesium.state.userYawOffset || 0;
+    state.tRoll += ((-yawOff / 8) * 0.1 - state.tRoll) * Math.min(1, dt * 3);
+    if (Math.abs(state.tPitch) > 0.015) {
+      state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
+    }
   }
   if (k.left || k.right || k.up || k.down) {
     state.tSpeed = Math.max(state.tSpeed, 1.15);
@@ -1672,42 +1428,11 @@ function animate(now) {
 
 
   if (state._skyDome) {
-    /* forward flight: sky scrolls opposite heading (not reverse) */
-    state._skyDome.rotation.y = -state.flightHeading * 0.35 - state.flightT * Math.PI * 2 * 0.04;
+    state._skyDome.visible = false;
   }
 
-  /* compressed GMP→USN — scroll so ground moves aft (forward flight) */
-  state.flightT = (state.flightT + dt * (0.09 + state.speed * 0.12)) % 1;
-  if (state._terrain?.tex) {
-    state._terrain.tex.offset.y = state.flightT;
-  }
-  if (state._groundTex) {
-    state._groundTex.offset.y = (state._groundTex.offset.y + dt * (0.08 + state.speed * 0.1)) % 1;
-    state._groundTex.offset.x = -state.flightHeading * 0.15;
-  }
-  /* world turns with banked heading — side windows see same ground */
-  terrainGroup.rotation.y = -state.flightHeading;
-  terrainGroup.rotation.z = -state.roll * 0.25;
-  terrainGroup.position.x = 0;
-  terrainGroup.position.y = -state.altLift;
-
-  for (const layer of cloudLayers) {
-    layer.mesh.position.x = Math.sin(-state.flightHeading) * (-8 - layer.speed * 0.6);
-    layer.mesh.position.y = layer.mesh.geometry.parameters.height * 0.08 + state.pitch * 3;
-    if (layer.mesh.material.map) {
-      /* clouds drift aft / sideways with turn — not toward the nose */
-      layer.mesh.material.map.offset.x -= dt * (0.018 + state.speed * 0.025);
-    }
-  }
-
-  for (const s of clouds) {
-    /* move toward +Z past the ship (from ahead → aft = forward flight) */
-    s.position.z += dt * (40 + state.speed * 70);
-    s.position.x += (-state.flightHeading * 40 + state.yaw * 8) * dt;
-    if (s.position.z > 90) {
-      s.position.z = -1200 - Math.random() * 400;
-      s.position.x = (Math.random() - 0.5) * 1800;
-    }
+  if (state._cesium) {
+    state._cesium.tick(dt, state.keys, state._tabVisible);
   }
 
   tickEnv();
@@ -1716,6 +1441,19 @@ function animate(now) {
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
+
+document.addEventListener("visibilitychange", () => {
+  state._tabVisible = document.visibilityState === "visible";
+});
+
+createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug") })
+  .then((world) => {
+    state._cesium = world;
+    console.info(
+      `[cesium] ready routeKm=${world.path.totalDistM / 1000} duration=${world.FLIGHT_DURATION_SEC}s`
+    );
+  })
+  .catch((err) => console.error("[cesium] init failed", err));
 
 applyProject(-1, { maneuver: false });
 requestAnimationFrame(animate);

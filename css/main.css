@@ -31,11 +31,52 @@ button { background: none; border: 0; cursor: pointer; }
 a { text-decoration: none; }
 img { max-width: 100%; display: block; }
 
-#webgl {
+#cesiumContainer {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: #7eb6e8;
+  pointer-events: none;
+}
+#cesiumContainer .cesium-viewer,
+#cesiumContainer .cesium-viewer-cesiumWidgetContainer,
+#cesiumContainer .cesium-widget,
+#cesiumContainer canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+#cesiumContainer .cesium-viewer-bottom,
+#cesiumContainer .cesium-viewer-toolbar,
+#cesiumContainer .cesium-viewer-animationContainer,
+#cesiumContainer .cesium-viewer-timelineContainer,
+#cesiumContainer .cesium-viewer-fullscreenContainer {
+  display: none !important;
+}
+.cesium-credit-host {
+  position: fixed;
+  left: 8px;
+  bottom: 28px;
+  z-index: 25;
+  pointer-events: auto;
+  max-width: 46vw;
+  opacity: 0.75;
+  transform: scale(0.85);
+  transform-origin: left bottom;
+}
+/* keep legal credits; hide non-credit chrome only */
+#cesiumContainer .cesium-viewer-toolbar,
+#cesiumContainer .cesium-viewer-animationContainer,
+#cesiumContainer .cesium-viewer-timelineContainer,
+#cesiumContainer .cesium-viewer-fullscreenContainer,
+#cesiumContainer .cesium-viewer-vrContainer,
+#cesiumContainer .cesium-performanceDisplay-defaultContainer {
+  display: none !important;
+}
+#webgl {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: transparent;
+  pointer-events: none;
 }
 #webgl::before {
   display: none;
@@ -47,6 +88,7 @@ img { max-width: 100%; display: block; }
   width: 100% !important;
   height: 100% !important;
   background: transparent;
+  pointer-events: auto;
 }
 
 .vignette {

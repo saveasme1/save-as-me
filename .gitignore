@@ -1,6 +1,4 @@
-.DS_Store
-Thumbs.db
-*.log
-.node_modules/
-.vscode/
-.idea/
+# Generated locally — never commit
+js/cesium-token.local.js
+.env
+.env.local
