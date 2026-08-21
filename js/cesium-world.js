@@ -18,9 +18,9 @@ import {
   sampleAhead,
   samplePathByDistance,
   timeToDistanceProgress,
-} from "./gmp-usn-route.js";
+} from "./gmp-usn-route.js?v=final-snap2";
 import { addVirtualAirport } from "./virtual-airport.js";
-import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js";
+import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=final-snap2";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
