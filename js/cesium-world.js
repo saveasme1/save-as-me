@@ -19,9 +19,9 @@
   sampleAhead,
   samplePathByDistance,
   timeToDistanceProgress,
-} from "./gmp-usn-route.js?v=scrub-coast1";
+} from "./gmp-usn-route.js?v=scrub-move1";
 import { addVirtualAirport } from "./virtual-airport.js";
-import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=scrub-coast1";
+import { createCesiumCinematicClouds } from "./cesium-cinematic-clouds.js?v=scrub-move1";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
@@ -407,24 +407,21 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state.activeWaypointTo = geo.activeWaypointTo;
 
     const lookM = lookAheadMeters(geo.phase);
-    /* Never look across LATEP->ARR teleport before handoff */
-    const latepJoin = path.segments.find(
-      (seg) => seg.from.id === "LATEP" && String(seg.to.id || "").startsWith("ARR_")
-    );
-    const preHandoffCapM = latepJoin ? Math.max(0, latepJoin.startM - 80) : path.totalDistM;
-    const aheadDist =
-      elapsed < 73 ? Math.min(distM + lookM, Math.max(distM + 200, preHandoffCapM)) : distM + lookM;
-    const ahead = samplePathByDistance(path, aheadDist);
+    const ahead = sampleAhead(path, distM, lookM);
     let trackHdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
     const movedProbe = haversineM(state._prevLat, state._prevLon, sample.lat, sample.lon);
     if (movedProbe > 1.5 && movedProbe < 2500) {
       trackHdg = bearingDeg(state._prevLat, state._prevLon, sample.lat, sample.lon);
     }
-    const onArrLeg = String(sample.fromId || "").startsWith("ARR_") || elapsed >= 73;
+    const onFinalAlign =
+      sample.fromId === "SEA3" ||
+      sample.fromId === "SEA4" ||
+      String(sample.fromId || "").startsWith("ARR_");
+    const onArrLeg = onFinalAlign;
     let hdg = trackHdg;
     if (elapsed < 28) {
       hdg = DEP_RWY_HEADING;
-    } else if (onArrLeg || distM >= path.totalDistM - 80) {
+    } else if (onFinalAlign || distM >= path.totalDistM - 80) {
       hdg = ARR_RWY_HEADING;
       /* Hard snap ??no catch-up crab while moving 176째 */
       if (!state._arrHdgLocked) {
@@ -436,26 +433,25 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       }
     } else {
       state._arrHdgLocked = false;
-      const softDist = Math.min(distM + Math.max(lookM, 12000), preHandoffCapM);
-      const softAhead = samplePathByDistance(path, Math.max(distM + 400, softDist));
+      const softAhead = sampleAhead(path, distM, Math.max(lookM, 10000));
       hdg = bearingDeg(sample.lat, sample.lon, softAhead.lat, softAhead.lon);
     }
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
     if (freezeTime) {
       if (elapsed < 28) lastHeading = DEP_RWY_HEADING;
-      else if (onArrLeg || elapsed >= 73) lastHeading = ARR_RWY_HEADING;
+      else if (onFinalAlign) lastHeading = ARR_RWY_HEADING;
       else lastHeading = hdg;
       dh = 0;
     } else if (state._arrHdgLocked) {
       lastHeading = ARR_RWY_HEADING;
       dh = 0;
     } else {
-      const maxDegPerSec = elapsed < 40 ? 2.2 : elapsed >= 70 ? 20 : 5;
+      const maxDegPerSec = elapsed < 40 ? 2.2 : onFinalAlign ? 12 : 6;
       const cappedDt = Math.min(step, 0.08);
       const maxStep = maxDegPerSec * cappedDt;
       if (dh > maxStep) dh = maxStep;
       if (dh < -maxStep) dh = -maxStep;
-      const blend = 1 - Math.exp(-cappedDt * (elapsed >= 70 ? 4 : 1.2));
+      const blend = 1 - Math.exp(-cappedDt * (onFinalAlign ? 3 : 1.4));
       lastHeading = (lastHeading + dh * blend + 360) % 360;
     }
     geo.heading = lastHeading;
@@ -609,7 +605,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     state._prevAlt = altitudeAtElapsed(state.elapsedSeconds);
     state._gsSmooth = 0;
     const onArr = String(sample.fromId || "").startsWith("ARR_");
-    lastHeading = onArr || t >= 73 ? ARR_RWY_HEADING : t < 28 ? DEP_RWY_HEADING : lastHeading;
+    lastHeading = String(sample.fromId || "").startsWith("ARR_") || sample.fromId === "SEA3" || sample.fromId === "SEA4" || t >= 100
+      ? ARR_RWY_HEADING
+      : t < 28
+        ? DEP_RWY_HEADING
+        : lastHeading;
     /* Apply camera now without advancing clock */
     lastWall = performance.now();
     tick(0, {}, true, { freezeTime: true });
