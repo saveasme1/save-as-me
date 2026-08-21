@@ -1,6 +1,6 @@
 /**
- * Soft cumulus field along the flight corridor (Cesium CloudCollection).
- * Falls back to billboard sprites if CloudCollection is unavailable.
+ * Soft, large cloud sheets the aircraft drifts through — not tiny bird-dots.
+ * Prefer translucent photo billboards (sizeInMeters) + a few oversized cumulus.
  */
 import { samplePathByDistance } from "./gmp-usn-route.js";
 
@@ -9,76 +9,93 @@ function hash01(i) {
   return x - Math.floor(x);
 }
 
+const TEX = ["assets/sky/clouds-drama.jpg", "assets/sky/clouds-front.jpg", "assets/sky/sky-clouds.jpg"];
+
+/**
+ * Place wide soft layers along the corridor at altitudes the flight intersects.
+ */
 export function seedFlightClouds(Cesium, viewer, path, { mobile = false } = {}) {
-  const count = mobile ? 48 : 110;
   const fog = viewer.scene.fog;
   if (fog) {
     fog.enabled = true;
-    fog.density = 0.00022;
+    fog.density = 0.00028;
   }
   if (viewer.scene.skyAtmosphere) {
-    viewer.scene.skyAtmosphere.hueShift = -0.02;
-    viewer.scene.skyAtmosphere.saturationShift = -0.08;
-    viewer.scene.skyAtmosphere.brightnessShift = 0.04;
+    viewer.scene.skyAtmosphere.hueShift = -0.03;
+    viewer.scene.skyAtmosphere.saturationShift = -0.1;
+    viewer.scene.skyAtmosphere.brightnessShift = 0.06;
   }
 
-  if (typeof Cesium.CloudCollection === "function") {
-    const clouds = viewer.scene.primitives.add(
-      new Cesium.CloudCollection({
-        noiseDetail: 16.0,
-        noiseOffset: Cesium.Cartesian3.ZERO,
-      })
-    );
-
-    for (let i = 0; i < count; i++) {
-      const u = (i + 0.15) / count;
-      const s = samplePathByDistance(path, u * path.totalDistM);
-      const side = (hash01(i) - 0.5) * (mobile ? 14000 : 22000);
-      const ahead = (hash01(i + 3) - 0.5) * 4000;
-      const brg = (s.lon * 0 + 90) * (Math.PI / 180); /* lateral in meters ≈ lon */
-      const latOff = (side * Math.cos(brg) + ahead * Math.sin(brg)) / 111320;
-      const lonOff =
-        (side * Math.sin(brg) - ahead * Math.cos(brg)) / (111320 * Math.cos((s.lat * Math.PI) / 180));
-      const band = u < 0.12 || u > 0.88 ? 900 + hash01(i + 1) * 1100 : 1800 + hash01(i + 2) * 3200;
-      const alt = band + hash01(i + 5) * 800;
-      const sx = 900 + hash01(i + 7) * 2800;
-      const sy = 380 + hash01(i + 9) * 900;
-      clouds.add({
-        position: Cesium.Cartesian3.fromDegrees(s.lon + lonOff, s.lat + latOff, alt),
-        scale: new Cesium.Cartesian2(sx, sy),
-        maximumSize: new Cesium.Cartesian3(50, 18, 28),
-        slice: 0.25 + hash01(i + 11) * 0.45,
-        brightness: 0.88 + hash01(i + 13) * 0.18,
-      });
-    }
-    console.info(`[cesium] CloudCollection n=${count}`);
-    return clouds;
-  }
-
-  /* Billboard fallback using existing sky photo */
-  const n = mobile ? 24 : 48;
+  const sheets = mobile ? 22 : 38;
   const entities = [];
-  for (let i = 0; i < n; i++) {
-    const u = (i + 0.2) / n;
+
+  for (let i = 0; i < sheets; i++) {
+    const u = (i + 0.08) / sheets;
     const s = samplePathByDistance(path, u * path.totalDistM);
-    const side = (hash01(i) - 0.5) * 16000;
-    const latOff = side / 111320;
-    const lonOff = ((hash01(i + 2) - 0.5) * 8000) / (111320 * Math.cos((s.lat * Math.PI) / 180));
-    const alt = 1200 + hash01(i + 4) * 2500;
+    const sideKm = (hash01(i) - 0.5) * (mobile ? 18 : 28);
+    const latOff = sideKm / 111.32;
+    const lonOff = ((hash01(i + 2) - 0.5) * 10) / (111.32 * Math.cos((s.lat * Math.PI) / 180));
+
+    /* Three soft bands: under-path, through-path, over-path */
+    const bandPick = i % 3;
+    let alt;
+    if (bandPick === 0) alt = 1400 + hash01(i + 4) * 1200; /* climb / early */
+    else if (bandPick === 1) alt = 3800 + hash01(i + 5) * 2200; /* cruise through */
+    else alt = 6200 + hash01(i + 6) * 1800; /* above / look-up */
+
+    const wM = 12000 + hash01(i + 7) * 18000; /* 12–30 km wide */
+    const hM = 2800 + hash01(i + 8) * 4200;
+    const alpha = 0.22 + hash01(i + 9) * 0.28; /* soft wash */
+
     entities.push(
       viewer.entities.add({
         position: Cesium.Cartesian3.fromDegrees(s.lon + lonOff, s.lat + latOff, alt),
         billboard: {
-          image: "assets/sky/clouds-drama.jpg",
-          width: 420 + hash01(i + 6) * 380,
-          height: 160 + hash01(i + 8) * 120,
-          color: Cesium.Color.WHITE.withAlpha(0.45 + hash01(i + 10) * 0.25),
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          image: TEX[i % TEX.length],
+          width: wM,
+          height: hM,
+          sizeInMeters: true,
+          color: Cesium.Color.WHITE.withAlpha(alpha),
           verticalOrigin: Cesium.VerticalOrigin.CENTER,
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          heightReference: Cesium.HeightReference.NONE,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          alignedAxis: Cesium.Cartesian3.ZERO,
         },
       })
     );
   }
-  console.info(`[cesium] cloud billboards n=${n}`);
-  return entities;
+
+  /* A few huge cumulus volumes if available — still large, not sparrows */
+  if (typeof Cesium.CloudCollection === "function") {
+    const clouds = viewer.scene.primitives.add(
+      new Cesium.CloudCollection({
+        noiseDetail: 12.0,
+        noiseOffset: Cesium.Cartesian3.ZERO,
+      })
+    );
+    const n = mobile ? 10 : 18;
+    for (let i = 0; i < n; i++) {
+      const u = 0.08 + (0.84 * (i + 0.5)) / n;
+      const s = samplePathByDistance(path, u * path.totalDistM);
+      const side = (hash01(i + 40) - 0.5) * 12000;
+      const latOff = side / 111320;
+      const lonOff = ((hash01(i + 41) - 0.5) * 6000) / (111320 * Math.cos((s.lat * Math.PI) / 180));
+      const alt = 2500 + hash01(i + 42) * 3500;
+      const sx = 6000 + hash01(i + 43) * 10000;
+      const sy = 2200 + hash01(i + 44) * 3500;
+      clouds.add({
+        position: Cesium.Cartesian3.fromDegrees(s.lon + lonOff, s.lat + latOff, alt),
+        scale: new Cesium.Cartesian2(sx, sy),
+        maximumSize: new Cesium.Cartesian3(55, 22, 32),
+        slice: 0.35 + hash01(i + 45) * 0.35,
+        brightness: 0.92,
+      });
+    }
+    console.info(`[cesium] soft cloud sheets=${sheets} cumulus=${n}`);
+    return { entities, clouds };
+  }
+
+  console.info(`[cesium] soft cloud sheets=${sheets}`);
+  return { entities };
 }

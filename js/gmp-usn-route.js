@@ -229,13 +229,44 @@ export function pitchFromAltRate(altRateMps) {
 export function autopilotPitchDeg(phase, altRateMps, elapsed = 0) {
   const rateP = pitchFromAltRate(altRateMps) * 0.55;
   if (phase === "departure") {
-    if (elapsed < 7) return 1.2 + rateP * 0.2; /* ground roll — horizon */
-    if (elapsed < 14) return 10 + rateP; /* rotate */
+    if (elapsed < 7) return 1.2 + rateP * 0.2;
+    if (elapsed < 14) return 10 + rateP;
     return 6 + rateP;
   }
   if (phase === "climb") return 4 + rateP;
   if (phase === "cruise") return 1.5 + rateP * 0.25;
   if (phase === "descent") return -1.5 + rateP;
-  if (elapsed > 105) return 1.5 + rateP; /* flare */
+  if (elapsed > 105) return 1.5 + rateP;
   return -2.5 + rateP;
+}
+
+/**
+ * Cinematic look pitch offset (deg) vs time — varies up/down along the trip.
+ * Positive = look toward sky, negative = look toward ground.
+ * Smooth keys so the nose doesn't snap.
+ */
+export function cinematicLookPitchDeg(elapsed, duration = FLIGHT_DURATION_SEC) {
+  const t = Math.max(0, Math.min(duration, elapsed));
+  const keys = [
+    [0, -2.5], /* runway */
+    [8, 6], /* rotate — sky */
+    [16, 8], /* climb — look up into cloud */
+    [28, 3], /* early cruise — soft sky */
+    [40, -6], /* mid — glance at terrain */
+    [52, 5], /* cruise — back to sky / cloud */
+    [64, -4], /* terrain pass */
+    [74, 2], /* top of descent */
+    [88, -7], /* approach — runway / city */
+    [104, -5], /* short final */
+    [110, -2], /* flare / hold */
+  ];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [t0, a0] = keys[i];
+    const [t1, a1] = keys[i + 1];
+    if (t <= t1) {
+      const x = (t - t0) / (t1 - t0 || 1);
+      return a0 + (a1 - a0) * smoothstep(x);
+    }
+  }
+  return keys[keys.length - 1][1];
 }

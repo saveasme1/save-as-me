@@ -10,6 +10,7 @@ import {
   autopilotPitchDeg,
   bearingDeg,
   buildFlightPath,
+  cinematicLookPitchDeg,
   getCinematicRouteProgress,
   lookAheadMeters,
   phaseFromTime,
@@ -388,7 +389,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     const lookM = lookAheadMeters(geo.phase);
     const ahead = sampleAhead(path, distM, lookM);
     let hdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
-    if (elapsed < 14) hdg = DEP_RWY_HEADING;
+    if (elapsed < 10) hdg = DEP_RWY_HEADING;
     else if (elapsed > 98) hdg = ARR_RWY_HEADING;
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
     lastHeading = (lastHeading + dh * Math.min(1, step * (elapsed > 95 ? 2.2 : 1.6)) + 360) % 360;
@@ -424,18 +425,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastQuality = geo.quality;
     }
 
-    /* Camera pitch: Cesium 0=horizon, +up, −down.
-     * Match autopilot nose attitude + light framing bias (was −8…−12 → always looking at dirt). */
+    /* Camera pitch: autopilot nose + cinematic look (up/down along route) + user keys */
     const camH = geo.altitudeAMSL;
-    let horizonBias = -2.5;
-    if (geo.phase === "departure") horizonBias = elapsed < 8 ? -3.5 : -1.5;
-    else if (geo.phase === "climb") horizonBias = -1.0;
-    else if (geo.phase === "cruise") horizonBias = -2.0;
-    else if (geo.phase === "descent") horizonBias = -3.0;
-    else if (geo.phase === "approach") horizonBias = elapsed > 104 ? -5.5 : -4.0;
-
+    const look = cinematicLookPitchDeg(elapsed);
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    const renderPitch = geo.pitch + horizonBias + view.pitchOffset;
+    const renderPitch = geo.pitch * 0.35 + look + view.pitchOffset;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
@@ -462,7 +456,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
         `ROUTE ${(routeU * 100).toFixed(1)}%`,
         `LAT ${geo.latitude.toFixed(4)}  LON ${geo.longitude.toFixed(4)}`,
         `ALT ${Math.round(geo.altitudeAMSL)} m  AGL ${Math.round(geo.altitudeAGL)} m`,
-        `HDG ${geo.heading.toFixed(0)}°  AP_P ${geo.pitch.toFixed(1)}°  R ${geo.roll.toFixed(1)}°`,
+        `HDG ${geo.heading.toFixed(0)}°  AP_P ${geo.pitch.toFixed(1)}°  LOOK ${look.toFixed(1)}°`,
         `VIEW yaw ${view.yawOffset.toFixed(1)}°  pitch ${view.pitchOffset.toFixed(1)}°`,
         `FPS ${fpsShow}  DIST ${(path.totalDistM / 1000).toFixed(1)} km`,
       ].join("\n");
