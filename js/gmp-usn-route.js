@@ -129,25 +129,25 @@ function smoothstep(x) {
 
 /**
  * Nonlinear cinematicTime → geographic route progress [0..1].
- * 0–25s  Gimpo local ~8% of route
- * 25–35s climb accel
- * 35–70s cruise compresses ~70% of route
+ * Keep takeoff/landing feel, but leave the field quickly after rotate.
+ * 0–10s  runway / rotate ~2%
+ * 10–20s climb-out accelerates ~14% (was hanging near airport too long)
+ * 20–70s cruise compresses most of airway
  * 70–80s decelerate
- * 80–110s Ulsan local ~12% of route
+ * 80–110s Ulsan approach
  */
 export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURATION_SEC) {
   const t = Math.max(0, Math.min(duration, elapsedSeconds));
-  /* Gimpo: first 25s ≈ 2.5% route — stay on field/runway as long as possible */
-  if (t <= 25) {
-    return 0.025 * smoothstep(t / 25);
+  if (t <= 10) {
+    return 0.02 * smoothstep(t / 10);
   }
-  if (t <= 35) {
-    const x = (t - 25) / 10;
-    return 0.025 + 0.095 * smoothstep(x);
+  if (t <= 20) {
+    const x = (t - 10) / 10;
+    return 0.02 + 0.14 * smoothstep(x);
   }
   if (t <= 70) {
-    const x = (t - 35) / 35;
-    return 0.12 + 0.76 * smoothstep(x);
+    const x = (t - 20) / 50;
+    return 0.16 + 0.72 * smoothstep(x);
   }
   if (t <= 80) {
     const x = (t - 70) / 10;
@@ -167,19 +167,19 @@ export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
   const keys = [
     [0, GMP_ELEV_M + 8],
     [4, GMP_ELEV_M + 8],
-    [8, GMP_ELEV_M + 28],
-    [12, 160],
-    [18, 550],
-    [25, 2200],
-    [35, 5500],
-    [45, 7000],
-    [55, 7200],
-    [70, 6800],
-    [80, 4800],
-    [90, 2200],
-    [98, 700],
-    [104, 180],
-    [108, 55],
+    [7, GMP_ELEV_M + 22],
+    [10, 220],
+    [14, 900],
+    [18, 2800],
+    [24, 5200],
+    [35, 6800],
+    [50, 7200],
+    [65, 7000],
+    [75, 5200],
+    [85, 2800],
+    [95, 900],
+    [102, 280],
+    [107, 70],
     [110, USN_ELEV_M + 12],
   ];
   for (let i = 0; i < keys.length - 1; i++) {
@@ -199,18 +199,18 @@ export function altitudeEnvelopeM(u) {
 }
 
 export function phaseFromTime(elapsed, duration = FLIGHT_DURATION_SEC) {
-  if (elapsed < 25) return "departure";
-  if (elapsed < 35) return "climb";
+  if (elapsed < 16) return "departure";
+  if (elapsed < 28) return "climb";
   if (elapsed < 70) return "cruise";
-  if (elapsed < 80) return "descent";
+  if (elapsed < 82) return "descent";
   return "approach";
 }
 
 export function qualityPhase(elapsed) {
-  if (elapsed < 25) return "HIGH";
-  if (elapsed < 35) return "MEDIUM";
+  if (elapsed < 16) return "HIGH";
+  if (elapsed < 28) return "MEDIUM";
   if (elapsed < 70) return "LOW";
-  if (elapsed < 80) return "MEDIUM";
+  if (elapsed < 82) return "MEDIUM";
   return "HIGH";
 }
 

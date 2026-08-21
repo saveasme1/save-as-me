@@ -19,6 +19,7 @@ import {
   timeToDistanceProgress,
 } from "./gmp-usn-route.js";
 import { addVirtualAirport } from "./virtual-airport.js";
+import { seedFlightClouds } from "./cesium-clouds.js";
 
 function readIonToken() {
   if (typeof window !== "undefined" && window.__CESIUM_ION_TOKEN) {
@@ -145,7 +146,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     lon: DEPARTURE_TRANSITION[0].lon,
     heading: DEP_RWY_HEADING,
     elevM: GMP_ELEV_M,
-    label: "SAVEAS · GMP",
+    label: "GMP",
     runwayLenM: 2800,
   });
   const arrApt = addVirtualAirport(Cesium, viewer, {
@@ -153,10 +154,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     lon: ARRIVAL_TRANSITION[2].lon,
     heading: ARR_RWY_HEADING,
     elevM: USN_ELEV_M,
-    label: "SAVEAS · USN",
+    label: "USN",
     runwayLenM: 2400,
   });
   console.info("[cesium] virtual airports placed", depApt.heading, arrApt.heading);
+  seedFlightClouds(Cesium, viewer, path, { mobile });
 
   /* Geographic autopilot — never written by keyboard */
   const geo = {
