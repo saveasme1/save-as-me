@@ -629,12 +629,13 @@ function tickMfdPop() {
     slot.mesh.scale.setScalar(sc);
     slot.mesh.visible = true;
     if (slot.mesh.material) {
-      slot.mesh.material.depthTest = true;
+      /* always draw above black LCD (transparent Three + Cesium stack) */
+      slot.mesh.material.depthTest = false;
       slot.mesh.material.depthWrite = false;
       slot.mesh.material.opacity = 1;
       slot.mesh.material.transparent = true;
     }
-    slot.mesh.renderOrder = 3;
+    slot.mesh.renderOrder = 20;
   });
 }
 
@@ -654,7 +655,6 @@ function measureBlackDuCenters(root, w, h) {
   const raycaster = new THREE.Raycaster();
   const hits = [];
   const step = 2;
-  /* Doc belt y 66–72% — wider belts reattach to panel body and float into cabin */
   const y0 = Math.floor(h * 0.66);
   const y1 = Math.floor(h * 0.72);
   const x0 = Math.floor(w * 0.29);
@@ -742,10 +742,7 @@ function placeMfdOnBlackDus(root) {
   centers.length = 5;
 
   const black = collectBlackMeshes(root);
-  if (!black.length) {
-    console.warn("[mfd-panel] no black LCD meshes");
-    return false;
-  }
+  if (!black.length) return false;
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -756,14 +753,12 @@ function placeMfdOnBlackDus(root) {
   centers.forEach((c) => {
     ndc.set((c.px / w) * 2 - 1, -((c.py / h) * 2 - 1));
     raycaster.setFromCamera(ndc, camera);
+    /* non-recursive: hit black LCD only, ignore child MFD planes */
     const hit = raycaster.intersectObjects(black, false)[0];
     if (!hit || !hit.face) return;
     sized.push({ c, hit });
   });
-  if (sized.length < 5) {
-    console.warn(`[mfd-panel] black hits ${sized.length}/5 — keep prior screens`);
-    return false;
-  }
+  if (sized.length < 5) return false;
 
   /* success confirmed — only now remove previous screens */
   prev.forEach((s) => {
@@ -801,7 +796,6 @@ function placeMfdOnBlackDus(root) {
     parent.getWorldScale(pw);
     const sx = Math.max(1e-4, Math.abs(pw.x));
     const sy = Math.max(1e-4, Math.abs(pw.y));
-    /* keep nearly uniform — tiny axis scale blows a plane into the cabin */
     const s = Math.max(sx, sy, Math.abs(pw.z) || 1e-4);
     const gw = duW / s;
     const gh = duH / s;
@@ -810,14 +804,14 @@ function placeMfdOnBlackDus(root) {
       map: makeProjectPreview(PROJECTS[c.projectIndex], c.projectIndex, false),
       color: 0xffffff,
       toneMapped: false,
-      depthTest: true,
+      depthTest: false,
       depthWrite: false,
       transparent: true,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), mat);
     mesh.position.copy(local);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nLocal);
-    mesh.renderOrder = 5;
+    mesh.renderOrder = 20;
     mesh.userData.mfd = true;
     mesh.visible = true;
     parent.add(mesh);
