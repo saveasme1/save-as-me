@@ -1,6 +1,6 @@
 /**
  * Published airway / flight-plan route data (RKSS → RKPU).
- * Not an exact airline radar track — visual reconstruction for portfolio.
+ * Not an exact airline radar track — cinematic portfolio reconstruction.
  */
 export const PUBLISHED_AIRWAY = [
   { id: "RKSS", name: "Gimpo International Airport", lat: 37.55831, lon: 126.79058 },
@@ -19,26 +19,27 @@ export const PUBLISHED_AIRWAY = [
 ];
 
 /** Cinematic departure (RWY 14L ~136° T) — not published SID
- * Start on/near field so Gimpo airport is visible in the windshield. */
+ * Dense runway points so first ~25s stays on Gimpo field. */
 export const DEPARTURE_TRANSITION = [
-  { id: "DEP_FIELD", lat: 37.5608, lon: 126.7862, note: "over Gimpo field / terminal view" },
-  { id: "DEP_THR", lat: 37.5632, lon: 126.7818, note: "RWY14L threshold" },
-  { id: "DEP_ROLL", lat: 37.5588, lon: 126.7888, note: "takeoff roll" },
-  { id: "DEP_ROT", lat: 37.5548, lon: 126.7952, note: "rotate / liftoff" },
-  { id: "DEP_CLB", lat: 37.5465, lon: 126.8080, note: "initial climb" },
-  { id: "DEP_TURN", lat: 37.4900, lon: 126.8600, note: "turn toward SEL" },
+  { id: "DEP_THR", lat: 37.5635, lon: 126.7812, note: "RWY14L threshold" },
+  { id: "DEP_R1", lat: 37.5622, lon: 126.7835, note: "roll 1" },
+  { id: "DEP_R2", lat: 37.5608, lon: 126.7858, note: "roll 2" },
+  { id: "DEP_R3", lat: 37.5594, lon: 126.7882, note: "roll 3 / rotate" },
+  { id: "DEP_ROT", lat: 37.5575, lon: 126.7912, note: "liftoff" },
+  { id: "DEP_CLB1", lat: 37.5540, lon: 126.7970, note: "initial climb" },
+  { id: "DEP_CLB2", lat: 37.5450, lon: 126.8120, note: "climb outbound" },
+  { id: "DEP_TURN", lat: 37.5000, lon: 126.8500, note: "turn toward SEL" },
 ];
 
-/** Cinematic arrival (RWY 18 ~176° T) — not published STAR
- * Finish over Ulsan field so the airport stays in view. */
+/** Cinematic arrival (RWY 18 ~176° T) — not published STAR */
 export const ARRIVAL_TRANSITION = [
-  { id: "ARR_IF", lat: 35.648, lon: 129.3555, note: "initial approach north of field" },
+  { id: "ARR_IF", lat: 35.648, lon: 129.3555, note: "initial approach" },
   { id: "ARR_FAF", lat: 35.618, lon: 129.3538, note: "final approach" },
   { id: "ARR_THR", lat: 35.5982, lon: 129.3522, note: "RWY18 threshold" },
   { id: "ARR_HOLD", lat: 35.5935, lon: 129.3517, note: "Ulsan airport hold" },
 ];
 
-export const FLIGHT_DURATION_SEC = 115;
+export const FLIGHT_DURATION_SEC = 110;
 export const GMP_ELEV_M = 18;
 export const USN_ELEV_M = 13;
 
@@ -72,11 +73,9 @@ export function lerpGeo(a, b, t) {
   };
 }
 
-/** Full cinematic path: departure → airway (from SEL) → arrival */
 export function buildFlightPath() {
   const pts = [];
   DEPARTURE_TRANSITION.forEach((p) => pts.push({ ...p, kind: "departure" }));
-  /* merge into airway from SEL onward (skip RKSS — covered by departure) */
   PUBLISHED_AIRWAY.slice(1).forEach((p) => pts.push({ ...p, kind: "airway" }));
   ARRIVAL_TRANSITION.forEach((p) => pts.push({ ...p, kind: "arrival" }));
 
@@ -113,84 +112,117 @@ export function samplePathByDistance(path, distM) {
   };
 }
 
-/** Look-ahead point ~lookAheadM along path */
 export function sampleAhead(path, distM, lookAheadM) {
   return samplePathByDistance(path, distM + lookAheadM);
 }
 
+function smoothstep(x) {
+  const t = Math.max(0, Math.min(1, x));
+  return t * t * (3 - 2 * t);
+}
+
 /**
- * Cinematic altitude AMSL envelope (meters) vs normalized time 0..1
- * Tuned for ~115s Gimpo→Ulsan visual scale (cruise ~7 km).
+ * Nonlinear cinematicTime → geographic route progress [0..1].
+ * 0–25s  Gimpo local ~8% of route
+ * 25–35s climb accel
+ * 35–70s cruise compresses ~70% of route
+ * 70–80s decelerate
+ * 80–110s Ulsan local ~12% of route
  */
-export function altitudeEnvelopeM(u) {
-  const t = Math.max(0, Math.min(1, u));
-  /* Stay low near Gimpo / Ulsan so airports read in the windshield */
+export function getCinematicRouteProgress(elapsedSeconds, duration = FLIGHT_DURATION_SEC) {
+  const t = Math.max(0, Math.min(duration, elapsedSeconds));
+  /* Gimpo: first 25s ≈ 4% route — stay local on field/runway */
+  if (t <= 25) {
+    return 0.04 * smoothstep(t / 25);
+  }
+  if (t <= 35) {
+    const x = (t - 25) / 10;
+    return 0.04 + 0.1 * smoothstep(x);
+  }
+  if (t <= 70) {
+    const x = (t - 35) / 35;
+    return 0.14 + 0.74 * smoothstep(x);
+  }
+  if (t <= 80) {
+    const x = (t - 70) / 10;
+    return 0.88 + 0.04 * smoothstep(x);
+  }
+  const x = (t - 80) / 30;
+  return 0.92 + 0.08 * smoothstep(x);
+}
+
+export function timeToDistanceProgress(elapsed, duration, totalDistM) {
+  return getCinematicRouteProgress(elapsed, duration) * totalDistM;
+}
+
+/** Altitude AMSL vs elapsed time (seconds), cinematic envelope */
+export function altitudeAtElapsed(elapsed, duration = FLIGHT_DURATION_SEC) {
+  const t = Math.max(0, Math.min(duration, elapsed));
   const keys = [
-    [0.0, GMP_ELEV_M + 140],
-    [0.05, GMP_ELEV_M + 180],
-    [0.09, 320],
-    [0.14, 900],
-    [0.22, 3800],
-    [0.3, 6000],
-    [0.39, 7200],
-    [0.55, 7000],
-    [0.65, 6800],
-    [0.74, 5000],
-    [0.83, 2800],
-    [0.9, 900],
-    [0.95, 280],
-    [0.98, USN_ELEV_M + 120],
-    [1.0, USN_ELEV_M + 90],
+    [0, GMP_ELEV_M + 12],
+    [5, GMP_ELEV_M + 70],
+    [12, 400],
+    [20, 1200],
+    [25, 3500],
+    [35, 6000],
+    [45, 7000],
+    [55, 7200],
+    [70, 6800],
+    [80, 5000],
+    [90, 2800],
+    [100, 1400],
+    [107, 450],
+    [110, USN_ELEV_M + 80],
   ];
   for (let i = 0; i < keys.length - 1; i++) {
     const [t0, a0] = keys[i];
     const [t1, a1] = keys[i + 1];
     if (t <= t1) {
       const x = (t - t0) / (t1 - t0 || 1);
-      const s = x * x * (3 - 2 * x);
-      return a0 + (a1 - a0) * s;
+      return a0 + (a1 - a0) * smoothstep(x);
     }
   }
   return keys[keys.length - 1][1];
 }
 
+/** @deprecated use altitudeAtElapsed */
+export function altitudeEnvelopeM(u) {
+  return altitudeAtElapsed(u * FLIGHT_DURATION_SEC);
+}
+
 export function phaseFromTime(elapsed, duration = FLIGHT_DURATION_SEC) {
-  const u = elapsed / duration;
-  if (u < 0.087) return "departure";
-  if (u < 0.217) return "initial-climb";
-  if (u < 0.348) return "climb";
-  if (u < 0.696) return "cruise";
-  if (u < 0.87) return "descent";
+  if (elapsed < 25) return "departure";
+  if (elapsed < 35) return "climb";
+  if (elapsed < 70) return "cruise";
+  if (elapsed < 80) return "descent";
   return "approach";
 }
 
-/** Distance progress: linger near Gimpo start + Ulsan end so airports are visible */
-export function timeToDistanceProgress(elapsed, duration, totalDistM) {
-  const u = Math.max(0, Math.min(1, elapsed / duration));
-  let eased;
-  if (u < 0.12) {
-    /* first ~14s ≈ first 3.5% of route (airport + takeoff) */
-    const x = u / 0.12;
-    eased = 0.035 * (x * x * (3 - 2 * x));
-  } else if (u > 0.86) {
-    /* last ~16s ≈ last 6% of route (approach + field hold) */
-    const x = (u - 0.86) / 0.14;
-    eased = 0.94 + 0.06 * (x * x * (3 - 2 * x));
-  } else {
-    const m = (u - 0.12) / 0.74;
-    eased = 0.035 + 0.905 * m;
-  }
-  return eased * totalDistM;
+export function qualityPhase(elapsed) {
+  if (elapsed < 25) return "HIGH";
+  if (elapsed < 35) return "MEDIUM";
+  if (elapsed < 70) return "LOW";
+  if (elapsed < 80) return "MEDIUM";
+  return "HIGH";
 }
 
 export function lookAheadMeters(phase) {
-  if (phase === "departure" || phase === "approach") return 2500;
-  if (phase === "initial-climb" || phase === "descent") return 4500;
-  return 7000;
+  if (phase === "departure" || phase === "approach") return 1800;
+  if (phase === "climb" || phase === "descent") return 4000;
+  return 8000;
 }
 
 export function pitchFromAltRate(altRateMps) {
-  /* small cinematic pitch from climb/descent rate */
-  const p = Math.atan2(altRateMps, 90) * (180 / Math.PI);
-  return Math.max(-6, Math.min(8, p));
+  const p = Math.atan2(altRateMps, 110) * (180 / Math.PI);
+  return Math.max(-5, Math.min(7, p));
+}
+
+/** Autopilot base pitch by phase (degrees, nose up positive for cinema) */
+export function autopilotPitchDeg(phase, altRateMps) {
+  const rateP = pitchFromAltRate(altRateMps) * 0.4;
+  if (phase === "departure") return 4 + rateP;
+  if (phase === "climb") return 3 + rateP;
+  if (phase === "cruise") return rateP * 0.3;
+  if (phase === "descent") return -2 + rateP;
+  return -1 + rateP;
 }

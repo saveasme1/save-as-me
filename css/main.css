@@ -54,8 +54,18 @@ body.is-cesium-ready #cesiumContainer {
 #cesiumContainer .cesium-viewer-toolbar,
 #cesiumContainer .cesium-viewer-animationContainer,
 #cesiumContainer .cesium-viewer-timelineContainer,
-#cesiumContainer .cesium-viewer-fullscreenContainer {
+#cesiumContainer .cesium-viewer-fullscreenContainer,
+#cesiumContainer .cesium-viewer-vrContainer,
+#cesiumContainer .cesium-performanceDisplay-defaultContainer,
+#cesiumContainer .cesium-viewer-infoBoxContainer,
+#cesiumContainer .cesium-viewer-selectionIndicatorContainer,
+#cesiumContainer .cesium-credit-lightboxOverlay {
   display: none !important;
+}
+/* keep only our dedicated credit host — avoid mid-windshield credit chrome */
+.cesium-credit-host .cesium-credit-logoContainer,
+.cesium-credit-host .cesium-credit-textContainer {
+  display: inline-block !important;
 }
 .cesium-credit-host {
   position: fixed;

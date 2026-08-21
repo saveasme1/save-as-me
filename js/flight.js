@@ -1324,7 +1324,7 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "←→↑↓ 잠깐 시선 오프셋(항로 불변) · LCD 탭 · 드래그 시선";
+hint.textContent = "←→ 좌우 시선 · ↑ 하늘 · ↓ 지형(항로 불변) · LCD 탭 · 드래그";
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
 setTimeout(() => hint.classList.remove("is-on"), 4500);
@@ -1366,7 +1366,7 @@ function animate(now) {
     state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
-  /* arrow keys: Cesium owns geographic route — keys only nudge offsets in cesium-world */
+  /* arrow keys: when Cesium is on, VIEW ONLY (yaw/pitch offsets in cesium-world) */
   const k = state.keys || {};
   if (!state._cesium) {
     const turnRate = 0.16;
@@ -1401,12 +1401,13 @@ function animate(now) {
     } else if (!state.dragging && Math.abs(state.tPitch) > 0.015) {
       state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
     }
-  } else if (!state.dragging) {
-    const yawOff = state._cesium.state.userYawOffset || 0;
-    state.tRoll += ((-yawOff / 8) * 0.1 - state.tRoll) * Math.min(1, dt * 3);
-    if (Math.abs(state.tPitch) > 0.015) {
-      state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
-    }
+  } else if (!state.dragging && state.lookSnap === "center") {
+    const yawDeg = state._cesium.state.userYawOffset || 0;
+    const pitchDeg = state._cesium.state.userPitchOffset || 0;
+    state.tYaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -0.22, 0.22);
+    /* Three.js +X pitch looks down — invert so ↑ looks to sky in cockpit too */
+    state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, -0.28, 0.22);
+    state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3);
   }
   if (k.left || k.right || k.up || k.down) {
     state.tSpeed = Math.max(state.tSpeed, 1.15);

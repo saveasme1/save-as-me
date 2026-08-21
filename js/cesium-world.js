@@ -3,12 +3,14 @@ import {
   DEPARTURE_TRANSITION,
   FLIGHT_DURATION_SEC,
   GMP_ELEV_M,
-  altitudeEnvelopeM,
+  altitudeAtElapsed,
+  autopilotPitchDeg,
   bearingDeg,
   buildFlightPath,
+  getCinematicRouteProgress,
   lookAheadMeters,
   phaseFromTime,
-  pitchFromAltRate,
+  qualityPhase,
   sampleAhead,
   samplePathByDistance,
   timeToDistanceProgress,
@@ -26,29 +28,27 @@ function isMobile() {
 }
 
 /**
- * Cesium exterior world behind the Three.js cockpit.
- * Attribution remains visible (legal). No map chrome / labels.
+ * Cesium exterior behind Three.js cockpit.
+ * GeographicFlightState vs UserViewState are strictly separated.
  */
 export async function createCesiumWorld({ containerId = "cesiumContainer", debug = false } = {}) {
   const Cesium = window.Cesium;
-  if (!Cesium) throw new Error("Cesium global missing — load CesiumJS before this module");
+  if (!Cesium) throw new Error("Cesium global missing");
 
   const token = readIonToken();
   if (!token) {
-    console.warn("[cesium] No ion token (set window.__CESIUM_ION_TOKEN via cesium-token.local.js)");
+    console.warn("[cesium] No ion token — set via js/cesium-token.local.js (gitignored)");
   } else {
     Cesium.Ion.defaultAccessToken = token;
   }
 
   const container = document.getElementById(containerId);
-  if (!container) throw new Error(`#${containerId} not found`);
+  if (!container) throw new Error(`#${containerId} missing`);
 
   const mobile = isMobile();
-  let terrainOpt = undefined;
+  let terrainOpt;
   try {
-    if (Cesium.Terrain?.fromWorldTerrain) {
-      terrainOpt = Cesium.Terrain.fromWorldTerrain();
-    }
+    if (Cesium.Terrain?.fromWorldTerrain) terrainOpt = Cesium.Terrain.fromWorldTerrain();
   } catch (_) {}
 
   const viewer = new Cesium.Viewer(container, {
@@ -77,11 +77,10 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   }
 
   viewer.scene.globe.enableLighting = false;
-  /* depthTestAgainstTerrain causes flicker/pop while tiles stream in */
   viewer.scene.globe.depthTestAgainstTerrain = false;
   if (viewer.scene.fog) {
     viewer.scene.fog.enabled = true;
-    viewer.scene.fog.density = 0.00018;
+    viewer.scene.fog.density = 0.00015;
   }
   if (viewer.scene.skyBox && typeof viewer.scene.skyBox === "object") viewer.scene.skyBox.show = true;
   if (viewer.scene.sun && typeof viewer.scene.sun === "object") viewer.scene.sun.show = true;
@@ -89,49 +88,63 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   if (viewer.scene.skyAtmosphere && typeof viewer.scene.skyAtmosphere === "object") {
     viewer.scene.skyAtmosphere.show = true;
   }
-  /* sharper tiles near airports; cruise can loosen later */
-  viewer.resolutionScale = mobile ? 0.75 : 1;
-  viewer.scene.globe.maximumScreenSpaceError = mobile ? 2 : 1.15;
-  if ("tileCacheSize" in viewer.scene.globe) viewer.scene.globe.tileCacheSize = mobile ? 120 : 220;
   viewer.scene.globe.showGroundAtmosphere = true;
   viewer.scene.screenSpaceCameraController.enableInputs = false;
+  if ("tileCacheSize" in viewer.scene.globe) viewer.scene.globe.tileCacheSize = mobile ? 140 : 240;
   if (viewer.cesiumWidget?.creditContainer) viewer.cesiumWidget.creditContainer.style.display = "";
+
+  applyQuality("HIGH", mobile, viewer);
 
   const path = buildFlightPath();
   console.info(
-    `[cesium-route] path points=${path.points.length} totalDistKm=${(path.totalDistM / 1000).toFixed(1)} ` +
-      `(published airway + cinematic dep/arr)`
+    `[cesium-route] pts=${path.points.length} km=${(path.totalDistM / 1000).toFixed(1)} duration=${FLIGHT_DURATION_SEC}s`
   );
+
+  /* Geographic autopilot — never written by keyboard */
+  const geo = {
+    routeProgress: 0,
+    latitude: DEPARTURE_TRANSITION[0].lat,
+    longitude: DEPARTURE_TRANSITION[0].lon,
+    altitudeAMSL: GMP_ELEV_M + 25,
+    altitudeAGL: 25,
+    terrainHeight: 0,
+    heading: 136,
+    pitch: 4,
+    roll: 0,
+    phase: "departure",
+    activeLegIndex: 0,
+    activeWaypointFrom: "DEP_THR",
+    activeWaypointTo: "DEP_ROLL",
+    quality: "HIGH",
+  };
+
+  /* View offsets only */
+  const view = {
+    yawOffset: 0,
+    pitchOffset: 0,
+    _yawTarget: 0,
+    _pitchTarget: 0,
+  };
 
   const state = {
     elapsedSeconds: 0,
     normalizedProgress: 0,
-    latitude: DEPARTURE_TRANSITION[0].lat,
-    longitude: DEPARTURE_TRANSITION[0].lon,
-    terrainHeight: 0,
-    altitudeAMSL: GMP_ELEV_M + 140,
-    altitudeAGL: 140,
-    heading: 136,
-    pitch: 0,
-    roll: 0,
-    activeLegIndex: 0,
-    activeWaypointFrom: "DEP_FIELD",
-    activeWaypointTo: "DEP_THR",
-    phase: "departure",
+    ...geo,
     userYawOffset: 0,
+    userPitchOffset: 0,
     userAltitudeOffset: 0,
     routeHeading: 136,
-    _yawTarget: 0,
-    _altTarget: 0,
-    _prevAlt: GMP_ELEV_M + 140,
     _heldAtEnd: false,
     _ready: false,
     totalDistM: path.totalDistM,
     totalDistKm: path.totalDistM / 1000,
     publishedNm: path.totalDistM / 1852,
+    _prevAlt: GMP_ELEV_M + 25,
+    geo,
+    view,
   };
 
-  function waitTilesIdle(maxMs = 6000, needIdle = 4) {
+  function waitTilesIdle(maxMs = 5000, needIdle = 3) {
     return new Promise((resolve) => {
       let idle = 0;
       let remove = null;
@@ -169,20 +182,18 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     });
   }
 
-  /* Multi-pass Gimpo preload so windshield is not muddy LOD sludge */
   const g0 = DEPARTURE_TRANSITION[0];
-  const g1 = DEPARTURE_TRANSITION[Math.min(2, DEPARTURE_TRANSITION.length - 1)];
   document.body.classList.remove("is-cesium-ready");
   const bootEm = document.querySelector("#boot em");
   if (bootEm) bootEm.textContent = "Gimpo terrain loading…";
 
-  setCam(g0.lon, g0.lat, 600, 136, -22);
-  await waitTilesIdle(3500, 2);
-  setCam(g0.lon, g0.lat, 280, 136, -12);
+  /* Preload from overview → runway look-ahead (keep sky in frame — avoid muddy faceplant) */
+  setCam(g0.lon, g0.lat, 1200, 136, -28);
+  await waitTilesIdle(4000, 2);
+  setCam(g0.lon, g0.lat, 450, 136, -14);
+  await waitTilesIdle(4000, 3);
+  setCam(g0.lon, g0.lat, 80, 136, -8);
   await waitTilesIdle(3500, 3);
-  /* final departure pose: along runway, sky + field readable */
-  setCam(g0.lon, g0.lat, 170, 136, -11);
-  await waitTilesIdle(2500, 2);
 
   state._ready = true;
   document.body.classList.add("is-cesium-ready");
@@ -190,11 +201,14 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   document.body.classList.add("is-ready");
 
   let debugEl = null;
+  let fpsAccum = 0;
+  let fpsFrames = 0;
+  let fpsShow = 0;
   if (debug || new URLSearchParams(location.search).has("flightDebug")) {
     debugEl = document.createElement("pre");
     debugEl.id = "flightDebug";
     debugEl.style.cssText =
-      "position:fixed;right:8px;bottom:48px;z-index:40;margin:0;padding:8px 10px;font:11px/1.35 ui-monospace,monospace;background:rgba(0,0,0,.55);color:#d7ffe8;border-radius:8px;pointer-events:none;max-width:280px";
+      "position:fixed;right:8px;bottom:48px;z-index:40;margin:0;padding:8px 10px;font:11px/1.35 ui-monospace,monospace;background:rgba(0,0,0,.55);color:#d7ffe8;border-radius:8px;pointer-events:none;max-width:300px";
     document.body.appendChild(debugEl);
   }
 
@@ -209,7 +223,6 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   }
 
   let terrainCache = { key: "", h: 0, t: 0, pending: false };
-
   function terrainAtCached(lat, lon) {
     const key = `${lat.toFixed(3)},${lon.toFixed(3)}`;
     const now = performance.now();
@@ -227,25 +240,34 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     return terrainCache.h;
   }
 
-  function applyUserOffsets(keys, dt) {
-    /* View-only peek — does NOT change route lat/lon or autopilot track */
-    const yawMax = 8;
-    const altMaxUp = 450;
-    const altMaxDn = 350;
-    if (keys?.left) state._yawTarget = Math.min(yawMax, state._yawTarget + dt * 22);
-    else if (keys?.right) state._yawTarget = Math.max(-yawMax, state._yawTarget - dt * 22);
-    else state._yawTarget += (0 - state._yawTarget) * Math.min(1, dt * 3.2);
+  /**
+   * Keyboard = VIEW ONLY
+   * LEFT/RIGHT → yawOffset
+   * UP → look up (positive pitch offset)
+   * DOWN → look down (negative pitch offset)
+   * Never touches lat/lon/route/autopilot altitude/heading
+   */
+  function applyUserView(keys, dt) {
+    const yawMax = 9;
+    const pitchUp = 12;
+    const pitchDn = -16;
+    if (keys?.left) view._yawTarget = Math.min(yawMax, view._yawTarget + dt * 24);
+    else if (keys?.right) view._yawTarget = Math.max(-yawMax, view._yawTarget - dt * 24);
+    else view._yawTarget += (0 - view._yawTarget) * Math.min(1, dt * 3.4);
 
-    if (keys?.up) state._altTarget = Math.min(altMaxUp, state._altTarget + dt * 260);
-    else if (keys?.down) state._altTarget = Math.max(-altMaxDn, state._altTarget - dt * 220);
-    else state._altTarget += (0 - state._altTarget) * Math.min(1, dt * 2.8);
+    if (keys?.up) view._pitchTarget = Math.min(pitchUp, view._pitchTarget + dt * 28);
+    else if (keys?.down) view._pitchTarget = Math.max(pitchDn, view._pitchTarget - dt * 32);
+    else view._pitchTarget += (0 - view._pitchTarget) * Math.min(1, dt * 3.0);
 
-    state.userYawOffset += (state._yawTarget - state.userYawOffset) * Math.min(1, dt * 5);
-    state.userAltitudeOffset += (state._altTarget - state.userAltitudeOffset) * Math.min(1, dt * 4);
+    view.yawOffset += (view._yawTarget - view.yawOffset) * Math.min(1, dt * 5);
+    view.pitchOffset += (view._pitchTarget - view.pitchOffset) * Math.min(1, dt * 5);
+    state.userYawOffset = view.yawOffset;
+    state.userPitchOffset = view.pitchOffset;
   }
 
   let lastHeading = 136;
   let lastWall = performance.now();
+  let lastQuality = "HIGH";
 
   function tick(dt, keys, tabVisible) {
     if (!state._ready) {
@@ -257,11 +279,18 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       lastWall = now;
       return state;
     }
-    /* wall-clock step — survives rAF throttle; capped so tab-return does not teleport */
     let step = (now - lastWall) / 1000;
     lastWall = now;
     if (!Number.isFinite(step) || step < 0) step = dt;
     step = Math.min(0.25, Math.max(dt, step));
+
+    fpsAccum += step;
+    fpsFrames += 1;
+    if (fpsAccum >= 0.5) {
+      fpsShow = Math.round(fpsFrames / fpsAccum);
+      fpsAccum = 0;
+      fpsFrames = 0;
+    }
 
     if (!state._heldAtEnd) {
       state.elapsedSeconds = Math.min(FLIGHT_DURATION_SEC, state.elapsedSeconds + step);
@@ -271,114 +300,104 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
       state.elapsedSeconds = FLIGHT_DURATION_SEC;
     }
 
-    const u = state.elapsedSeconds / FLIGHT_DURATION_SEC;
-    state.normalizedProgress = u;
-    state.phase = phaseFromTime(state.elapsedSeconds);
+    const elapsed = state.elapsedSeconds;
+    state.normalizedProgress = elapsed / FLIGHT_DURATION_SEC;
+    geo.phase = phaseFromTime(elapsed);
+    geo.quality = qualityPhase(elapsed);
+    state.phase = geo.phase;
 
-    applyUserOffsets(keys, step);
+    applyUserView(keys, step);
 
-    const distM = timeToDistanceProgress(
-      state.elapsedSeconds,
-      FLIGHT_DURATION_SEC,
-      path.totalDistM
-    );
+    const routeU = getCinematicRouteProgress(elapsed);
+    geo.routeProgress = routeU;
+    state.normalizedProgress = routeU;
+    const distM = timeToDistanceProgress(elapsed, FLIGHT_DURATION_SEC, path.totalDistM);
     const sample = samplePathByDistance(path, distM);
-    state.latitude = sample.lat;
-    state.longitude = sample.lon;
-    state.activeLegIndex = sample.legIndex;
-    state.activeWaypointFrom = sample.fromId;
-    state.activeWaypointTo = sample.toId;
+    geo.latitude = sample.lat;
+    geo.longitude = sample.lon;
+    geo.activeLegIndex = sample.legIndex;
+    geo.activeWaypointFrom = sample.fromId;
+    geo.activeWaypointTo = sample.toId;
+    state.latitude = geo.latitude;
+    state.longitude = geo.longitude;
+    state.activeLegIndex = geo.activeLegIndex;
+    state.activeWaypointFrom = geo.activeWaypointFrom;
+    state.activeWaypointTo = geo.activeWaypointTo;
 
-    const lookM = lookAheadMeters(state.phase);
+    const lookM = lookAheadMeters(geo.phase);
     const ahead = sampleAhead(path, distM, lookM);
     let hdg = bearingDeg(sample.lat, sample.lon, ahead.lat, ahead.lon);
-    if (u > 0.9) hdg = 176;
+    if (elapsed > 95) hdg = 176;
     let dh = ((hdg - lastHeading + 540) % 360) - 180;
-    const smoothHdg = lastHeading + dh * Math.min(1, step * (u > 0.9 ? 2.4 : 1.8));
-    lastHeading = (smoothHdg + 360) % 360;
-    /* route heading = autopilot only; keyboard yaw is view offset only */
+    lastHeading = (lastHeading + dh * Math.min(1, step * (elapsed > 95 ? 2.2 : 1.6)) + 360) % 360;
+    geo.heading = lastHeading;
     state.routeHeading = lastHeading;
     state.heading = lastHeading;
 
-    const autoAlt = altitudeEnvelopeM(u);
+    const autoAlt = altitudeAtElapsed(elapsed);
     const terrainH = terrainAtCached(sample.lat, sample.lon);
+    geo.terrainHeight = terrainH;
     state.terrainHeight = terrainH;
     const minClear =
-      state.phase === "departure" || state.phase === "approach"
-        ? 35
-        : state.phase === "cruise"
-          ? 350
-          : 120;
-    /* autopilot altitude only — keyboard height is applied to camera later */
-    const safe = Math.max(autoAlt, terrainH + minClear);
-    state.altitudeAMSL = safe;
-    state.altitudeAGL = safe - terrainH;
+      geo.phase === "departure" || geo.phase === "approach" ? 30 : geo.phase === "cruise" ? 400 : 120;
+    geo.altitudeAMSL = Math.max(autoAlt, terrainH + minClear);
+    geo.altitudeAGL = geo.altitudeAMSL - terrainH;
+    state.altitudeAMSL = geo.altitudeAMSL;
+    state.altitudeAGL = geo.altitudeAGL;
 
-    const altRate = (state.altitudeAMSL - state._prevAlt) / Math.max(step, 1e-3);
-    state._prevAlt = state.altitudeAMSL;
-    state.pitch = pitchFromAltRate(altRate) * 0.35;
+    const altRate = (geo.altitudeAMSL - state._prevAlt) / Math.max(step, 1e-3);
+    state._prevAlt = geo.altitudeAMSL;
+    geo.pitch = autopilotPitchDeg(geo.phase, altRate);
+    state.pitch = geo.pitch;
     const turnRate = dh / Math.max(step, 1e-3);
-    state.roll = Math.max(-8, Math.min(8, -turnRate * 0.08));
+    geo.roll = Math.max(-7, Math.min(7, -turnRate * 0.07));
+    state.roll = geo.roll;
 
-    /* camera = route pose + temporary view offsets (does not rewrite route) */
-    const camH = Math.max(
-      terrainH + minClear,
-      state.altitudeAMSL + state.userAltitudeOffset
-    );
-    let horizonBias = -6;
-    /* mild look-down — steep pitch fills windshield with muddy low-LOD ground */
-    if (u < 0.1) horizonBias = -11;
-    else if (u < 0.18) horizonBias = -9;
-    else if (u > 0.92) horizonBias = -14;
-    else if (u > 0.86) horizonBias = -10;
-    else if (state.phase === "cruise") horizonBias = -9;
-
-    /* phase-aware tile quality: sharp near fields, lighter at cruise */
-    if (u < 0.15 || u > 0.88) {
-      viewer.scene.globe.maximumScreenSpaceError = mobile ? 1.8 : 1.05;
-    } else if (state.phase === "cruise") {
-      viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.8 : 1.8;
-    } else {
-      viewer.scene.globe.maximumScreenSpaceError = mobile ? 2.2 : 1.35;
+    if (geo.quality !== lastQuality) {
+      applyQuality(geo.quality, mobile, viewer);
+      lastQuality = geo.quality;
     }
 
-    /* preload tiles ahead of aircraft */
-    try {
-      const pre = sampleAhead(path, distM, Math.max(lookM, 8000));
-      viewer.scene.camera.moveForward; /* no-op keep ref */
-      void pre;
-      if ((Math.floor(state.elapsedSeconds * 2) % 5) === 0) {
-        const carto = Cesium.Cartographic.fromDegrees(pre.lon, pre.lat);
-        viewer.scene.globe.getHeight(carto);
-      }
-    } catch (_) {}
+    /* Camera = autopilot + view offsets only (no alt offset from keys) */
+    const camH = geo.altitudeAMSL;
+    let horizonBias = -8;
+    if (geo.phase === "departure") horizonBias = -7;
+    else if (geo.phase === "cruise") horizonBias = -12; /* mostly sky ahead */
+    else if (geo.phase === "approach") horizonBias = -10;
+    else if (geo.phase === "descent") horizonBias = -9;
 
-    const viewHdg = (state.routeHeading + state.userYawOffset + 360) % 360;
-    const pitchCesium = Cesium.Math.toRadians(-state.pitch + horizonBias);
-    const rollCesium = Cesium.Math.toRadians(state.roll);
-    const hdgCesium = Cesium.Math.toRadians(viewHdg);
+    const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
+    /* Cesium pitch: 0=horizon, negative=look down. Autopilot nose-up → slightly less down. */
+    const renderPitch = -geo.pitch + horizonBias + view.pitchOffset;
 
     viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(state.longitude, state.latitude, camH),
+      destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),
       orientation: {
-        heading: hdgCesium,
-        pitch: pitchCesium,
-        roll: rollCesium,
+        heading: Cesium.Math.toRadians(renderHeading),
+        pitch: Cesium.Math.toRadians(renderPitch),
+        roll: Cesium.Math.toRadians(geo.roll),
       },
     });
 
+    /* soft look-ahead preload */
+    try {
+      const pre = sampleAhead(path, distM, Math.max(lookM, 10000));
+      if ((Math.floor(elapsed * 2) % 7) === 0) {
+        viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(pre.lon, pre.lat));
+      }
+    } catch (_) {}
+
     if (debugEl) {
       debugEl.textContent = [
-        `PHASE ${state.phase.toUpperCase()}`,
-        `LEG ${state.activeWaypointFrom} → ${state.activeWaypointTo}`,
-        `T ${state.elapsedSeconds.toFixed(1)}s / ${FLIGHT_DURATION_SEC}s`,
-        `ROUTE ${(u * 100).toFixed(1)}%`,
-        `LAT ${state.latitude.toFixed(4)}  LON ${state.longitude.toFixed(4)}`,
-        `ALT ${Math.round(state.altitudeAMSL)} m  AGL ${Math.round(state.altitudeAGL)} m`,
-        `TER ${Math.round(state.terrainHeight)} m`,
-        `HDG ${state.heading.toFixed(0)}°  P ${state.pitch.toFixed(1)}°  R ${state.roll.toFixed(1)}°`,
-        `YAWΔ ${state.userYawOffset.toFixed(1)}°  ALTΔ ${state.userAltitudeOffset.toFixed(0)} m`,
-        `DIST ${(path.totalDistM / 1000).toFixed(1)} km`,
+        `PHASE ${geo.phase.toUpperCase()}  Q ${geo.quality}`,
+        `LEG ${geo.activeWaypointFrom} → ${geo.activeWaypointTo}`,
+        `T ${elapsed.toFixed(1)}s / ${FLIGHT_DURATION_SEC}s`,
+        `ROUTE ${(routeU * 100).toFixed(1)}%`,
+        `LAT ${geo.latitude.toFixed(4)}  LON ${geo.longitude.toFixed(4)}`,
+        `ALT ${Math.round(geo.altitudeAMSL)} m  AGL ${Math.round(geo.altitudeAGL)} m`,
+        `HDG ${geo.heading.toFixed(0)}°  AP_P ${geo.pitch.toFixed(1)}°  R ${geo.roll.toFixed(1)}°`,
+        `VIEW yaw ${view.yawOffset.toFixed(1)}°  pitch ${view.pitchOffset.toFixed(1)}°`,
+        `FPS ${fpsShow}  DIST ${(path.totalDistM / 1000).toFixed(1)} km`,
       ].join("\n");
     }
 
@@ -387,11 +406,8 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
 
   function resize() {
     viewer.resize();
-    viewer.resolutionScale = isMobile()
-      ? 0.65
-      : Math.min(1, window.devicePixelRatio > 1.5 ? 0.85 : 1);
+    applyQuality(lastQuality, isMobile(), viewer);
   }
-
   window.addEventListener("resize", resize);
 
   return {
@@ -404,4 +420,30 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     DEPARTURE_TRANSITION,
     ARRIVAL_TRANSITION,
   };
+}
+
+function applyQuality(q, mobile, viewer) {
+  if (mobile) {
+    if (q === "HIGH") {
+      viewer.resolutionScale = 0.8;
+      viewer.scene.globe.maximumScreenSpaceError = 1.6;
+    } else if (q === "MEDIUM") {
+      viewer.resolutionScale = 0.7;
+      viewer.scene.globe.maximumScreenSpaceError = 2.2;
+    } else {
+      viewer.resolutionScale = 0.6;
+      viewer.scene.globe.maximumScreenSpaceError = 3.2;
+    }
+    return;
+  }
+  if (q === "HIGH") {
+    viewer.resolutionScale = 1;
+    viewer.scene.globe.maximumScreenSpaceError = 0.85;
+  } else if (q === "MEDIUM") {
+    viewer.resolutionScale = 0.9;
+    viewer.scene.globe.maximumScreenSpaceError = 1.4;
+  } else {
+    viewer.resolutionScale = 0.72;
+    viewer.scene.globe.maximumScreenSpaceError = 2.6;
+  }
 }
