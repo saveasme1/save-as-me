@@ -297,7 +297,7 @@ body.is-cesium-ready #cesiumContainer {
   bottom: max(3.4rem, calc(env(safe-area-inset-bottom) + 3rem));
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 0.32rem;
   padding: 0.42rem 0.5rem;
   border-radius: 10px;
@@ -311,7 +311,6 @@ body.is-cesium-ready #cesiumContainer {
   max-width: 7.6rem;
   min-width: 7.6rem;
   box-sizing: border-box;
-  align-items: stretch;
 }
 .float-gauges .fg-body {
   pointer-events: none;
