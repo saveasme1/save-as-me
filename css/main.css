@@ -538,8 +538,10 @@ h2 { font-size: clamp(1.95rem, 3.6vw, 3rem); }
   grid-template-columns: 1fr;
   gap: 0.75rem;
   align-items: stretch;
-  max-height: calc(100vh - 5.5rem);
+  width: min(100%, 720px);
+  max-height: calc(100vh - 4.8rem);
   overflow: auto;
+  padding: 1.1rem 1.15rem 1.2rem;
 }
 .project-tags {
   display: flex;
@@ -565,6 +567,203 @@ h2 { font-size: clamp(1.95rem, 3.6vw, 3rem); }
   border-bottom: 1px solid rgba(28,29,31,0.25);
 }
 .link-out:hover { color: var(--amber); border-color: var(--amber); }
+
+/* ── Film reel (cinematic stills) ─────────────────────────── */
+.film-reel {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+}
+.film-scene {
+  display: grid;
+  grid-template-columns: minmax(118px, 34%) 1fr;
+  gap: 0.7rem;
+  align-items: stretch;
+  padding: 0.45rem;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.34);
+  border: 1px solid rgba(255,255,255,0.42);
+  animation: filmIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 0.08s);
+}
+@keyframes filmIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.film-still {
+  position: relative;
+  min-height: 96px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #12161c;
+  isolation: isolate;
+}
+.film-still img {
+  width: 100%;
+  height: 100%;
+  min-height: 96px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  animation: kenBurns 14s ease-in-out infinite alternate;
+  transform-origin: center center;
+}
+.film-still.is-contain {
+  background: #0e1218;
+}
+.film-still.is-contain img {
+  object-fit: contain;
+  padding: 0.55rem;
+  animation: logoFloat 8s ease-in-out infinite alternate;
+}
+@keyframes logoFloat {
+  from { transform: scale(0.96); }
+  to { transform: scale(1.04); }
+}
+@keyframes kenBurns {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.08) translate(-1.5%, -1%); }
+}
+.film-caption {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 0.15rem 0.2rem 0.15rem 0;
+}
+.film-caption em {
+  font-style: normal;
+  font-family: var(--font-m);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--amber);
+}
+.film-caption h3 {
+  margin: 0.28rem 0 0;
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.film-caption p {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #3f4246;
+}
+.film-link {
+  margin-top: 0.45rem;
+  width: fit-content;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  border-bottom: 1px solid rgba(28,29,31,0.22);
+}
+.film-link:hover { color: var(--amber); border-color: var(--amber); }
+
+/* Virtual cinematic stills when no photo */
+.film-virtual {
+  background:
+    radial-gradient(120% 90% at 20% 10%, rgba(133,185,230,0.35), transparent 55%),
+    radial-gradient(100% 80% at 90% 80%, rgba(212,160,74,0.28), transparent 50%),
+    linear-gradient(160deg, #15202b, #0c1016 60%, #1a2430);
+}
+.fv-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.fv-orb {
+  position: absolute;
+  width: 42%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(1px);
+  opacity: 0.55;
+  animation: orbDrift 7s ease-in-out infinite alternate;
+}
+.fv-orb:nth-child(1) {
+  left: -8%; top: -12%;
+  background: radial-gradient(circle, #85b9e6, transparent 70%);
+}
+.fv-orb:nth-child(2) {
+  right: -10%; bottom: -18%;
+  background: radial-gradient(circle, #d4a04a, transparent 70%);
+  animation-delay: -2.2s;
+}
+.fv-orb:nth-child(3) {
+  left: 35%; top: 40%;
+  width: 28%;
+  background: radial-gradient(circle, rgba(255,255,255,0.35), transparent 70%);
+  animation-delay: -4s;
+}
+@keyframes orbDrift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(12%, -8%) scale(1.15); }
+}
+.fv-panel {
+  position: absolute;
+  inset: 18% 14%;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent 55%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  animation: panelPulse 4.5s ease-in-out infinite;
+}
+@keyframes panelPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.02); }
+}
+.fv-scan {
+  position: absolute;
+  left: 0; right: 0;
+  height: 28%;
+  background: linear-gradient(180deg, transparent, rgba(133,185,230,0.22), transparent);
+  animation: scanY 3.6s linear infinite;
+}
+@keyframes scanY {
+  from { top: -30%; }
+  to { top: 110%; }
+}
+.fv-label {
+  position: absolute;
+  left: 0.55rem;
+  bottom: 0.45rem;
+  margin: 0;
+  font-family: var(--font-m);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  color: rgba(255,255,255,0.72);
+}
+
+.film-virtual[data-kind="food"] {
+  background: linear-gradient(150deg, #2a1510, #4a2218 45%, #1a100c);
+}
+.film-virtual[data-kind="food"] .fv-orb:nth-child(1) {
+  background: radial-gradient(circle, #e07a3a, transparent 70%);
+}
+.film-virtual[data-kind="coupang"],
+.film-virtual[data-kind="listing"],
+.film-virtual[data-kind="strategy"],
+.film-virtual[data-kind="ops"] {
+  background: linear-gradient(155deg, #1a1208, #2c1c0c 50%, #0e0a06);
+}
+.film-virtual[data-kind="coupang"] .fv-orb:nth-child(1),
+.film-virtual[data-kind="listing"] .fv-orb:nth-child(1) {
+  background: radial-gradient(circle, #f0a000, transparent 70%);
+}
+.film-virtual[data-kind="mobile"] {
+  background: linear-gradient(160deg, #0d1a24, #122836 55%, #081018);
+}
+.film-virtual[data-kind="convert"],
+.film-virtual[data-kind="plan"],
+.film-virtual[data-kind="store"] {
+  background: linear-gradient(155deg, #142018, #1e3024 50%, #0c1410);
+}
+.film-virtual[data-kind="oem"],
+.film-virtual[data-kind="factory"],
+.film-virtual[data-kind="ship"] {
+  background: linear-gradient(155deg, #16141a, #24202c 50%, #0c0b10);
+}
 
 .display-bezel {
   height: 100%;
@@ -1098,7 +1297,7 @@ body.is-ready .boot {
   .contact-card {
     width: 100%;
     margin-left: 0;
-    max-height: min(32vh, 240px);
+    max-height: min(42vh, 340px);
     overflow: auto;
     padding: 0.55rem 0.65rem 0.6rem;
     border-radius: 12px;
@@ -1112,8 +1311,28 @@ body.is-ready .boot {
   h1 { font-size: clamp(1.45rem, 5.5vw, 1.85rem); line-height: 1.22; }
   h2 { font-size: clamp(1.25rem, 4.5vw, 1.55rem); line-height: 1.28; }
   .lede { font-size: 0.95rem; margin: 0.4rem 0 0; -webkit-line-clamp: 3; }
-  .project-card { grid-template-columns: 1fr; gap: 0.35rem; }
+  .project-card {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    max-height: min(48vh, 420px);
+  }
   .project-card .lede {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .film-scene {
+    grid-template-columns: 88px 1fr;
+    gap: 0.45rem;
+    padding: 0.35rem;
+    border-radius: 10px;
+  }
+  .film-still,
+  .film-still img { min-height: 72px; }
+  .film-caption h3 { font-size: 0.95rem; }
+  .film-caption p {
+    font-size: 0.78rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -1133,6 +1352,13 @@ body.is-ready .boot {
   .hero-card, .project-card, .system-card, .contact-card, .flight-ui {
     transition: none;
   }
+  .film-scene,
+  .film-still img,
+  .fv-orb,
+  .fv-panel,
+  .fv-scan {
+    animation: none !important;
+  }
 }
 
 .hud-credit { opacity: 0.55; font-size: 0.68rem; letter-spacing: 0.02em; }
@@ -1141,8 +1367,11 @@ body.is-ready .boot {
   .stage {
     left: calc(min(28vw, 280px) + 1.6rem);
   }
-  .project-card, .system-card, .contact-card, .hero-card {
+  .system-card, .contact-card, .hero-card {
     width: min(100%, 400px);
+  }
+  .project-card {
+    width: min(100%, 560px);
   }
 }
 

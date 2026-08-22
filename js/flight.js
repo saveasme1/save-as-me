@@ -2,90 +2,241 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=bootcinemascale0823f";
+import { createCesiumWorld } from "./cesium-world.js?v=filmacts0823g";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=bootcinemascale0823f";
+} from "./gmp-usn-route.js?v=filmacts0823g";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
 
 const PROJECTS = [
   {
-    eye: "PROJECT 01",
-    name: "LOCAL",
-    title: "오프라인 상품을<br />온라인에서도 팔 수 있게.",
-    body: "실제 로컬 매장의 상품을 온라인 판매용 상품으로 다시 기획했습니다. 패키지, 상세페이지, 스마트스토어 구축, 상품 등록, 쿠팡 확장과 기본 운영 교육까지 연결했습니다.",
-    tags: ["상품 기획", "패키지", "스마트스토어", "쿠팡", "운영 교육"],
-    link: "https://smartstore.naver.com/_mymura",
-    linkLabel: "스마트스토어 보기 ↗",
-    art: "assets/symbols/01-local.svg",
-    demos: null,
-    /* Day → night as missions progress (2nd sky era) */
-    env: { turbidity: 1.8, elevation: 32, azimuth: 175, rayleigh: 2.2, exposure: 0.72, ground: 0x7f9a6a },
-    alt: 4200,
-    hdg: 42,
-  },
-  {
-    eye: "PROJECT 02",
-    name: "SAVEAS",
-    title: "고객이 직접 만들고<br />그대로 주문하도록.",
-    body: "사용자가 웹에서 상품에 이미지와 문구를 넣고 직접 디자인한 뒤 바로 주문할 수 있는 커스텀 상품 쇼핑몰을 개발했습니다.",
-    tags: ["Web Editor", "POD", "주문 연동", "미리보기"],
-    link: "https://save-as.co.kr",
-    linkLabel: "save-as.co.kr ↗",
-    art: "assets/symbols/02-saveas.svg",
-    demos: null,
-    env: { turbidity: 1.4, elevation: 40, azimuth: 160, rayleigh: 1.6, exposure: 0.78, ground: 0xa8b89a },
-    alt: 9800,
-    hdg: 86,
-  },
-  {
-    eye: "PROJECT 03",
-    name: "MAKERBRIDGE",
-    title: "기존 쇼핑몰에<br />디자인 기능을 더했습니다.",
-    body: "카페24 상품 페이지 안에서 고객이 직접 텍스트와 이미지를 편집하고 제작용 데이터를 생성할 수 있는 웹 편집기 앱입니다.",
-    tags: ["Cafe24", "TEXT", "IMAGE", "CUTLINE", "FINISHING"],
+    eye: "ACT 01 · COMMERCE",
+    name: "COMMERCE",
+    title: "쇼핑몰 및<br />홈페이지 제작",
+    body: "카페24부터 독립 몰, 기업·브랜드 사이트까지. 판매와 브랜드가 실제로 작동하는 웹을 만듭니다.",
+    tags: ["Cafe24", "독립몰", "브랜드 사이트", "커머스"],
     link: null,
-    art: "assets/symbols/03-makerbridge.svg",
-    demos: [
-      { id: "text", label: "TEXT", art: "assets/symbols/03-makerbridge.svg" },
-      { id: "image", label: "IMAGE", art: "assets/symbols/02-saveas.svg" },
-      { id: "cutline", label: "CUTLINE", art: "assets/symbols/03-makerbridge.svg" },
-      { id: "align", label: "ALIGN", art: "assets/symbols/03-makerbridge.svg" },
+    linkLabel: "",
+    art: "assets/film/zeron-scene-1.jpg",
+    demos: null,
+    scenes: [
+      {
+        label: "카페24 쇼핑몰",
+        title: "ZERON",
+        text: "카페24 기반 패션 커머스. 상품·브랜드 톤·운영 흐름을 한 구조로 맞춰 구축했습니다.",
+        img: "assets/film/zeron-scene-1.jpg",
+        kind: "commerce",
+      },
+      {
+        label: "독립 쇼핑몰",
+        title: "SaveAs",
+        text: "고객이 웹에서 이미지·문구를 올려 직접 디자인한 뒤 바로 주문하는 POD 커스텀 몰입니다.",
+        img: "assets/film/saveas-logo.png",
+        kind: "editor",
+        fit: "contain",
+        link: "https://save-as.co.kr",
+      },
+      {
+        label: "독립 쇼핑몰",
+        title: "애즈플라워",
+        text: "꽃과 공간을 담는 독립 커머스. 상품 큐레이션·브랜드 무드·주문 경험을 한 사이트로 묶었습니다.",
+        img: "assets/film/asf-rose.png",
+        kind: "flower",
+        fit: "contain",
+      },
+      {
+        label: "기업·브랜드 홈페이지",
+        title: "CORPORATE WEB",
+        text: "소개만 있는 사이트가 아니라, 문의·제안·포트폴리오가 영업 흐름으로 이어지게 설계합니다.",
+        img: "assets/film/zeron-scene-3.jpg",
+        kind: "corp",
+      },
     ],
-    env: { turbidity: 1.1, elevation: 52, azimuth: 150, rayleigh: 1.1, exposure: 0.8, ground: 0x6f8fa8 },
-    alt: 12400,
-    hdg: 112,
+    env: { turbidity: 1.6, elevation: 36, azimuth: 168, rayleigh: 1.8, exposure: 0.76, ground: 0x8aa67a },
+    alt: 5200,
+    hdg: 48,
   },
   {
-    eye: "PROJECT 04",
-    name: "CURSOR MOBILE",
-    title: "PC 앞이 아니어도<br />개발은 계속됩니다.",
-    body: "PC에서 진행하던 Cursor 작업을 모바일로 이어 사용하고, 클라우드 환경을 통해 PC가 꺼진 상황에서도 작업할 수 있도록 확장한 개발 환경입니다.",
-    tags: ["Desktop", "Mobile", "Cloud", "Continuity"],
-    link: null,
-    art: "assets/symbols/04-cursor.svg",
+    eye: "ACT 02 · CONVERT",
+    name: "CONVERT",
+    title: "온라인<br />사업전환",
+    body: "오프라인 상품을 온라인 판매 가능한 형태로 다시 기획하고, 판매 환경과 운영까지 연결합니다.",
+    tags: ["상품 기획", "상세·패키지", "스토어 구축", "운영 교육"],
+    link: "https://smartstore.naver.com/_mymura",
+    linkLabel: "전환 사례 스토어 ↗",
+    art: "assets/film/zeron-scene-2.jpg",
     demos: null,
-    env: { turbidity: 4.5, elevation: 12, azimuth: 205, rayleigh: 2.2, exposure: 0.55, ground: 0x5a4a3a },
-    alt: 7600,
-    hdg: 148,
+    scenes: [
+      {
+        label: "오프라인 → 온라인",
+        title: "판매 전환",
+        text: "매장 상품을 온라인용 상품으로 재정의합니다. 구성·가격·촬영·상세 카피를 판매 기준으로 다시 잡습니다.",
+        img: null,
+        kind: "convert",
+      },
+      {
+        label: "상품 기획·구성",
+        title: "PRODUCT PLAN",
+        text: "단품이 아니라 세트·옵션·시즌 라인으로 구성해, 객단가와 재구매가 나오도록 기획합니다.",
+        img: "assets/film/zeron-scene-3.jpg",
+        kind: "plan",
+      },
+      {
+        label: "판매환경 구축",
+        title: "STORE SETUP",
+        text: "스마트스토어·쿠팡 등 채널에 맞춰 카테고리, 옵션, 배송, 고시정보를 실제 판매 가능한 상태로 세팅합니다.",
+        img: "assets/film/zeron-scene-2.jpg",
+        kind: "store",
+      },
+      {
+        label: "로컬 브랜드 사례",
+        title: "까치산 김치찌개",
+        text: "로컬 맛집 메뉴를 온라인 상품으로 전환한 케이스. 메뉴 정체성·패키지·상세·채널 세팅을 한 흐름으로 연결합니다.",
+        img: null,
+        kind: "food",
+      },
+    ],
+    env: { turbidity: 1.9, elevation: 28, azimuth: 175, rayleigh: 2.0, exposure: 0.7, ground: 0x7f9a6a },
+    alt: 6400,
+    hdg: 72,
   },
   {
-    eye: "PROJECT 05",
-    name: "PWA",
-    title: "웹서비스를<br />앱처럼 사용하도록.",
-    body: "별도의 앱스토어 설치 없이 홈 화면에 추가하고 앱처럼 사용할 수 있는 PWA 기반 서비스를 개발합니다.",
-    tags: ["PWA", "Installable", "Private", "Mobile"],
+    eye: "ACT 03 · BUILD",
+    name: "BUILD",
+    title: "앱·웹 개발",
+    body: "쇼핑몰 편집기, 모바일 개발 환경, 주얼리 PWA, 관리자 시스템까지. 필요한 디지털 도구를 직접 만듭니다.",
+    tags: ["MakerBridge", "Cursor Mobile", "PWA", "Admin"],
     link: null,
-    art: "assets/symbols/05-pwa.svg",
+    linkLabel: "",
+    art: "assets/film/mb-logo-512.png",
     demos: null,
-    env: { turbidity: 6.5, elevation: 2, azimuth: 220, rayleigh: 0.6, exposure: 0.38, ground: 0x121820 },
-    alt: 2800,
-    hdg: 186,
+    scenes: [
+      {
+        label: "웹 편집기",
+        title: "MakerBridge",
+        text: "카페24 상품 페이지 안에서 텍스트·이미지·재단선을 편집하고 제작용 데이터를 생성하는 웹 앱입니다.",
+        img: "assets/film/mb-logo-final.png",
+        kind: "editor",
+        fit: "contain",
+      },
+      {
+        label: "모바일 개발환경",
+        title: "Cursor Mobile",
+        text: "PC Cursor 작업을 폰으로 이어가고, 클라우드로 PC가 꺼져도 개발이 끊기지 않게 확장한 환경입니다.",
+        img: null,
+        kind: "mobile",
+      },
+      {
+        label: "주얼리 PWA",
+        title: "BON HERITAGE",
+        text: "주문제작 주얼리 포트폴리오·피팅·운영을 앱처럼 쓰는 PWA. 홈화면 설치와 관리 흐름까지 포함합니다.",
+        img: "assets/film/bh-look-1.jpg",
+        kind: "jewel",
+      },
+      {
+        label: "웹앱·관리자",
+        title: "PWA / ADMIN",
+        text: "앱스토어 없이 설치 가능한 웹앱과, 주문·콘텐츠·운영을 다루는 관리자 시스템을 함께 설계합니다.",
+        img: "assets/film/bh-look-2.jpg",
+        kind: "pwa",
+      },
+    ],
+    env: { turbidity: 1.2, elevation: 48, azimuth: 155, rayleigh: 1.2, exposure: 0.8, ground: 0x6f8fa8 },
+    alt: 11800,
+    hdg: 118,
+  },
+  {
+    eye: "ACT 04 · COUPANG",
+    name: "COUPANG",
+    title: "쿠팡 로켓배송<br />강의·컨설팅",
+    body: "로켓그로스 입점부터 상품등록, 판매전략, 운영 실무까지. 바로 현장에 쓰는 기준으로 교육합니다.",
+    tags: ["로켓그로스", "상품등록", "판매전략", "운영실무"],
+    link: null,
+    linkLabel: "",
+    art: "assets/film/zeron-logo.png",
+    demos: null,
+    scenes: [
+      {
+        label: "입점",
+        title: "로켓그로스 입점",
+        text: "입점 요건, 카테고리, 물류 조건, 초기 세팅 체크리스트를 실제 진행 순서대로 정리합니다.",
+        img: null,
+        kind: "coupang",
+      },
+      {
+        label: "세팅",
+        title: "상품등록·세팅",
+        text: "이미지·옵션·고시·검색어·재고 구조를 ‘팔리는 등록’ 기준으로 맞춥니다.",
+        img: null,
+        kind: "listing",
+      },
+      {
+        label: "전략",
+        title: "판매전략",
+        text: "가격·프로모션·노출·리뷰 운영을 매출 목표에 맞춰 설계합니다.",
+        img: null,
+        kind: "strategy",
+      },
+      {
+        label: "실무",
+        title: "운영 실무 교육",
+        text: "문의 응대, CS, 재고, 정산, 광고 운영까지 혼자 돌릴 수 있는 실무 루틴을 교육합니다.",
+        img: null,
+        kind: "ops",
+      },
+    ],
+    env: { turbidity: 3.2, elevation: 18, azimuth: 198, rayleigh: 2.0, exposure: 0.58, ground: 0x5a4a3a },
+    alt: 8200,
+    hdg: 152,
+  },
+  {
+    eye: "ACT 05 · CRAFT",
+    name: "CRAFT",
+    title: "브랜딩 · OEM<br />제품개발",
+    body: "로고부터 패키지·타이포·컬러 시스템, 그리고 소싱·샘플·생산·수입까지 A to Z로 만듭니다.",
+    tags: ["브랜딩", "패키지", "OEM", "A to Z"],
+    link: null,
+    linkLabel: "",
+    art: "assets/film/bh-atelier.jpg",
+    demos: null,
+    scenes: [
+      {
+        label: "브랜딩",
+        title: "로고 · 패키지 · 타이포 · 컬러",
+        text: "로고, 패키지, 폰트·타이포, 컬러, 브랜드 디자인 시스템을 한 언어로 맞춥니다.",
+        img: "assets/film/bh-atelier.jpg",
+        kind: "brand",
+      },
+      {
+        label: "OEM 기획",
+        title: "제품 기획 · 소싱",
+        text: "제품 기획 후 국내·해외 제조사를 소싱하고, 샘플로 스펙을 확정합니다.",
+        img: "assets/film/bh-look-3.jpg",
+        kind: "oem",
+      },
+      {
+        label: "OEM 생산",
+        title: "견적 · 패키지 · 생산",
+        text: "단가 협의, 패키지·인쇄, 생산·검수까지 일정과 품질 기준으로 관리합니다.",
+        img: "assets/film/bh-look-4.jpg",
+        kind: "factory",
+      },
+      {
+        label: "OEM 납품",
+        title: "수입 · 납품 A to Z",
+        text: "수입·통관·납품까지 마무리해, 기획이 재고로 도착하는 끝까지 책임집니다.",
+        img: "assets/film/bh-look-5.jpg",
+        kind: "ship",
+      },
+    ],
+    env: { turbidity: 5.5, elevation: 6, azimuth: 215, rayleigh: 0.8, exposure: 0.42, ground: 0x1a2228 },
+    alt: 3600,
+    hdg: 188,
   },
 ];
 
@@ -150,6 +301,7 @@ const el = {
   pTitle: document.getElementById("pTitle"),
   pBody: document.getElementById("pBody"),
   pTags: document.getElementById("pTags"),
+  pReel: document.getElementById("pReel"),
   pLink: document.getElementById("pLink"),
   dImg: document.getElementById("dImg"),
   dLabel: document.getElementById("dLabel"),
@@ -1583,6 +1735,71 @@ function tickEnv() {
   }
 }
 
+
+function virtualStill(kind) {
+  const k = kind || "flow";
+  const titles = {
+    food: "KACHISAN · MENU → SKU",
+    convert: "OFFLINE → ONLINE",
+    plan: "PRODUCT ARCHITECTURE",
+    store: "CHANNEL READY",
+    mobile: "CURSOR · HANDHELD",
+    coupang: "ROCKET GROWTH",
+    listing: "LISTING · SEO",
+    strategy: "SELL STRATEGY",
+    ops: "OPS PLAYBOOK",
+    corp: "BRAND SITE",
+    oem: "SOURCE · SAMPLE",
+    factory: "MAKE · INSPECT",
+    ship: "IMPORT · DELIVER",
+    pwa: "INSTALLABLE WEB",
+    editor: "LIVE EDITOR",
+    flower: "FLORAL COMMERCE",
+    brand: "IDENTITY SYSTEM",
+    jewel: "CUSTOM JEWELRY",
+    commerce: "CAFE24 STORE",
+  };
+  const label = titles[k] || String(k).toUpperCase();
+  return `<div class="film-still film-virtual" data-kind="${k}" aria-hidden="true">
+    <div class="fv-stage">
+      <span class="fv-orb"></span><span class="fv-orb"></span><span class="fv-orb"></span>
+      <div class="fv-panel"></div>
+      <div class="fv-scan"></div>
+      <p class="fv-label">${label}</p>
+    </div>
+  </div>`;
+}
+
+function renderScenes(scenes) {
+  if (!el.pReel) return;
+  if (!scenes || !scenes.length) {
+    el.pReel.innerHTML = "";
+    el.pReel.hidden = true;
+    return;
+  }
+  el.pReel.hidden = false;
+  el.pReel.innerHTML = scenes
+    .map((s, i) => {
+      const fit = s.fit === "contain" ? " is-contain" : "";
+      const still = s.img
+        ? `<div class="film-still${fit}"><img src="${s.img}" alt="" loading="lazy" /></div>`
+        : virtualStill(s.kind);
+      const link = s.link
+        ? `<a class="film-link" href="${s.link}" target="_blank" rel="noopener">열기 ↗</a>`
+        : "";
+      return `<article class="film-scene" style="--i:${i}">
+        ${still}
+        <div class="film-caption">
+          <em>${s.label || `SCENE ${String(i + 1).padStart(2, "0")}`}</em>
+          <h3>${s.title || ""}</h3>
+          <p>${s.text || ""}</p>
+          ${link}
+        </div>
+      </article>`;
+    })
+    .join("");
+}
+
 function applyProject(index, { maneuver = true } = {}) {
   state.project = index;
   document.querySelectorAll(".route-item").forEach((b) => {
@@ -1608,31 +1825,37 @@ function applyProject(index, { maneuver = true } = {}) {
   el.pEye.textContent = p.eye;
   el.pTitle.innerHTML = p.title;
   el.pBody.textContent = p.body;
-  el.pTags.innerHTML = p.tags.map((t) => `<span>${t}</span>`).join("");
-  el.dImg.src = p.art;
-  el.dImg.style.display = "block";
-  el.dLabel.textContent = p.name;
+  el.pTags.innerHTML = (p.tags || []).map((t) => `<span>${t}</span>`).join("");
+  const cover = (p.scenes && p.scenes.find((s) => s.img)?.img) || p.art;
+  if (el.dImg) {
+    el.dImg.src = cover;
+    el.dImg.style.display = cover ? "block" : "none";
+  }
+  if (el.dLabel) el.dLabel.textContent = p.name;
+  renderScenes(p.scenes);
   if (p.link) {
     el.pLink.hidden = false;
     el.pLink.href = p.link;
     el.pLink.textContent = p.linkLabel;
   } else el.pLink.hidden = true;
 
-  if (p.demos) {
-    el.mbSwitches.hidden = false;
-    el.mbSwitches.innerHTML = p.demos
-      .map((d, i) => `<button type="button" data-art="${d.art}" class="${i === 0 ? "on" : ""}">${d.label}</button>`)
-      .join("");
-    el.mbSwitches.querySelectorAll("button").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        el.mbSwitches.querySelectorAll("button").forEach((x) => x.classList.remove("on"));
-        btn.classList.add("on");
-        el.dImg.src = btn.dataset.art;
+  if (el.mbSwitches) {
+    if (p.demos) {
+      el.mbSwitches.hidden = false;
+      el.mbSwitches.innerHTML = p.demos
+        .map((d, i) => `<button type="button" data-art="${d.art}" class="${i === 0 ? "on" : ""}">${d.label}</button>`)
+        .join("");
+      el.mbSwitches.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          el.mbSwitches.querySelectorAll("button").forEach((x) => x.classList.remove("on"));
+          btn.classList.add("on");
+          el.dImg.src = btn.dataset.art;
+        });
       });
-    });
-  } else {
-    el.mbSwitches.hidden = true;
-    el.mbSwitches.innerHTML = "";
+    } else {
+      el.mbSwitches.hidden = true;
+      el.mbSwitches.innerHTML = "";
+    }
   }
 
   setEnv(p.env);

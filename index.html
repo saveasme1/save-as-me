@@ -12,7 +12,7 @@
   <title>SaveAs For Biz — 세이브애즈 포 비즈</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
-  <link rel="stylesheet" href="css/main.css?v=bootcinemascale0823f" />
+  <link rel="stylesheet" href="css/main.css?v=filmacts0823g" />
   <link
     rel="stylesheet"
     href="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Widgets/widgets.css"
@@ -53,23 +53,23 @@
     <nav class="route" id="routeNav" aria-label="프로젝트">
       <button type="button" class="route-item is-active" data-index="0">
         <em>01</em>
-        <span>오프라인 상품의 온라인 판매 전환</span>
+        <span>쇼핑몰 · 홈페이지</span>
       </button>
       <button type="button" class="route-item" data-index="1">
         <em>02</em>
-        <span>커스텀 상품 쇼핑몰</span>
+        <span>온라인 사업전환</span>
       </button>
       <button type="button" class="route-item" data-index="2">
         <em>03</em>
-        <span>MakerBridge</span>
+        <span>앱 · 웹 개발</span>
       </button>
       <button type="button" class="route-item" data-index="3">
         <em>04</em>
-        <span>Cursor Mobile</span>
+        <span>쿠팡 로켓배송</span>
       </button>
       <button type="button" class="route-item" data-index="4">
         <em>05</em>
-        <span>PWA</span>
+        <span>브랜딩 · OEM</span>
       </button>
     </nav>
 
@@ -121,21 +121,22 @@
     <section class="hero-card" id="heroCard">
       <p class="eyebrow">SAVEAS FOR BIZ</p>
       <h1>비즈니스의 아이디어를<br />실제로 작동하게 만듭니다.</h1>
-      <p class="lede">쇼핑몰, 웹서비스, 커스텀 시스템, 자동화까지.<br />기획부터 디자인, 개발, 운영 구조까지 연결합니다.</p>
+      <p class="lede">커머스 · 사업전환 · 앱/웹 · 쿠팡 · 브랜딩·OEM.<br />기획부터 제작, 운영까지 한 편의 루트로 연결합니다.</p>
       <div class="chips">
-        <span>쇼핑몰</span><span>웹서비스</span><span>커스텀 시스템</span><span>자동화</span>
+        <span>COMMERCE</span><span>CONVERT</span><span>BUILD</span><span>COUPANG</span><span>CRAFT</span>
       </div>
     </section>
 
     <section class="project-card is-hidden" id="projectCard" aria-live="polite">
       <div class="project-copy">
-        <p class="eyebrow" id="pEye">PROJECT 01</p>
-        <h2 id="pTitle">오프라인 상품을<br />온라인에서도 팔 수 있게.</h2>
-        <p class="lede" id="pBody">실제 로컬 매장의 상품을 온라인 판매용 상품으로 다시 기획했습니다. 패키지, 상세페이지, 스마트스토어 구축, 상품 등록, 쿠팡 확장과 기본 운영 교육까지 연결했습니다.</p>
+        <p class="eyebrow" id="pEye">ACT 01</p>
+        <h2 id="pTitle">쇼핑몰 및<br />홈페이지 제작</h2>
+        <p class="lede" id="pBody">카페24부터 독립 몰, 기업·브랜드 사이트까지. 판매와 브랜드가 실제로 작동하는 웹을 만듭니다.</p>
         <div class="project-tags" id="pTags"></div>
         <a class="link-out" id="pLink" href="#" target="_blank" rel="noopener" hidden>자세히 보기 ↗</a>
       </div>
-      <div class="project-display" id="pDisplay">
+      <div class="film-reel" id="pReel" hidden></div>
+      <div class="project-display" id="pDisplay" hidden>
         <div class="display-bezel">
           <div class="display-bar">
             <span id="dLabel">DISPLAY</span>
@@ -156,12 +157,12 @@
 
     <section class="system-card is-hidden" id="systemCard">
       <p class="eyebrow">SYSTEM MAP</p>
-      <h2>플랫폼에 묶이지 않습니다.</h2>
+      <h2>5개 ACT로 연결합니다.</h2>
       <div class="sys-grid">
-        <article><h3>COMMERCE</h3><p>Cafe24 · Godomall · Imweb · SmartStore · POD</p></article>
-        <article><h3>DEVELOPMENT</h3><p>Custom Web · PWA · API · Automation · Editor</p></article>
-        <article><h3>DESIGN</h3><p>UI/UX · Package · Detail · Brand Experience</p></article>
-        <article><h3>DIGITIZATION</h3><p>Offline → Online · Channel · Operation</p></article>
+        <article><h3>COMMERCE</h3><p>Cafe24 · 독립몰 · 기업·브랜드 홈페이지</p></article>
+        <article><h3>CONVERT</h3><p>오프라인→온라인 · 상품기획 · 판매환경</p></article>
+        <article><h3>BUILD</h3><p>MakerBridge · Cursor Mobile · PWA</p></article>
+        <article><h3>COUPANG · CRAFT</h3><p>로켓그로스 · 브랜딩 · OEM A to Z</p></article>
       </div>
       <button type="button" class="ui-action ghost" id="closeSystem">돌아가기</button>
     </section>
@@ -210,6 +211,6 @@
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js"></script>
   <script src="js/cesium-token.js"></script>
   <script src="js/cesium-token.local.js"></script>
-  <script type="module" src="js/flight.js?v=bootcinemascale0823f"></script>
+  <script type="module" src="js/flight.js?v=filmacts0823g"></script>
 </body>
 </html>
