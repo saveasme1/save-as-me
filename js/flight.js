@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=pinchfwdboot0823b";
+import { createCesiumWorld } from "./cesium-world.js?v=bootfastimpact0823d";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=pinchfwdboot0823b";
+} from "./gmp-usn-route.js?v=bootfastimpact0823d";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -2260,69 +2260,6 @@ document.addEventListener("visibilitychange", () => {
 const bootFill = document.getElementById("bootLoadFill");
 const bootPct = document.getElementById("bootLoadPct");
 const bootLabel = document.getElementById("bootLoadLabel");
-const bootEn = document.getElementById("bootEn");
-
-function fitBootType() {
-  if (!bootEn) return;
-  const copy = bootEn.parentElement;
-  if (!copy) return;
-  const lines = [...bootEn.querySelectorAll(".boot-line")];
-  if (!lines.length) return;
-  /* Reset to CSS clamp — never leave a tiny inline size from a bad pass */
-  bootEn.style.fontSize = "";
-  const budget = Math.floor(copy.clientWidth * (window.innerWidth <= 720 ? 0.92 : 0.96));
-  if (budget < 40) return;
-  /* width:100% lines always report parent width → false overflow. Measure intrinsic. */
-  const prevWidth = lines.map((n) => n.style.width);
-  lines.forEach((n) => {
-    n.style.width = "max-content";
-  });
-  let size = parseFloat(getComputedStyle(bootEn).fontSize);
-  const minSize = window.innerWidth <= 720 ? 15 : 20;
-  for (let i = 0; i < 40; i++) {
-    const overflow = lines.some((n) => n.scrollWidth > budget + 1);
-    if (!overflow) break;
-    size *= 0.94;
-    if (size < minSize) {
-      size = minSize;
-      bootEn.style.fontSize = `${size.toFixed(2)}px`;
-      break;
-    }
-    bootEn.style.fontSize = `${size.toFixed(2)}px`;
-  }
-  lines.forEach((n, i) => {
-    n.style.width = prevWidth[i] || "";
-  });
-  // #region agent log
-  fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
-    body: JSON.stringify({
-      sessionId: "88eb62",
-      runId: "boot-css",
-      hypothesisId: "BOOT",
-      location: "flight.js:fitBootType",
-      message: "boot_fit",
-      data: {
-        vw: window.innerWidth,
-        budget,
-        size: +size.toFixed(2),
-        line0: lines[0]?.scrollWidth || 0,
-        line1: lines[1]?.scrollWidth || 0,
-        copyW: copy.clientWidth,
-        ok: true,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-}
-fitBootType();
-if (document.fonts?.ready) document.fonts.ready.then(fitBootType).catch(() => {});
-window.addEventListener("resize", () => {
-  window.clearTimeout(window.__bootFitT);
-  window.__bootFitT = window.setTimeout(fitBootType, 80);
-});
 
 let bootProgress = 0;
 let bootDone = false;

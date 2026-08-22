@@ -12,9 +12,9 @@
   --cyan: #2f8fa3;
   --glass: rgba(246, 244, 238, 0.22);
   --glass-edge: rgba(255, 255, 255, 0.38);
-  --font-d: "Syne", "Outfit", "Pretendard Variable", Pretendard, sans-serif;
-  --font-b: "Pretendard Variable", Pretendard, sans-serif;
-  --font-m: "IBM Plex Mono", ui-monospace, monospace;
+  --font-d: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --font-b: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --font-m: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -162,7 +162,7 @@ body.is-cesium-ready #cesiumContainer {
 .ui-brand strong {
   display: block;
   font-family: var(--font-m);
-  font-size: 0.72rem;
+  font-size: 0.92rem;
   letter-spacing: 0.08em;
 }
 .ui-brand em {
@@ -170,7 +170,7 @@ body.is-cesium-ready #cesiumContainer {
   margin-top: 0.15rem;
   font-style: normal;
   font-family: var(--font-m);
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   letter-spacing: 0.1em;
   color: var(--amber);
 }
@@ -199,14 +199,14 @@ body.is-cesium-ready #cesiumContainer {
 .ui-meta b {
   display: block;
   margin-top: 0.2rem;
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .ui-label {
   margin: 0 0 0.45rem;
   font-family: var(--font-m);
-  font-size: 0.58rem;
+  font-size: 0.72rem;
   letter-spacing: 0.14em;
   color: var(--warm-gray);
 }
@@ -499,7 +499,7 @@ body.is-cesium-ready #cesiumContainer {
 .eyebrow {
   margin: 0 0 0.7rem;
   font-family: var(--font-m);
-  font-size: 0.68rem;
+  font-size: 0.82rem;
   letter-spacing: 0.14em;
   color: var(--amber);
 }
@@ -510,12 +510,12 @@ h1, h2 {
   letter-spacing: -0.03em;
   line-height: 1.18;
 }
-h1 { font-size: clamp(1.85rem, 3.6vw, 3.1rem); }
-h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
+h1 { font-size: clamp(2.35rem, 4.8vw, 4rem); }
+h2 { font-size: clamp(1.95rem, 3.6vw, 3rem); }
 .lede {
   margin: 0.85rem 0 0;
   color: #4d4e50;
-  font-size: 1.02rem;
+  font-size: 1.2rem;
   line-height: 1.65;
 }
 .chips {
@@ -717,66 +717,40 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   align-items: center;
   text-align: center;
 }
+
 .boot-mark {
-  margin: 0 0 clamp(0.7rem, 1.6vw, 1.1rem);
+  margin: 0 0 clamp(0.85rem, 2vw, 1.25rem);
   font-family: var(--font-m);
-  font-size: clamp(0.58rem, 1.05vw, 0.72rem);
-  font-weight: 500;
-  letter-spacing: 0.28em;
-  color: rgba(8, 14, 22, 0.48);
+  font-size: clamp(0.72rem, 1.4vw, 0.95rem);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: rgba(8, 14, 22, 0.55);
   text-transform: uppercase;
 }
 .boot-en {
   margin: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: 22ch;
   box-sizing: border-box;
-  padding-inline: 0.15em;
-  font-family: "Syne", "Outfit", var(--font-d), sans-serif;
+  padding-inline: 0.1em;
+  font-family: var(--font-d);
   font-weight: 800;
-  font-size: clamp(1.55rem, 6.2vw, 4.6rem);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
+  font-size: clamp(2.4rem, 7.5vw, 5.6rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
   text-transform: uppercase;
   color: #071018;
   text-align: center;
-  overflow: visible;
-}
-.boot-en .boot-line {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  white-space: nowrap;
-  text-align: center;
-  overflow: visible;
-  box-sizing: border-box;
-}
-.boot-en .boot-outline-txt {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: clamp(1.1px, 0.22vw, 2.2px) #071018;
-  paint-order: stroke fill;
-  letter-spacing: -0.045em;
-}
-.boot-en .boot-solid {
-  color: #071018;
-  -webkit-text-fill-color: #071018;
-  -webkit-text-stroke: 0;
-  font-weight: 800;
 }
 .boot-ko {
-  margin: clamp(0.85rem, 2vw, 1.35rem) auto 0;
-  max-width: 26em;
-  font-family: "Pretendard Variable", Pretendard, sans-serif;
-  font-weight: 500;
-  font-size: clamp(0.95rem, 2vw, 1.25rem);
-  line-height: 1.5;
-  letter-spacing: -0.02em;
-  color: rgba(7, 16, 24, 0.62);
+  margin: clamp(1rem, 2.4vw, 1.6rem) auto 0;
+  max-width: 22em;
+  font-family: var(--font-b);
+  font-weight: 600;
+  font-size: clamp(1.15rem, 2.6vw, 1.55rem);
+  line-height: 1.45;
+  letter-spacing: -0.025em;
+  color: rgba(7, 16, 24, 0.7);
   word-break: keep-all;
   text-align: center;
 }
@@ -796,19 +770,19 @@ h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
   min-width: 0;
 }
 .boot-load-row span {
-  font-size: 0.62rem;
+  font-size: 0.78rem;
   color: rgba(7, 16, 24, 0.55);
 }
 .boot-load-row b {
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 600;
   color: #071018;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
 }
 .boot-load-track {
   width: 100%;
-  height: 2px;
+  height: 3px;
   border-radius: 999px;
   background: rgba(7, 16, 24, 0.18);
   overflow: hidden;
@@ -827,58 +801,30 @@ body.is-ready .boot {
   visibility: hidden;
   pointer-events: none;
 }
-/* phone */
 @media (max-width: 720px) {
-  .boot {
-    --boot-pad-x: max(1rem, env(safe-area-inset-left), env(safe-area-inset-right), 4.5vw);
-  }
-  .boot-inner {
-    width: 100%;
-    max-width: 100%;
-    padding-inline: 0;
-  }
-  .boot-copy {
-    width: 100%;
-    max-width: 100%;
-    padding-inline: 0.25rem;
-    box-sizing: border-box;
-  }
+  .boot-inner { width: 100%; max-width: 100%; padding-inline: 0; }
+  .boot-copy { width: 100%; padding-inline: 0.35rem; box-sizing: border-box; }
   .boot-mark {
-    letter-spacing: 0.18em;
-    font-size: clamp(0.52rem, 2.8vw, 0.64rem);
+    letter-spacing: 0.16em;
+    font-size: clamp(0.68rem, 3.2vw, 0.82rem);
   }
   .boot-en {
-    font-size: clamp(0.95rem, 5.6vw, 1.55rem);
-    letter-spacing: -0.05em;
-    line-height: 1.1;
-    padding-inline: 0.35rem;
-  }
-  .boot-en .boot-outline-txt {
-    -webkit-text-stroke: 1.15px #071018;
-    letter-spacing: -0.06em;
-  }
-  .boot-ko {
-    font-size: clamp(0.82rem, 3.4vw, 0.98rem);
     max-width: 100%;
-    padding-inline: 0.35rem;
-  }
-  .boot-load {
-    width: min(100%, 16.5rem);
-  }
-}
-/* tablet */
-@media (min-width: 721px) and (max-width: 1100px) {
-  .boot {
-    --boot-pad-x: clamp(1.4rem, 3.5vw, 2.2rem);
-  }
-  .boot-en {
-    font-size: clamp(1.65rem, 5.2vw, 3.4rem);
-    letter-spacing: -0.038em;
+    font-size: clamp(2rem, 9.5vw, 2.85rem);
+    letter-spacing: -0.04em;
+    line-height: 1.08;
   }
   .boot-ko {
-    font-size: clamp(0.95rem, 2.2vw, 1.15rem);
+    font-size: clamp(1.05rem, 4.2vw, 1.25rem);
+    max-width: 100%;
   }
+  .boot-load { width: min(100%, 18rem); }
 }
+@media (min-width: 721px) and (max-width: 1100px) {
+  .boot-en { font-size: clamp(2.5rem, 6.5vw, 4.2rem); }
+  .boot-ko { font-size: clamp(1.15rem, 2.4vw, 1.4rem); }
+}
+
 
 /* Mobile / tablet: stacked zones — top pickers, middle stage, bottom dock */
 @media (max-width: 980px) {
@@ -912,7 +858,7 @@ body.is-ready .boot {
     backdrop-filter: blur(10px);
   }
   .ui-brand img { width: 22px; height: 22px; }
-  .ui-brand strong { font-size: 0.58rem; }
+  .ui-brand strong { font-size: 0.78rem; }
   .ui-brand em,
   .m-route-btn,
   .ui-meta,
@@ -949,9 +895,9 @@ body.is-ready .boot {
     padding: 0.35rem 0.4rem;
     background: rgba(255,255,255,0.55);
   }
-  .route-item em { font-size: 0.58rem; }
+  .route-item em { font-size: 0.72rem; }
   .route-item span {
-    font-size: 0.62rem;
+    font-size: 0.78rem;
     line-height: 1.2;
     display: -webkit-box;
     -webkit-line-clamp: 1;
@@ -1022,9 +968,9 @@ body.is-ready .boot {
     gap: 0.24rem;
     min-width: 0;
   }
-  .float-gauges b { font-size: 0.7rem; }
-  .float-gauges span { font-size: 0.36rem; }
-  .float-gauges .fg-route b { font-size: 0.52rem; }
+  .float-gauges b { font-size: 0.88rem; }
+  .float-gauges span { font-size: 0.52rem; }
+  .float-gauges .fg-route b { font-size: 0.7rem; }
   .fg-progress { width: 100%; }
   #viewReset { grid-column: auto; min-height: 34px; }
   .look-snaps {
@@ -1039,15 +985,15 @@ body.is-ready .boot {
     min-width: 0;
     min-height: 34px;
     padding: 0.3rem 0.2rem;
-    font-size: clamp(0.58rem, 2.8vw, 0.68rem);
+    font-size: clamp(0.72rem, 3.2vw, 0.86rem);
     border-radius: 10px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .ui-action {
-    min-height: 36px;
-    font-size: 0.72rem;
+    min-height: 42px;
+    font-size: 0.9rem;
     margin: 0;
     border-radius: 999px;
   }
@@ -1083,10 +1029,10 @@ body.is-ready .boot {
   .hero-card .chips,
   .project-card .project-display { display: none; }
   .hero-card .eyebrow,
-  .project-card .eyebrow { margin-bottom: 0.25rem; font-size: 0.58rem; }
-  h1 { font-size: 1rem; line-height: 1.25; }
-  h2 { font-size: 0.95rem; line-height: 1.3; }
-  .lede { font-size: 0.72rem; margin: 0.35rem 0 0; -webkit-line-clamp: 2; }
+  .project-card .eyebrow { margin-bottom: 0.3rem; font-size: 0.72rem; }
+  h1 { font-size: clamp(1.45rem, 5.5vw, 1.85rem); line-height: 1.22; }
+  h2 { font-size: clamp(1.25rem, 4.5vw, 1.55rem); line-height: 1.28; }
+  .lede { font-size: 0.95rem; margin: 0.4rem 0 0; -webkit-line-clamp: 3; }
   .project-card { grid-template-columns: 1fr; gap: 0.35rem; }
   .project-card .lede {
     display: -webkit-box;
@@ -1095,12 +1041,12 @@ body.is-ready .boot {
     overflow: hidden;
   }
   .project-tags { margin-top: 0.4rem; }
-  .project-tags span { font-size: 0.5rem; padding: 0.2rem 0.35rem; }
-  .link-out { margin-top: 0.4rem; font-size: 0.72rem; }
+  .project-tags span { font-size: 0.68rem; padding: 0.28rem 0.45rem; }
+  .link-out { margin-top: 0.45rem; font-size: 0.92rem; }
   .sys-grid { grid-template-columns: 1fr 1fr; gap: 0.3rem; }
   .sys-grid article { padding: 0.45rem; }
-  .sys-grid h3 { font-size: 0.68rem; }
-  .sys-grid p { font-size: 0.62rem; }
+  .sys-grid h3 { font-size: 0.82rem; }
+  .sys-grid p { font-size: 0.88rem; }
   .hud-bottom { display: none; }
 }
 
