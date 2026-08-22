@@ -718,6 +718,56 @@ h2 { font-size: clamp(1.95rem, 3.6vw, 3rem); }
   text-align: center;
 }
 
+@keyframes bootRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bootStrokeIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+    letter-spacing: 0.08em;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    letter-spacing: -0.045em;
+  }
+}
+@keyframes bootFillIn {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+@keyframes bootPulseBar {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+@keyframes bootRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bootStrokeIn {
+  from { opacity: 0; transform: translateY(22px) scale(0.96); letter-spacing: 0.08em; }
+  to { opacity: 1; transform: translateY(0) scale(1); letter-spacing: -0.045em; }
+}
+@keyframes bootFillIn {
+  from { opacity: 0; transform: translateY(28px); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes bootPulseBar {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
 .boot-mark {
   margin: 0 0 clamp(0.85rem, 2vw, 1.25rem);
   font-family: var(--font-m);
@@ -726,21 +776,43 @@ h2 { font-size: clamp(1.95rem, 3.6vw, 3rem); }
   letter-spacing: 0.22em;
   color: rgba(8, 14, 22, 0.55);
   text-transform: uppercase;
+  animation: bootRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .boot-en {
   margin: 0;
   width: 100%;
-  max-width: 22ch;
+  max-width: min(100%, 18ch);
   box-sizing: border-box;
   padding-inline: 0.1em;
   font-family: var(--font-d);
   font-weight: 800;
-  font-size: clamp(2.4rem, 7.5vw, 5.6rem);
-  line-height: 1.05;
+  font-size: clamp(2.2rem, 7vw, 5.2rem);
+  line-height: 1.02;
   letter-spacing: -0.045em;
   text-transform: uppercase;
   color: #071018;
   text-align: center;
+}
+.boot-en .boot-line {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  text-align: center;
+  box-sizing: border-box;
+}
+.boot-en .boot-outline {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: clamp(1.35px, 0.28vw, 2.6px) #071018;
+  paint-order: stroke fill;
+  animation: bootStrokeIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+.boot-en .boot-solid {
+  margin-top: 0.02em;
+  color: #071018;
+  -webkit-text-fill-color: #071018;
+  -webkit-text-stroke: 0;
+  animation: bootFillIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
 }
 .boot-ko {
   margin: clamp(1rem, 2.4vw, 1.6rem) auto 0;
@@ -753,11 +825,13 @@ h2 { font-size: clamp(1.95rem, 3.6vw, 3rem); }
   color: rgba(7, 16, 24, 0.7);
   word-break: keep-all;
   text-align: center;
+  animation: bootRise 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.38s both;
 }
 .boot-load {
   width: min(100%, 28rem);
   margin: 0 auto;
   box-sizing: border-box;
+  animation: bootRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.48s both;
 }
 .boot-load-row {
   display: flex;
@@ -772,6 +846,7 @@ h2 { font-size: clamp(1.95rem, 3.6vw, 3rem); }
 .boot-load-row span {
   font-size: 0.78rem;
   color: rgba(7, 16, 24, 0.55);
+  animation: bootPulseBar 1.6s ease-in-out infinite;
 }
 .boot-load-row b {
   font-size: 0.9rem;
@@ -810,10 +885,12 @@ body.is-ready .boot {
   }
   .boot-en {
     max-width: 100%;
-    font-size: clamp(2rem, 9.5vw, 2.85rem);
+    font-size: clamp(1.85rem, 8.8vw, 2.65rem);
     letter-spacing: -0.04em;
-    line-height: 1.08;
+    line-height: 1.06;
   }
+  .boot-en .boot-outline { -webkit-text-stroke: 1.35px #071018; }
+  .boot-en .boot-line { white-space: normal; }
   .boot-ko {
     font-size: clamp(1.05rem, 4.2vw, 1.25rem);
     max-width: 100%;
@@ -821,10 +898,17 @@ body.is-ready .boot {
   .boot-load { width: min(100%, 18rem); }
 }
 @media (min-width: 721px) and (max-width: 1100px) {
-  .boot-en { font-size: clamp(2.5rem, 6.5vw, 4.2rem); }
+  .boot-en { font-size: clamp(2.35rem, 6.2vw, 4rem); }
   .boot-ko { font-size: clamp(1.15rem, 2.4vw, 1.4rem); }
 }
-
+@media (prefers-reduced-motion: reduce) {
+  .boot-mark,
+  .boot-en .boot-outline,
+  .boot-en .boot-solid,
+  .boot-ko,
+  .boot-load,
+  .boot-load-row span { animation: none !important; }
+}
 
 /* Mobile / tablet: stacked zones — top pickers, middle stage, bottom dock */
 @media (max-width: 980px) {
