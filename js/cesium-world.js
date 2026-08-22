@@ -322,18 +322,15 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
    * Never touches lat/lon/route/autopilot altitude/heading
    */
   function applyUserView(keys, dt, opts = {}) {
-    const yawMax = 14;
-    const pitchUp = 14;
-    const pitchDn = isMobile() ? -42 : -28;
+    /*
+      Keys do NOT steer look or route — attitude bank/pitch comes from
+      opts.motionRollDeg / motionPitchDeg (flight.js). Mouse drag still uses nudgeLook.
+    */
     const hold = !!opts.holdLook || !!view._holdLook;
-    if (keys?.left) view._yawTarget = Math.min(yawMax, view._yawTarget + dt * 24);
-    else if (keys?.right) view._yawTarget = Math.max(-yawMax, view._yawTarget - dt * 24);
-    else if (!hold) view._yawTarget += (0 - view._yawTarget) * Math.min(1, dt * 3.4);
-
-    if (keys?.up) view._pitchTarget = Math.min(pitchUp, view._pitchTarget + dt * 28);
-    else if (keys?.down) view._pitchTarget = Math.max(pitchDn, view._pitchTarget - dt * 32);
-    else if (!hold) view._pitchTarget += (0 - view._pitchTarget) * Math.min(1, dt * 3.0);
-
+    if (!hold) {
+      view._yawTarget += (0 - view._yawTarget) * Math.min(1, dt * 3.4);
+      view._pitchTarget += (0 - view._pitchTarget) * Math.min(1, dt * 3.0);
+    }
     view.yawOffset += (view._yawTarget - view.yawOffset) * Math.min(1, dt * 5);
     view.pitchOffset += (view._pitchTarget - view.pitchOffset) * Math.min(1, dt * 5);
     state.userYawOffset = view.yawOffset;
@@ -343,7 +340,7 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
   function nudgeLook(dxPx, dyPx) {
     const yawMax = 14;
     const pitchUp = 14;
-    const pitchDn = isMobile() ? -42 : -28;
+    const pitchDn = isMobile() ? -14 : -22;
     const sens = isMobile() ? 0.072 : 0.048;
     view._holdLook = true;
     view._yawTarget = Math.max(-yawMax, Math.min(yawMax, view._yawTarget + dxPx * sens));
@@ -575,8 +572,11 @@ export async function createCesiumWorld({ containerId = "cesiumContainer", debug
     else state._horizonBias += (horizonBias - state._horizonBias) * Math.min(1, step * 2.2);
 
     const renderHeading = (geo.heading + view.yawOffset + 360) % 360;
-    const renderPitch = state._horizonBias + view.pitchOffset;
-    const renderRoll = onArrLeg || onGround ? 0 : geo.roll;
+    const motionPitch = Number(opts.motionPitchDeg) || 0;
+    const motionRoll = Number(opts.motionRollDeg) || 0;
+    const renderPitch = state._horizonBias + view.pitchOffset + motionPitch;
+    const baseRoll = onArrLeg || onGround ? 0 : geo.roll;
+    const renderRoll = baseRoll + motionRoll;
 
     viewer.camera.setView({
       destination: Cesium.Cartesian3.fromDegrees(geo.longitude, geo.latitude, camH),

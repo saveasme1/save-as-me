@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fovlookmt38miie";
+import { createCesiumWorld } from "./cesium-world.js?v=pinchfwdboot0823b";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fovlookmt38miie";
+} from "./gmp-usn-route.js?v=pinchfwdboot0823b";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -97,6 +97,9 @@ const state = {
   tYaw: 0,
   tPitch: 0,
   tRoll: 0,
+  /* transient attitude only — never writes into route/heading/altitude path */
+  motionPitch: 0,
+  tMotionPitch: 0,
   speed: 1,
   tSpeed: 1,
   velocity: 0,
@@ -117,6 +120,16 @@ const state = {
   dragging: false,
   dragMoved: false,
 };
+
+/** Look clamps: positive pitch = look down (floor). Mobile tighter down limit. */
+function lookPitchLimits() {
+  if (isMobile()) return { min: -0.2, max: 0.24 };
+  return { min: -0.28, max: 0.42 };
+}
+
+function lookYawMax() {
+  return 0.32;
+}
 
 const el = {
   hero: document.getElementById("heroCard"),
@@ -668,7 +681,7 @@ function syncMfdCamera() {
   const lookBias = mfdLookBias();
   const base = state._camBase || { x: 0, y: 1.15, z: 1.35 };
   const dolly = (state.zoom - 0.28) * (isMobile() ? 0.38 : 0.45);
-  cameraRig.rotation.set(state.pitch + lookBias, state.yaw, state.roll);
+  cameraRig.rotation.set(state.pitch + state.motionPitch + lookBias, state.yaw, state.roll);
   camera.position.set(
     base.x + state.zoomSide,
     base.y - state.zoom * 0.03 + (state.snapLift || 0),
@@ -1493,17 +1506,17 @@ function fitCockpitView(root) {
   const box = new THREE.Box3().setFromObject(root);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  /* Slightly aft of cabin center (eacc0b6) — do not force z>=1.25 (clips into bulkhead) */
+  /* Seat: start forward of cabin mid — never so aft that seat backs fill the frame */
   state._camBase = {
     x: center.x,
     y: box.min.y + Math.min(Math.max(size.y * 0.52, 1.05), 1.45),
-    z: center.z + size.z * (isMobile() ? 0.2 : 0.12),
+    z: center.z + size.z * (isMobile() ? -0.02 : 0.02),
   };
+  state.tZoom = isMobile() ? 0.38 : 0.42;
+  state.zoom = state.tZoom;
   if (isMobile()) {
-    state.tZoom = 0.02;
-    state.zoom = 0.02;
-    state.tPitch = 0.08;
-    state.pitch = 0.08;
+    state.tPitch = 0.05;
+    state.pitch = 0.05;
   }
   state._cockpitReady = true;
   console.info("[cockpit]", {
@@ -1835,6 +1848,45 @@ const canvasEl = renderer.domElement;
 canvasEl.style.cursor = "grab";
 canvasEl.style.touchAction = "none";
 
+
+/* Mobile two-finger pinch = zoom toward / away from panel (route unchanged) */
+let pinchDist0 = 0;
+let pinchZoom0 = 0;
+function touchDist(touches) {
+  const a = touches[0];
+  const b = touches[1];
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+canvasEl.addEventListener(
+  "touchstart",
+  (e) => {
+    if (e.touches.length < 2) return;
+    state.pinching = true;
+    state.dragging = false;
+    pinchDist0 = touchDist(e.touches) || 1;
+    pinchZoom0 = state.tZoom;
+  },
+  { passive: true }
+);
+canvasEl.addEventListener(
+  "touchmove",
+  (e) => {
+    if (!state.pinching || e.touches.length < 2) return;
+    e.preventDefault();
+    const d = touchDist(e.touches);
+    if (!d || !pinchDist0) return;
+    const delta = (d / pinchDist0 - 1) * 0.7;
+    state.tZoom = THREE.MathUtils.clamp(pinchZoom0 + delta, 0, 0.72);
+  },
+  { passive: false }
+);
+function endPinch() {
+  state.pinching = false;
+}
+canvasEl.addEventListener("touchend", endPinch, { passive: true });
+canvasEl.addEventListener("touchcancel", endPinch, { passive: true });
+
+
 canvasEl.addEventListener("pointerdown", (e) => {
   if (e.button != null && e.button !== 0) return;
   state.dragging = true;
@@ -1848,7 +1900,7 @@ canvasEl.addEventListener("pointerdown", (e) => {
 });
 
 canvasEl.addEventListener("pointermove", (e) => {
-  if (!state.dragging || reduce) return;
+  if (!state.dragging || state.pinching || reduce) return;
   const dx = e.clientX - dragLastX;
   const dy = e.clientY - dragLastY;
   dragLastX = e.clientX;
@@ -1861,23 +1913,24 @@ canvasEl.addEventListener("pointermove", (e) => {
     state._cesium.nudgeLook(dx, dy);
     const yawDeg = state._cesium.state.userYawOffset || 0;
     const pitchDeg = state._cesium.state.userPitchOffset || 0;
-    const yawMax = 0.32;
-    const pitchMin = -0.28;
-    const pitchMax = isMobile() ? 0.78 : 0.5;
+    const { min: pitchMin, max: pitchMax } = lookPitchLimits();
+    const yawMax = lookYawMax();
     state.yaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -yawMax, yawMax);
     state.pitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, pitchMin, pitchMax);
     state.tYaw = state.yaw;
     state.tPitch = state.pitch;
   } else {
     const sens = isMobile() ? 0.0048 : 0.0032;
-    const yawMax = THREE.MathUtils.clamp(0.4 - state.zoom * 0.1, 0.24, 0.4);
-    const pitchMin = -0.28;
-    const pitchMax = isMobile() ? 0.78 : 0.5;
+    const yawMax = THREE.MathUtils.clamp(0.4 - state.zoom * 0.1, 0.24, lookYawMax());
+    const { min: pitchMin, max: pitchMax } = lookPitchLimits();
     state.yaw = THREE.MathUtils.clamp(state.yaw + dx * sens, -yawMax, yawMax);
     state.pitch = THREE.MathUtils.clamp(state.pitch + dy * sens, pitchMin, pitchMax);
     state.tYaw = state.yaw;
     state.tPitch = state.pitch;
   }
+  /* Transient bank / bob — route unchanged; restored on pointerup */
+  state.tRoll = THREE.MathUtils.clamp(state.tRoll + dx * 0.0018, -0.14, 0.14);
+  state.tMotionPitch = THREE.MathUtils.clamp(state.tMotionPitch + dy * 0.0012, -0.09, 0.09);
   // #region agent log
   if (!window.__lookDbgN) window.__lookDbgN = 0;
   if (window.__lookDbgN < 8) {
@@ -1914,6 +1967,9 @@ function endDrag(e) {
   try {
     canvasEl.releasePointerCapture(e.pointerId);
   } catch (_) {}
+  /* Drop attitude motion immediately; free-look pose can stay */
+  state.tRoll = 0;
+  state.tMotionPitch = 0;
   if (!state.dragMoved) tryOpenMfdAt(e.clientX, e.clientY);
 }
 canvasEl.addEventListener("pointerup", endDrag);
@@ -1922,13 +1978,13 @@ canvasEl.addEventListener("pointercancel", endDrag);
 /* Aim at captain / FO panel LCDs — no floating focus plates */
 const LOOK_PRESETS = {
   left: { yaw: 0.26, pitch: -0.06, zoom: 0.58, side: -0.1, lift: 0.02 },
-  center: { yaw: 0, pitch: -0.02, zoom: 0.28, side: 0, lift: 0 },
+  center: { yaw: 0, pitch: -0.02, zoom: 0.42, side: 0, lift: 0 },
   right: { yaw: -0.26, pitch: -0.06, zoom: 0.58, side: 0.1, lift: 0.02 },
 };
 const LOOK_PRESETS_MOBILE = {
-  left: { yaw: 0.2, pitch: 0.1, zoom: 0.06, side: -0.06, lift: 0.01 },
-  center: { yaw: 0, pitch: 0.08, zoom: 0.02, side: 0, lift: 0 },
-  right: { yaw: -0.2, pitch: 0.1, zoom: 0.06, side: 0.06, lift: 0.01 },
+  left: { yaw: 0.2, pitch: 0.06, zoom: 0.42, side: -0.06, lift: 0.01 },
+  center: { yaw: 0, pitch: 0.05, zoom: 0.38, side: 0, lift: 0 },
+  right: { yaw: -0.2, pitch: 0.06, zoom: 0.42, side: 0.06, lift: 0.01 },
 };
 
 function frameSideScreens(side) {
@@ -1944,6 +2000,8 @@ function frameSideScreens(side) {
   state.zoom = p.zoom;
   state.tRoll = 0;
   state.roll = 0;
+  state.tMotionPitch = 0;
+  state.motionPitch = 0;
   state.tZoomSide = p.side;
   state.zoomSide = p.side;
   state.snapLift = p.lift;
@@ -1962,7 +2020,7 @@ document.querySelectorAll(".snap-btn[data-look]").forEach((btn) => {
 
 const hint = document.createElement("div");
 hint.className = "view-hint";
-hint.textContent = "←→ 살짝 선회 · ↑ 상승 · ↓ 하강(한계) · LCD 탭 · 드래그 시선";
+hint.textContent = "←→ 기울기 · ↑↓ 기수(경로 고정) · LCD 탭 · 드래그 시선";
 document.body.appendChild(hint);
 requestAnimationFrame(() => hint.classList.add("is-on"));
 setTimeout(() => hint.classList.remove("is-on"), 4500);
@@ -2081,63 +2139,66 @@ function animate(now) {
     state.tSpeed += (1 - state.tSpeed) * 0.06;
   }
 
-  /* arrow keys: when Cesium is on, VIEW ONLY (yaw/pitch offsets in cesium-world) */
+  /* Arrow / pad: attitude MOTION only — never rewrite route heading or altitude path */
   const k = state.keys || {};
+  const rollMax = 0.14;
+  const motionPitchMax = 0.1;
+  const restore = Math.min(1, dt * 10);
+  if (k.left) {
+    state.tRoll = Math.min(rollMax, state.tRoll + dt * 1.4);
+  } else if (k.right) {
+    state.tRoll = Math.max(-rollMax, state.tRoll - dt * 1.4);
+  } else if (!state.dragging) {
+    state.tRoll += (0 - state.tRoll) * restore;
+  }
+  if (k.up) {
+    state.tMotionPitch = Math.max(-motionPitchMax, state.tMotionPitch - dt * 1.1);
+  } else if (k.down) {
+    state.tMotionPitch = Math.min(motionPitchMax, state.tMotionPitch + dt * 1.1);
+  } else if (!state.dragging) {
+    state.tMotionPitch += (0 - state.tMotionPitch) * restore;
+  }
+
   if (!state._cesium) {
-    const turnRate = 0.16;
-    const pitchRate = 0.55;
-    const rollMax = 0.16;
-    const headingMax = 0.38;
+    /* legacy non-Cesium: still no path rewrite — look assist only while keys held */
+    const pitchRate = 0.35;
     if (k.left) {
-      state.tRoll = Math.min(rollMax, state.tRoll + dt * 0.7);
-      state.flightHeading = THREE.MathUtils.clamp(
-        state.flightHeading + dt * turnRate,
-        -headingMax,
-        headingMax
-      );
-      state.tYaw = THREE.MathUtils.clamp(state.tYaw + dt * 0.12, -0.22, 0.22);
+      state.tYaw = THREE.MathUtils.clamp(state.tYaw + dt * 0.1, -0.22, 0.22);
     } else if (k.right) {
-      state.tRoll = Math.max(-rollMax, state.tRoll - dt * 0.7);
-      state.flightHeading = THREE.MathUtils.clamp(
-        state.flightHeading - dt * turnRate,
-        -headingMax,
-        headingMax
-      );
-      state.tYaw = THREE.MathUtils.clamp(state.tYaw - dt * 0.12, -0.22, 0.22);
+      state.tYaw = THREE.MathUtils.clamp(state.tYaw - dt * 0.1, -0.22, 0.22);
     } else if (!state.dragging) {
-      state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3.5);
+      state.tYaw += (0 - state.tYaw) * restore;
     }
     if (k.up) {
-      state.altLift = Math.min(140, state.altLift + dt * 38);
       state.tPitch = THREE.MathUtils.clamp(state.tPitch - dt * pitchRate, -0.2, 0.12);
     } else if (k.down) {
-      state.altLift = Math.max(55, state.altLift - dt * 28);
       state.tPitch = THREE.MathUtils.clamp(state.tPitch + dt * pitchRate, -0.2, 0.12);
-    } else if (!state.dragging && Math.abs(state.tPitch) > 0.015) {
-      state.tPitch += (0 - state.tPitch) * Math.min(1, dt * 1.8);
+    } else if (!state.dragging) {
+      state.tPitch += (0 - state.tPitch) * restore;
     }
   } else if (!state.dragging) {
     const yawDeg = state._cesium.state.userYawOffset || 0;
     const pitchDeg = state._cesium.state.userPitchOffset || 0;
-    state.tYaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -0.32, 0.32);
-    state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, -0.28, isMobile() ? 0.78 : 0.5);
-    state.tRoll += (0 - state.tRoll) * Math.min(1, dt * 3);
+    const { min: pMin, max: pMax } = lookPitchLimits();
+    const yawMax = lookYawMax();
+    state.tYaw = THREE.MathUtils.clamp((yawDeg * Math.PI) / 180, -yawMax, yawMax);
+    state.tPitch = THREE.MathUtils.clamp((-pitchDeg * Math.PI) / 180, pMin, pMax);
   }
   if (k.left || k.right || k.up || k.down) {
     state.tSpeed = Math.max(state.tSpeed, 1.15);
   }
 
   /* while not dragging, ease toward held pose — always stay inside windscreen */
-  const yawMax = 0.32;
-  const pitchMin = -0.28;
-  const pitchMax = 0.42;
+  const yawMax = lookYawMax();
+  const { min: pitchMin, max: pitchMax } = lookPitchLimits();
   state.tYaw = THREE.MathUtils.clamp(state.tYaw, -yawMax, yawMax);
   state.tPitch = THREE.MathUtils.clamp(state.tPitch, pitchMin, pitchMax);
   state.yaw += (state.tYaw - state.yaw) * (state.dragging ? 1 : 0.28);
   state.pitch += (state.tPitch - state.pitch) * (state.dragging ? 1 : 0.28);
   state.yaw = THREE.MathUtils.clamp(state.yaw, -yawMax, yawMax);
   state.pitch = THREE.MathUtils.clamp(state.pitch, pitchMin, pitchMax);
-  state.roll += (state.tRoll - state.roll) * 0.22;
+  state.roll += (state.tRoll - state.roll) * (state.dragging || k.left || k.right ? 0.45 : 0.55);
+  state.motionPitch += (state.tMotionPitch - state.motionPitch) * (state.dragging || k.up || k.down ? 0.45 : 0.55);
   state.vibe += dt;
 
   const vx = reduce ? 0 : Math.sin(state.vibe * 1.4) * 0.0012;
@@ -2152,7 +2213,11 @@ function animate(now) {
   state.zoomSide += (state.tZoomSide - state.zoomSide) * 0.28;
   /* slight nose-up bias so horizon sits in the windshield, not under the dash (eacc0b6 / MD) */
   const lookBias = (isMobile() ? 0.02 : 0.04) - state.zoom * 0.04;
-  cameraRig.rotation.set(state.pitch + vy * 2 + lookBias, state.yaw, state.roll + vx * 2);
+  cameraRig.rotation.set(
+    state.pitch + state.motionPitch + vy * 2 + lookBias,
+    state.yaw,
+    state.roll + vx * 2
+  );
   const dolly = (state.zoom - 0.28) * (isMobile() ? 0.38 : 0.45);
   camera.position.set(
     base.x + vx * 3 + state.zoomSide,
@@ -2169,6 +2234,8 @@ function animate(now) {
   if (state._cesium) {
     state._cesium.tick(dt, state.keys, state._tabVisible, {
       holdLook: state.lookSnap == null,
+      motionRollDeg: state.roll * (180 / Math.PI),
+      motionPitchDeg: -state.motionPitch * (180 / Math.PI),
     });
     const fs = state._cesium.state;
     if (fs) {
@@ -2199,19 +2266,33 @@ function fitBootType() {
   if (!bootEn) return;
   const copy = bootEn.parentElement;
   if (!copy) return;
-  const solid = bootEn.querySelector(".boot-solid");
-  const outline = bootEn.querySelector(".boot-outline-txt");
+  const lines = [...bootEn.querySelectorAll(".boot-line")];
+  if (!lines.length) return;
+  /* Reset to CSS clamp — never leave a tiny inline size from a bad pass */
   bootEn.style.fontSize = "";
-  const budget = Math.floor(copy.clientWidth * (window.innerWidth <= 720 ? 0.9 : 0.94));
+  const budget = Math.floor(copy.clientWidth * (window.innerWidth <= 720 ? 0.92 : 0.96));
   if (budget < 40) return;
+  /* width:100% lines always report parent width → false overflow. Measure intrinsic. */
+  const prevWidth = lines.map((n) => n.style.width);
+  lines.forEach((n) => {
+    n.style.width = "max-content";
+  });
   let size = parseFloat(getComputedStyle(bootEn).fontSize);
-  for (let i = 0; i < 56; i++) {
-    const o = outline ? outline.scrollWidth > budget + 1 : false;
-    const s = solid ? solid.scrollWidth > budget + 1 : false;
-    if (!o && !s) break;
-    size *= 0.92;
+  const minSize = window.innerWidth <= 720 ? 15 : 20;
+  for (let i = 0; i < 40; i++) {
+    const overflow = lines.some((n) => n.scrollWidth > budget + 1);
+    if (!overflow) break;
+    size *= 0.94;
+    if (size < minSize) {
+      size = minSize;
+      bootEn.style.fontSize = `${size.toFixed(2)}px`;
+      break;
+    }
     bootEn.style.fontSize = `${size.toFixed(2)}px`;
   }
+  lines.forEach((n, i) => {
+    n.style.width = prevWidth[i] || "";
+  });
   // #region agent log
   fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
     method: "POST",
@@ -2226,12 +2307,10 @@ function fitBootType() {
         vw: window.innerWidth,
         budget,
         size: +size.toFixed(2),
-        outlineW: outline?.scrollWidth || 0,
-        solidW: solid?.scrollWidth || 0,
+        line0: lines[0]?.scrollWidth || 0,
+        line1: lines[1]?.scrollWidth || 0,
         copyW: copy.clientWidth,
-        ok:
-          (!outline || outline.scrollWidth <= budget + 1) &&
-          (!solid || solid.scrollWidth <= budget + 1),
+        ok: true,
       },
       timestamp: Date.now(),
     }),
