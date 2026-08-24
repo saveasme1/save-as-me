@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=filmacts0823g";
+import { createCesiumWorld } from "./cesium-world.js?v=storyhud0824c";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=filmacts0823g";
+} from "./gmp-usn-route.js?v=storyhud0824c";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -18,43 +18,48 @@ const PROJECTS = [
     eye: "ACT 01 · COMMERCE",
     name: "COMMERCE",
     title: "쇼핑몰 및<br />홈페이지 제작",
-    body: "카페24부터 독립 몰, 기업·브랜드 사이트까지. 판매와 브랜드가 실제로 작동하는 웹을 만듭니다.",
-    tags: ["Cafe24", "독립몰", "브랜드 사이트", "커머스"],
+    body: "실제 라이브 사이트 PC·모바일 UI를 순서대로 보여줍니다. 카페24·독립몰·벡터 변환까지.",
+    tags: ["Cafe24", "독립몰", "PNG to Vector", "브랜드 사이트"],
     link: null,
     linkLabel: "",
-    art: "assets/film/zeron-scene-1.jpg",
+    art: "assets/film/shots/zeron-pc.jpg",
     demos: null,
     scenes: [
       {
-        label: "카페24 쇼핑몰",
-        title: "ZERON",
-        text: "카페24 기반 패션 커머스. 상품·브랜드 톤·운영 흐름을 한 구조로 맞춰 구축했습니다.",
-        img: "assets/film/zeron-scene-1.jpg",
+        phase: "01", stage: "RESULT", label: "카페24 · ZERON", title: "0-1.co.kr",
+        text: "카페24 기반 패션 커머스. 브랜드 톤·상품·운영 구조를 맞춰 구축한 결과물.",
+        weeks: "2주",
+        pc: "assets/film/shots/zeron-pc.jpg",
+        mo: "assets/film/shots/zeron-mobile.jpg",
+        link: "https://0-1.co.kr",
         kind: "commerce",
       },
       {
-        label: "독립 쇼핑몰",
-        title: "SaveAs",
-        text: "고객이 웹에서 이미지·문구를 올려 직접 디자인한 뒤 바로 주문하는 POD 커스텀 몰입니다.",
-        img: "assets/film/saveas-logo.png",
+        phase: "02", stage: "RESULT", label: "독립몰 · SaveAs", title: "saveas.co.kr",
+        text: "고객이 이미지·문구를 올려 직접 디자인한 뒤 바로 주문하는 POD 커스텀 몰.",
+        weeks: "3주",
+        pc: "assets/film/shots/saveas-pc.jpg",
+        mo: "assets/film/shots/saveas-mobile.jpg",
+        link: "https://saveas.co.kr",
         kind: "editor",
-        fit: "contain",
-        link: "https://save-as.co.kr",
       },
       {
-        label: "독립 쇼핑몰",
-        title: "애즈플라워",
-        text: "꽃과 공간을 담는 독립 커머스. 상품 큐레이션·브랜드 무드·주문 경험을 한 사이트로 묶었습니다.",
-        img: "assets/film/asf-rose.png",
+        phase: "03", stage: "RESULT", label: "독립몰 · 애즈플라워", title: "asflower.vercel.app",
+        text: "오늘 들어온 꽃으로 맞춤 꽃다발을 만드는 독립 커머스. 큐레이션·주문 경험을 한 사이트로.",
+        weeks: "1주",
+        pc: "assets/film/shots/asflower-pc.jpg",
+        mo: "assets/film/shots/asflower-mobile.jpg",
+        link: "https://asflower.vercel.app/",
         kind: "flower",
-        fit: "contain",
       },
       {
-        label: "기업·브랜드 홈페이지",
-        title: "CORPORATE WEB",
-        text: "소개만 있는 사이트가 아니라, 문의·제안·포트폴리오가 영업 흐름으로 이어지게 설계합니다.",
-        img: "assets/film/zeron-scene-3.jpg",
-        kind: "corp",
+        phase: "04", stage: "RESULT", label: "웹툴 · PNG to Vector", title: "이미지 → SVG 벡터화",
+        text: "PNG/JPG/WebP를 편집 가능한 SVG path로 변환하는 MakerBridge Vector 툴.",
+        weeks: "3~4일",
+        pc: "assets/film/shots/vector-pc.jpg",
+        mo: "assets/film/shots/vector-mobile.jpg",
+        link: "https://app.0-1.co.kr/vectorize",
+        kind: "editor",
       },
     ],
     env: { turbidity: 1.6, elevation: 36, azimuth: 168, rayleigh: 1.8, exposure: 0.76, ground: 0x8aa67a },
@@ -65,40 +70,44 @@ const PROJECTS = [
     eye: "ACT 02 · CONVERT",
     name: "CONVERT",
     title: "온라인<br />사업전환",
-    body: "오프라인 상품을 온라인 판매 가능한 형태로 다시 기획하고, 판매 환경과 운영까지 연결합니다.",
-    tags: ["상품 기획", "상세·패키지", "스토어 구축", "운영 교육"],
+    body: "잘 팔리던 오프라인 메뉴가 전국 택배 상품이 되기까지. 시간 순으로 따라갑니다.",
+    tags: ["오프라인→온라인", "상품화", "스마트스토어", "전국배송"],
     link: "https://smartstore.naver.com/_mymura",
-    linkLabel: "전환 사례 스토어 ↗",
-    art: "assets/film/zeron-scene-2.jpg",
+    linkLabel: "스마트스토어 열기 ↗",
+    art: "assets/film/food/kimchi-01.jpg",
     demos: null,
     scenes: [
       {
-        label: "오프라인 → 온라인",
-        title: "판매 전환",
-        text: "매장 상품을 온라인용 상품으로 재정의합니다. 구성·가격·촬영·상세 카피를 판매 기준으로 다시 잡습니다.",
-        img: null,
-        kind: "convert",
+        phase: "01", stage: "THEN", label: "오프라인 매장", title: "까치산 김치찌개",
+        text: "로컬 맛집으로 잘 팔리던 메뉴. 매장에서 먹히던 그 맛을 온라인으로 옮기기 전 단계.",
+        img: "assets/film/food/kimchi-01.jpg",
+        kind: "food",
       },
       {
-        label: "상품 기획·구성",
-        title: "PRODUCT PLAN",
-        text: "단품이 아니라 세트·옵션·시즌 라인으로 구성해, 객단가와 재구매가 나오도록 기획합니다.",
-        img: "assets/film/zeron-scene-3.jpg",
+        phase: "02", stage: "HIT", label: "잘 팔리던 메뉴", title: "인기 사진 기록",
+        text: "실제로 반응이 좋았던 메뉴·플레이팅 컷. 이 정체성을 상품 상세의 중심으로 잡았습니다.",
+        gallery: [
+          "assets/film/food/kimchi-02.jpg",
+          "assets/film/food/kimchi-03.png",
+          "assets/film/food/kimchi-04.png",
+          "assets/film/food/kimchi-05.jpg",
+        ],
+        kind: "food",
+      },
+      {
+        phase: "03", stage: "BUILD", label: "상품화", title: "온라인 SKU로 재구성",
+        text: "메뉴를 택배 가능한 구성·패키지·상세 카피로 다시 기획. 가격·옵션·고시까지 판매 기준으로.",
+        img: "assets/film/food/kimchi-06.png",
         kind: "plan",
       },
       {
-        label: "판매환경 구축",
-        title: "STORE SETUP",
-        text: "스마트스토어·쿠팡 등 채널에 맞춰 카테고리, 옵션, 배송, 고시정보를 실제 판매 가능한 상태로 세팅합니다.",
-        img: "assets/film/zeron-scene-2.jpg",
+        phase: "04", stage: "RESULT", label: "스마트스토어", title: "전국 택배 판매 중",
+        text: "스마트스토어로 오픈. PC·모바일 UI로 실제 판매 화면을 확인하세요.",
+        weeks: "전환 완료",
+        pc: "assets/film/shots/mymura-pc.jpg",
+        mo: "assets/film/shots/mymura-mobile.jpg",
+        link: "https://smartstore.naver.com/_mymura",
         kind: "store",
-      },
-      {
-        label: "로컬 브랜드 사례",
-        title: "까치산 김치찌개",
-        text: "로컬 맛집 메뉴를 온라인 상품으로 전환한 케이스. 메뉴 정체성·패키지·상세·채널 세팅을 한 흐름으로 연결합니다.",
-        img: null,
-        kind: "food",
       },
     ],
     env: { turbidity: 1.9, elevation: 28, azimuth: 175, rayleigh: 2.0, exposure: 0.7, ground: 0x7f9a6a },
@@ -109,41 +118,43 @@ const PROJECTS = [
     eye: "ACT 03 · BUILD",
     name: "BUILD",
     title: "앱·웹 개발",
-    body: "쇼핑몰 편집기, 모바일 개발 환경, 주얼리 PWA, 관리자 시스템까지. 필요한 디지털 도구를 직접 만듭니다.",
-    tags: ["MakerBridge", "Cursor Mobile", "PWA", "Admin"],
+    body: "편집기·벡터툴·모바일 개발환경·주얼리 PWA. 각 앱의 PC·모바일 UI를 동시에 보여줍니다.",
+    tags: ["MakerBridge", "PNG to Vector", "Cursor Mobile", "BON HERITAGE"],
     link: null,
     linkLabel: "",
-    art: "assets/film/mb-logo-512.png",
+    art: "assets/film/shots/makerbridge-pc.jpg",
     demos: null,
     scenes: [
       {
-        label: "웹 편집기",
-        title: "MakerBridge",
-        text: "카페24 상품 페이지 안에서 텍스트·이미지·재단선을 편집하고 제작용 데이터를 생성하는 웹 앱입니다.",
-        img: "assets/film/mb-logo-final.png",
+        phase: "01", stage: "APP", label: "MakerBridge", title: "카페24 웹 편집기",
+        text: "상품 페이지 안에서 텍스트·이미지·재단선을 편집하고 제작용 데이터를 생성합니다.",
+        pc: "assets/film/shots/makerbridge-pc.jpg",
+        mo: "assets/film/shots/makerbridge-mobile.jpg",
+        link: "https://app.0-1.co.kr/",
         kind: "editor",
-        fit: "contain",
       },
       {
-        label: "모바일 개발환경",
-        title: "Cursor Mobile",
-        text: "PC Cursor 작업을 폰으로 이어가고, 클라우드로 PC가 꺼져도 개발이 끊기지 않게 확장한 환경입니다.",
-        img: null,
+        phase: "02", stage: "APP", label: "PNG to Vector", title: "벡터화 웹앱",
+        text: "로고·캘리그래피 PNG를 편집 가능한 SVG로. 3~4일 만에 올린 실무 툴.",
+        weeks: "3~4일",
+        pc: "assets/film/shots/vector-pc.jpg",
+        mo: "assets/film/shots/vector-mobile.jpg",
+        link: "https://app.0-1.co.kr/vectorize",
+        kind: "editor",
+      },
+      {
+        phase: "03", stage: "APP", label: "Cursor Mobile", title: "모바일 개발 환경",
+        text: "PC Cursor 작업을 폰으로 이어가고, 클라우드로 PC가 꺼져도 개발이 끊기지 않게 확장.",
+        pc: "assets/film/shots/cursor-pc.jpg",
+        mo: null,
         kind: "mobile",
       },
       {
-        label: "주얼리 PWA",
-        title: "BON HERITAGE",
-        text: "주문제작 주얼리 포트폴리오·피팅·운영을 앱처럼 쓰는 PWA. 홈화면 설치와 관리 흐름까지 포함합니다.",
-        img: "assets/film/bh-look-1.jpg",
+        phase: "04", stage: "APP", label: "BON HERITAGE", title: "주얼리 PWA",
+        text: "주문제작 주얼리 포트폴리오·피팅·운영을 앱처럼 쓰는 PWA.",
+        pc: "assets/film/shots/bon-pc.jpg",
+        mo: "assets/film/shots/bon-mobile.jpg",
         kind: "jewel",
-      },
-      {
-        label: "웹앱·관리자",
-        title: "PWA / ADMIN",
-        text: "앱스토어 없이 설치 가능한 웹앱과, 주문·콘텐츠·운영을 다루는 관리자 시스템을 함께 설계합니다.",
-        img: "assets/film/bh-look-2.jpg",
-        kind: "pwa",
       },
     ],
     env: { turbidity: 1.2, elevation: 48, azimuth: 155, rayleigh: 1.2, exposure: 0.8, ground: 0x6f8fa8 },
@@ -154,39 +165,35 @@ const PROJECTS = [
     eye: "ACT 04 · COUPANG",
     name: "COUPANG",
     title: "쿠팡 로켓배송<br />강의·컨설팅",
-    body: "로켓그로스 입점부터 상품등록, 판매전략, 운영 실무까지. 바로 현장에 쓰는 기준으로 교육합니다.",
+    body: "입점 → 등록 → 전략 → 운영. 현장 기준으로 순서대로 교육합니다. (이미지는 추후 교체 가능)",
     tags: ["로켓그로스", "상품등록", "판매전략", "운영실무"],
     link: null,
     linkLabel: "",
-    art: "assets/film/zeron-logo.png",
+    art: "assets/film/coupang/warehouse-1.jpg",
     demos: null,
     scenes: [
       {
-        label: "입점",
-        title: "로켓그로스 입점",
-        text: "입점 요건, 카테고리, 물류 조건, 초기 세팅 체크리스트를 실제 진행 순서대로 정리합니다.",
-        img: null,
+        phase: "01", stage: "BRIEF", label: "입점", title: "로켓그로스 입점",
+        text: "입점 요건, 카테고리, 물류 조건, 초기 세팅 체크리스트를 진행 순서로 정리.",
+        img: "assets/film/coupang/warehouse-1.jpg",
         kind: "coupang",
       },
       {
-        label: "세팅",
-        title: "상품등록·세팅",
-        text: "이미지·옵션·고시·검색어·재고 구조를 ‘팔리는 등록’ 기준으로 맞춥니다.",
-        img: null,
+        phase: "02", stage: "BUILD", label: "등록", title: "상품등록·세팅",
+        text: "이미지·옵션·고시·검색어·재고를 ‘팔리는 등록’ 기준으로 맞춤.",
+        img: "assets/film/coupang/warehouse-2.jpg",
         kind: "listing",
       },
       {
-        label: "전략",
-        title: "판매전략",
-        text: "가격·프로모션·노출·리뷰 운영을 매출 목표에 맞춰 설계합니다.",
-        img: null,
+        phase: "03", stage: "BUILD", label: "전략", title: "판매전략",
+        text: "가격·프로모션·노출·리뷰를 매출 목표에 맞춰 설계.",
+        img: "assets/film/coupang/laptop-1.jpg",
         kind: "strategy",
       },
       {
-        label: "실무",
-        title: "운영 실무 교육",
-        text: "문의 응대, CS, 재고, 정산, 광고 운영까지 혼자 돌릴 수 있는 실무 루틴을 교육합니다.",
-        img: null,
+        phase: "04", stage: "RESULT", label: "실무", title: "운영 실무 교육",
+        text: "CS·재고·정산·광고까지 혼자 돌릴 수 있는 루틴으로 교육.",
+        img: "assets/film/coupang/education-1.jpg",
         kind: "ops",
       },
     ],
@@ -198,40 +205,50 @@ const PROJECTS = [
     eye: "ACT 05 · CRAFT",
     name: "CRAFT",
     title: "브랜딩 · OEM<br />제품개발",
-    body: "로고부터 패키지·타이포·컬러 시스템, 그리고 소싱·샘플·생산·수입까지 A to Z로 만듭니다.",
-    tags: ["브랜딩", "패키지", "OEM", "A to Z"],
+    body: "ZERON·애즈플라워 실제 로고·비주얼·컬러 시스템과 OEM A to Z를 보여줍니다.",
+    tags: ["로고", "컬러", "패키지", "OEM"],
     link: null,
     linkLabel: "",
-    art: "assets/film/bh-atelier.jpg",
+    art: "assets/film/craft/zeron-LOGO_ZERON.png",
     demos: null,
     scenes: [
       {
-        label: "브랜딩",
-        title: "로고 · 패키지 · 타이포 · 컬러",
-        text: "로고, 패키지, 폰트·타이포, 컬러, 브랜드 디자인 시스템을 한 언어로 맞춥니다.",
-        img: "assets/film/bh-atelier.jpg",
+        phase: "01", stage: "BRAND", label: "ZERON 로고", title: "로고 · 심볼",
+        text: "ZERON CI. 서클·스퀘어·워드마크를 한 언어로 맞춤.",
+        img: "assets/film/craft/zeron-LOGO_ZERON.png",
+        fit: "contain",
+        colors: ["#0B0B0B", "#F5F5F5", "#C8A96B", "#2C2C2C"],
         kind: "brand",
       },
       {
-        label: "OEM 기획",
-        title: "제품 기획 · 소싱",
-        text: "제품 기획 후 국내·해외 제조사를 소싱하고, 샘플로 스펙을 확정합니다.",
-        img: "assets/film/bh-look-3.jpg",
+        phase: "02", stage: "BRAND", label: "ZERON 비주얼", title: "모바일 비주얼 시스템",
+        text: "모바일 메인 비주얼 컷. 타이포·여백·톤을 브랜드 기준으로 고정.",
+        gallery: [
+          "assets/film/craft/zeron-mobile_visual_01.jpg",
+          "assets/film/craft/zeron-mobile_visual_02.jpg",
+          "assets/film/craft/zeron-mobile_visual_03.jpg",
+          "assets/film/craft/zeron-mobile_visual_04.jpg",
+        ],
+        kind: "brand",
+      },
+      {
+        phase: "03", stage: "BRAND", label: "애즈플라워", title: "로고 · 심볼 · 컬러",
+        text: "애즈플라워 로고·심볼. 꽃 브랜드에 맞는 소프트·타이포 톤.",
+        img: "assets/film/craft/asf-logo_1000.png",
+        fit: "contain",
+        colors: ["#1A1A1A", "#F7F3EE", "#C45B6A", "#6B8F71", "#E8D5B5"],
+        kind: "flower",
+      },
+      {
+        phase: "04", stage: "OEM", label: "OEM A→Z", title: "소싱 · 생산 · 납품",
+        text: "기획→국내·해외 소싱→샘플→견적→패키지·인쇄→생산·검수→수입·납품까지.",
+        gallery: [
+          "assets/film/craft/zeron-1.jpg",
+          "assets/film/craft/zeron-2.jpg",
+          "assets/film/craft/zeron-3.jpg",
+          "assets/film/bh-atelier.jpg",
+        ],
         kind: "oem",
-      },
-      {
-        label: "OEM 생산",
-        title: "견적 · 패키지 · 생산",
-        text: "단가 협의, 패키지·인쇄, 생산·검수까지 일정과 품질 기준으로 관리합니다.",
-        img: "assets/film/bh-look-4.jpg",
-        kind: "factory",
-      },
-      {
-        label: "OEM 납품",
-        title: "수입 · 납품 A to Z",
-        text: "수입·통관·납품까지 마무리해, 기획이 재고로 도착하는 끝까지 책임집니다.",
-        img: "assets/film/bh-look-5.jpg",
-        kind: "ship",
       },
     ],
     env: { turbidity: 5.5, elevation: 6, azimuth: 215, rayleigh: 0.8, exposure: 0.42, ground: 0x1a2228 },
@@ -1736,6 +1753,11 @@ function tickEnv() {
 }
 
 
+
+let storyTimer = null;
+let storyIndex = 0;
+let galleryTimers = [];
+
 function virtualStill(kind) {
   const k = kind || "flow";
   const titles = {
@@ -1770,34 +1792,129 @@ function virtualStill(kind) {
   </div>`;
 }
 
+function stopStoryPlay() {
+  if (storyTimer) {
+    clearInterval(storyTimer);
+    storyTimer = null;
+  }
+  galleryTimers.forEach((t) => clearInterval(t));
+  galleryTimers = [];
+}
+
+function renderMedia(s) {
+  if (s.pc || s.mo) {
+    const pc = s.pc
+      ? `<div class="device-pc" data-label="PC"><img src="${s.pc}" alt="" loading="lazy" /></div>`
+      : "";
+    const mo = s.mo
+      ? `<div class="device-mo" data-label="MO"><img src="${s.mo}" alt="" loading="lazy" /></div>`
+      : `<div class="device-mo" data-label="MO">${virtualStill(s.kind)}</div>`;
+    return `<div class="device-duo">${pc}${mo}</div>`;
+  }
+  if (s.gallery && s.gallery.length) {
+    const first = s.gallery[0];
+    return `<div class="gallery-still" data-gallery="${s.gallery.join("|")}"><img src="${first}" alt="" loading="lazy" /></div>`;
+  }
+  if (s.img) {
+    const fit = s.fit === "contain" ? " is-contain" : "";
+    return `<div class="film-still${fit}"><img src="${s.img}" alt="" loading="lazy" /></div>`;
+  }
+  return virtualStill(s.kind);
+}
+
+function renderColors(colors) {
+  if (!colors || !colors.length) return "";
+  return `<div class="color-row">${colors
+    .map((c) => `<span class="color-swatch" title="${c}" style="background:${c}"></span>`)
+    .join("")}</div>`;
+}
+
+function setLiveBeat(i) {
+  if (!el.pReel) return;
+  const scenes = el.pReel.querySelectorAll(".film-scene");
+  const rails = el.pReel.querySelectorAll(".film-rail button");
+  storyIndex = i;
+  scenes.forEach((node, idx) => {
+    node.classList.toggle("is-live", idx === i);
+    node.classList.toggle("is-done", idx < i);
+    if (idx === i) node.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+  });
+  rails.forEach((btn, idx) => btn.classList.toggle("is-on", idx === i));
+}
+
+function startGalleries() {
+  if (!el.pReel || reduce) return;
+  el.pReel.querySelectorAll(".gallery-still[data-gallery]").forEach((node) => {
+    const list = (node.dataset.gallery || "").split("|").filter(Boolean);
+    if (list.length < 2) return;
+    let gi = 0;
+    const img = node.querySelector("img");
+    const t = setInterval(() => {
+      gi = (gi + 1) % list.length;
+      if (img) img.src = list[gi];
+    }, 1600);
+    galleryTimers.push(t);
+  });
+}
+
+function startStoryPlay(count) {
+  stopStoryPlay();
+  startGalleries();
+  if (reduce || count < 2) {
+    setLiveBeat(0);
+    return;
+  }
+  setLiveBeat(0);
+  storyTimer = setInterval(() => {
+    setLiveBeat((storyIndex + 1) % count);
+  }, 3200);
+}
+
 function renderScenes(scenes) {
   if (!el.pReel) return;
+  stopStoryPlay();
   if (!scenes || !scenes.length) {
     el.pReel.innerHTML = "";
     el.pReel.hidden = true;
     return;
   }
   el.pReel.hidden = false;
-  el.pReel.innerHTML = scenes
+  const rail = `<div class="film-rail" role="tablist" aria-label="스토리 순서">
+    ${scenes
+      .map(
+        (s, i) =>
+          `<button type="button" role="tab" data-beat="${i}" class="${i === 0 ? "is-on" : ""}">${s.phase || String(i + 1).padStart(2, "0")} · ${s.stage || "STEP"}</button>`
+      )
+      .join("")}
+  </div>`;
+  const cards = scenes
     .map((s, i) => {
-      const fit = s.fit === "contain" ? " is-contain" : "";
-      const still = s.img
-        ? `<div class="film-still${fit}"><img src="${s.img}" alt="" loading="lazy" /></div>`
-        : virtualStill(s.kind);
+      const weeks = s.weeks ? `<span class="beat-weeks">${s.weeks}</span>` : "";
       const link = s.link
-        ? `<a class="film-link" href="${s.link}" target="_blank" rel="noopener">열기 ↗</a>`
+        ? `<a class="film-link" href="${s.link}" target="_blank" rel="noopener">사이트 열기 ↗</a>`
         : "";
-      return `<article class="film-scene" style="--i:${i}">
-        ${still}
+      return `<article class="film-scene" style="--i:${i}" data-beat="${i}">
+        ${renderMedia(s)}
         <div class="film-caption">
+          <span class="beat-phase"><b>${s.phase || String(i + 1).padStart(2, "0")}</b> ${s.stage || "STEP"}${weeks}</span>
           <em>${s.label || `SCENE ${String(i + 1).padStart(2, "0")}`}</em>
           <h3>${s.title || ""}</h3>
           <p>${s.text || ""}</p>
+          ${renderColors(s.colors)}
           ${link}
         </div>
       </article>`;
     })
     .join("");
+  el.pReel.innerHTML = rail + cards;
+  el.pReel.querySelectorAll(".film-rail button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      stopStoryPlay();
+      startGalleries();
+      setLiveBeat(Number(btn.dataset.beat));
+    });
+  });
+  startStoryPlay(scenes.length);
 }
 
 function applyProject(index, { maneuver = true } = {}) {
@@ -1808,6 +1925,7 @@ function applyProject(index, { maneuver = true } = {}) {
   scheduleMobileFloatGauges();
 
   if (index < 0) {
+    stopStoryPlay();
     clearStage();
     el.metaIndex.textContent = "— / 05";
     el.metaName.textContent = "READY";

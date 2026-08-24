@@ -12,7 +12,10 @@
   <title>SaveAs For Biz — 세이브애즈 포 비즈</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
-  <link rel="stylesheet" href="css/main.css?v=filmacts0823g" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/main.css?v=storyhud0824c" />
   <link
     rel="stylesheet"
     href="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Widgets/widgets.css"
@@ -118,7 +121,7 @@
   </div>
 
   <main class="stage" id="stage">
-    <section class="hero-card" id="heroCard">
+    <section class="hero-card ar-hud" id="heroCard">
       <p class="eyebrow">SAVEAS FOR BIZ</p>
       <h1>비즈니스의 아이디어를<br />실제로 작동하게 만듭니다.</h1>
       <p class="lede">커머스 · 사업전환 · 앱/웹 · 쿠팡 · 브랜딩·OEM.<br />기획부터 제작, 운영까지 한 편의 루트로 연결합니다.</p>
@@ -127,7 +130,7 @@
       </div>
     </section>
 
-    <section class="project-card is-hidden" id="projectCard" aria-live="polite">
+    <section class="project-card ar-hud is-hidden" id="projectCard" aria-live="polite">
       <div class="project-copy">
         <p class="eyebrow" id="pEye">ACT 01</p>
         <h2 id="pTitle">쇼핑몰 및<br />홈페이지 제작</h2>
@@ -155,7 +158,7 @@
       </div>
     </section>
 
-    <section class="system-card is-hidden" id="systemCard">
+    <section class="system-card ar-hud is-hidden" id="systemCard">
       <p class="eyebrow">SYSTEM MAP</p>
       <h2>5개 ACT로 연결합니다.</h2>
       <div class="sys-grid">
@@ -167,7 +170,7 @@
       <button type="button" class="ui-action ghost" id="closeSystem">돌아가기</button>
     </section>
 
-    <section class="contact-card is-hidden" id="contactCard">
+    <section class="contact-card ar-hud is-hidden" id="contactCard">
       <p class="eyebrow">FINAL APPROACH</p>
       <h2>프로젝트가 필요하신가요?</h2>
       <p class="lede">정해진 형태가 없어도 괜찮습니다.<br />문제부터 함께 정리하고 필요한 방식으로 구현합니다.</p>
@@ -188,10 +191,24 @@
 
   <div class="boot" id="boot">
     <div class="boot-inner">
+            <svg class="boot-svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id="bootOutlineUnion" x="-15%" y="-40%" width="130%" height="180%" color-interpolation-filters="sRGB">
+            <feMorphology in="SourceAlpha" operator="dilate" radius="2.1" result="dilated"/>
+            <feComposite in="dilated" in2="SourceAlpha" operator="out" result="ring"/>
+            <feFlood flood-color="#071018" result="ink"/>
+            <feComposite in="ink" in2="ring" operator="in"/>
+          </filter>
+        </defs>
+      </svg>
       <div class="boot-copy">
         <p class="boot-mark">SAVEAS FOR BIZ</p>
         <h1 class="boot-en" id="bootEn" aria-label="Fast forward your business">
-          <span class="boot-line boot-outline">FAST FORWARD</span>
+          <span class="boot-line boot-outline" aria-hidden="true">
+            <svg class="boot-outline-svg" viewBox="0 0 1100 120" preserveAspectRatio="xMidYMid meet">
+              <text x="550" y="94" text-anchor="middle" filter="url(#bootOutlineUnion)">FAST FORWARD</text>
+            </svg>
+          </span>
           <span class="boot-line boot-solid">YOUR BUSINESS.</span>
         </h1>
         <p class="boot-ko">당신의 사업을 가장 빠르게 도약시켜드립니다.</p>
@@ -211,6 +228,6 @@
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js"></script>
   <script src="js/cesium-token.js"></script>
   <script src="js/cesium-token.local.js"></script>
-  <script type="module" src="js/flight.js?v=filmacts0823g"></script>
+  <script type="module" src="js/flight.js?v=storyhud0824c"></script>
 </body>
 </html>
