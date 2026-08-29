@@ -1094,6 +1094,13 @@ body.is-ready .boot {
   visibility: hidden;
   pointer-events: none;
 }
+/* WIP: skip boot while iterating UI — flip to false / remove when shipping */
+body.wip-skip-boot .boot {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 @media (max-width: 720px) {
   .boot-inner {
     width: 100%;
@@ -1150,11 +1157,12 @@ body.is-ready .boot {
     width: auto;
     min-width: 0;
     padding: 0;
-    border: 0;
+    border: 0 !important;
     border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    backdrop-filter: none;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     transform: none !important;
     overflow: visible;
     pointer-events: none;
@@ -1319,7 +1327,7 @@ body.is-ready .boot {
   }
   .ui-action.ghost { margin: 0; }
 
-  .glass-glare { opacity: 0.18; }
+  .glass-glare { display: none; opacity: 0; }
   .vignette {
     background:
       radial-gradient(ellipse at 50% 45%, transparent 32%, rgba(4, 8, 14, 0.55) 100%),
@@ -1506,10 +1514,12 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
   to{opacity:1;transform:skewX(-9deg) translateX(0);filter:blur(0)}
 }
 
-.flight-ui{
-  background:rgba(246,244,238,.9) !important;
-  border:1px solid rgba(255,255,255,.7) !important;
-  box-shadow:0 18px 50px rgba(40,50,65,.18), inset 0 1px 0 rgba(255,255,255,.6) !important;
+@media (min-width: 981px) {
+  .flight-ui{
+    background:rgba(246,244,238,.9) !important;
+    border:1px solid rgba(255,255,255,.7) !important;
+    box-shadow:0 18px 50px rgba(40,50,65,.18), inset 0 1px 0 rgba(255,255,255,.6) !important;
+  }
 }
 .ui-meta span,.ui-label,.route-item em{color:#3a3d42 !important;font-weight:600}
 .route-item span{color:#141618 !important;font-weight:700 !important}

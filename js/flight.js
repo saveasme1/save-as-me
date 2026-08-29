@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte7jqxu";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte7t4yb";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fix4bmte7jqxu";
+} from "./gmp-usn-route.js?v=fix4bmte7t4yb";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1803,7 +1803,7 @@ function stopStoryPlay() {
   galleryTimers = [];
 }
 
-const ASSET_V = "fix4bmte7jqxu";
+const ASSET_V = "fix4bmte7t4yb";
 function assetUrl(src) {
   if (!src) return src;
   if (/^https?:\/\//i.test(src)) return src;
@@ -2698,6 +2698,7 @@ document.addEventListener("visibilitychange", () => {
 const bootFill = document.getElementById("bootLoadFill");
 const bootPct = document.getElementById("bootLoadPct");
 const bootLabel = document.getElementById("bootLoadLabel");
+const WIP_SKIP_BOOT = document.body.classList.contains("wip-skip-boot");
 
 let bootProgress = 0;
 let bootDone = false;
@@ -2708,7 +2709,7 @@ function setBootProgress(p) {
   if (bootPct) bootPct.textContent = `${Math.round(bootProgress * 100)}%`;
 }
 const bootTimer = setInterval(() => {
-  if (bootDone) return;
+  if (bootDone || WIP_SKIP_BOOT) return;
   setBootProgress(Math.min(0.9, bootProgress + (bootProgress < 0.7 ? 0.012 : 0.004)));
 }, 80);
 function finishBootLoad() {
@@ -2718,14 +2719,16 @@ function finishBootLoad() {
   if (bootFailSafe) clearTimeout(bootFailSafe);
   setBootProgress(1);
   if (bootLabel) bootLabel.textContent = "READY";
-  requestAnimationFrame(() => {
-    setTimeout(() => document.body.classList.add("is-ready"), 220);
-  });
+  document.body.classList.add("is-ready");
 }
-bootFailSafe = setTimeout(() => {
-  console.warn("[boot] failsafe — forcing ready");
+if (WIP_SKIP_BOOT) {
   finishBootLoad();
-}, 18000);
+} else {
+  bootFailSafe = setTimeout(() => {
+    console.warn("[boot] failsafe — forcing ready");
+    finishBootLoad();
+  }, 18000);
+}
 
 createCesiumWorld({ debug: new URLSearchParams(location.search).has("flightDebug") })
   .then((world) => {
