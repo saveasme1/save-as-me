@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=storyhud0824c";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4cardmte4m5kx";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=storyhud0824c";
+} from "./gmp-usn-route.js?v=fix4cardmte4m5kx";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -56,9 +56,9 @@ const PROJECTS = [
         phase: "04", stage: "RESULT", label: "웹툴 · PNG to Vector", title: "이미지 → SVG 벡터화",
         text: "PNG/JPG/WebP를 편집 가능한 SVG path로 변환하는 MakerBridge Vector 툴.",
         weeks: "3~4일",
-        pc: "assets/film/shots/vector-pc.jpg",
-        mo: "assets/film/shots/vector-mobile.jpg",
-        link: "https://app.0-1.co.kr/vectorize",
+        pc: "assets/film/shots/makerbridge-pc.jpg",
+        mo: "assets/film/shots/makerbridge-mobile.jpg",
+        link: "https://app.0-1.co.kr/",
         kind: "editor",
       },
     ],
@@ -137,9 +137,9 @@ const PROJECTS = [
         phase: "02", stage: "APP", label: "PNG to Vector", title: "벡터화 웹앱",
         text: "로고·캘리그래피 PNG를 편집 가능한 SVG로. 3~4일 만에 올린 실무 툴.",
         weeks: "3~4일",
-        pc: "assets/film/shots/vector-pc.jpg",
-        mo: "assets/film/shots/vector-mobile.jpg",
-        link: "https://app.0-1.co.kr/vectorize",
+        pc: "assets/film/shots/makerbridge-pc.jpg",
+        mo: "assets/film/shots/makerbridge-mobile.jpg",
+        link: "https://app.0-1.co.kr/",
         kind: "editor",
       },
       {
@@ -1803,11 +1803,12 @@ function stopStoryPlay() {
 
 function renderMedia(s) {
   if (s.pc || s.mo) {
+    const onErr = `onerror="this.closest('.device-pc,.device-mo')?.classList.add('is-broken');this.replaceWith(Object.assign(document.createElement('div'),{className:'fv-fallback',innerHTML:'PREVIEW'}))"`;
     const pc = s.pc
-      ? `<div class="device-pc" data-label="PC"><img src="${s.pc}" alt="" loading="lazy" /></div>`
+      ? `<div class="device-pc" data-label="PC"><img src="${s.pc}" alt="" loading="lazy" ${onErr} /></div>`
       : "";
     const mo = s.mo
-      ? `<div class="device-mo" data-label="MO"><img src="${s.mo}" alt="" loading="lazy" /></div>`
+      ? `<div class="device-mo" data-label="MO"><img src="${s.mo}" alt="" loading="lazy" ${onErr} /></div>`
       : `<div class="device-mo" data-label="MO">${virtualStill(s.kind)}</div>`;
     return `<div class="device-duo">${pc}${mo}</div>`;
   }
@@ -1837,9 +1838,56 @@ function setLiveBeat(i) {
   scenes.forEach((node, idx) => {
     node.classList.toggle("is-live", idx === i);
     node.classList.toggle("is-done", idx < i);
-    if (idx === i) node.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+    if (idx === i) {
+      const host = el.project || el.pReel;
+      const top = node.offsetTop - (el.pReel?.querySelector(".film-rail")?.offsetHeight || 0) - 8;
+      if (host && typeof host.scrollTo === "function") {
+        host.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+      } else {
+        node.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+      }
+    }
   });
   rails.forEach((btn, idx) => btn.classList.toggle("is-on", idx === i));
+  // #region agent log
+  (() => {
+    const card = el.project;
+    const live = scenes[i];
+    const duo = live?.querySelector(".device-duo");
+    const imgs = [...(live?.querySelectorAll("img") || [])].map((im) => ({
+      src: (im.getAttribute("src") || "").slice(-40),
+      nw: im.naturalWidth || 0,
+      complete: im.complete,
+      h: Math.round(im.getBoundingClientRect().height),
+    }));
+    const cs = card ? getComputedStyle(card) : null;
+    fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+      body: JSON.stringify({
+        sessionId: "88eb62",
+        runId: "story-hud",
+        hypothesisId: "A-B-C",
+        location: "flight.js:setLiveBeat",
+        message: "story beat layout",
+        data: {
+          beat: i,
+          sceneCount: scenes.length,
+          cardOverflowY: cs?.overflowY || null,
+          cardH: card ? Math.round(card.getBoundingClientRect().height) : 0,
+          cardScrollH: card?.scrollHeight || 0,
+          liveH: live ? Math.round(live.getBoundingClientRect().height) : 0,
+          duoH: duo ? Math.round(duo.getBoundingClientRect().height) : 0,
+          duoMaxH: duo ? getComputedStyle(duo).maxHeight : null,
+          gridCols: live ? getComputedStyle(live).gridTemplateColumns : null,
+          imgs,
+          broken: !!live?.querySelector(".is-broken,.fv-fallback"),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  })();
+  // #endregion
 }
 
 function startGalleries() {
@@ -1914,6 +1962,29 @@ function renderScenes(scenes) {
       setLiveBeat(Number(btn.dataset.beat));
     });
   });
+  // #region agent log
+  (() => {
+    const srcs = scenes.map((s, i) => ({
+      i,
+      pc: (s.pc || s.img || "").slice(-48),
+      mo: (s.mo || "").slice(-48),
+      title: s.title || "",
+    }));
+    fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
+      body: JSON.stringify({
+        sessionId: "88eb62",
+        runId: "story-hud",
+        hypothesisId: "A",
+        location: "flight.js:renderScenes",
+        message: "scene media sources",
+        data: { count: scenes.length, srcs },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  })();
+  // #endregion
   startStoryPlay(scenes.length);
 }
 
