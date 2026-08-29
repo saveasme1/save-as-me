@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte51fbh";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte5ba9c";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fix4bmte51fbh";
+} from "./gmp-usn-route.js?v=fix4bmte5ba9c";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -26,7 +26,7 @@ const PROJECTS = [
     demos: null,
     scenes: [
       {
-        phase: "01", stage: "RESULT", label: "카페24 · ZERON", title: "0-1.co.kr",
+        phase: "01", stage: "CAFE24", label: "카페24 · ZERON", title: "0-1.co.kr",
         text: "카페24 기반 패션 커머스. 브랜드 톤·상품·운영 구조를 맞춰 구축한 결과물.",
         weeks: "2주",
         pc: "assets/film/shots/zeron-pc.jpg",
@@ -35,7 +35,7 @@ const PROJECTS = [
         kind: "commerce",
       },
       {
-        phase: "02", stage: "RESULT", label: "독립몰 · SaveAs", title: "saveas.co.kr",
+        phase: "02", stage: "POD", label: "독립몰 · SaveAs", title: "saveas.co.kr",
         text: "고객이 이미지·문구를 올려 직접 디자인한 뒤 바로 주문하는 POD 커스텀 몰.",
         weeks: "3주",
         pc: "assets/film/shots/saveas-pc.jpg",
@@ -44,7 +44,7 @@ const PROJECTS = [
         kind: "editor",
       },
       {
-        phase: "03", stage: "RESULT", label: "독립몰 · 애즈플라워", title: "asflower.vercel.app",
+        phase: "03", stage: "FLOWER", label: "독립몰 · 애즈플라워", title: "asflower.vercel.app",
         text: "오늘 들어온 꽃으로 맞춤 꽃다발을 만드는 독립 커머스. 큐레이션·주문 경험을 한 사이트로.",
         weeks: "1주",
         pc: "assets/film/shots/asflower-pc.jpg",
@@ -53,7 +53,7 @@ const PROJECTS = [
         kind: "flower",
       },
       {
-        phase: "04", stage: "RESULT", label: "웹툴 · PNG to Vector", title: "이미지 → SVG 벡터화",
+        phase: "04", stage: "TOOL", label: "웹툴 · PNG to Vector", title: "이미지 → SVG 벡터화",
         text: "PNG/JPG/WebP를 편집 가능한 SVG path로 변환하는 MakerBridge Vector 툴.",
         weeks: "3~4일",
         pc: "assets/film/shots/makerbridge-pc.jpg",
@@ -1801,7 +1801,7 @@ function stopStoryPlay() {
   galleryTimers = [];
 }
 
-const ASSET_V = "fix4bmte51fbh";
+const ASSET_V = "fix4bmte5ba9c";
 function assetUrl(src) {
   if (!src) return src;
   if (/^https?:\/\//i.test(src)) return src;
@@ -1811,12 +1811,19 @@ function assetUrl(src) {
 function renderMedia(s) {
   if (s.pc || s.mo) {
     const onErr = `onerror="this.closest('.device-pc,.device-mo')?.classList.add('is-broken');this.replaceWith(Object.assign(document.createElement('div'),{className:'fv-fallback',innerHTML:'PREVIEW'}))"`;
+    const host = (() => {
+      try {
+        return s.link ? new URL(s.link).host.replace(/^www\./, "") : "preview";
+      } catch {
+        return "preview";
+      }
+    })();
     const pc = s.pc
-      ? `<div class="device-pc" data-label="PC"><img src="${assetUrl(s.pc)}" alt="" loading="lazy" ${onErr} /></div>`
+      ? `<div class="device-pc" data-label="PC"><div class="device-chrome" aria-hidden="true"><i></i><b>${host}</b></div><div class="device-screen"><img src="${assetUrl(s.pc)}" alt="${host} PC" loading="lazy" ${onErr} /></div></div>`
       : "";
     const mo = s.mo
-      ? `<div class="device-mo" data-label="MO"><img src="${assetUrl(s.mo)}" alt="" loading="lazy" ${onErr} /></div>`
-      : `<div class="device-mo" data-label="MO">${virtualStill(s.kind)}</div>`;
+      ? `<div class="device-mo" data-label="MO"><div class="device-notch" aria-hidden="true"></div><div class="device-screen"><img src="${assetUrl(s.mo)}" alt="${host} mobile" loading="lazy" ${onErr} /></div></div>`
+      : `<div class="device-mo" data-label="MO"><div class="device-notch" aria-hidden="true"></div><div class="device-screen">${virtualStill(s.kind)}</div></div>`;
     return `<div class="device-duo">${pc}${mo}</div>`;
   }
   if (s.gallery && s.gallery.length) {
@@ -1859,8 +1866,11 @@ function setLiveBeat(i) {
   // #region agent log
   (() => {
     const card = el.project;
+    const stage = document.querySelector(".stage");
     const live = scenes[i];
     const duo = live?.querySelector(".device-duo");
+    const chrome = !!live?.querySelector(".device-chrome");
+    const notch = !!live?.querySelector(".device-notch");
     const imgs = [...(live?.querySelectorAll("img") || [])].map((im) => ({
       src: (im.getAttribute("src") || "").slice(-40),
       nw: im.naturalWidth || 0,
@@ -1868,25 +1878,33 @@ function setLiveBeat(i) {
       h: Math.round(im.getBoundingClientRect().height),
     }));
     const cs = card ? getComputedStyle(card) : null;
+    const sr = stage?.getBoundingClientRect();
+    const cr = card?.getBoundingClientRect();
+    const rail = [...(el.pReel?.querySelectorAll(".film-rail button") || [])].map((b) => b.textContent.trim());
     fetch("http://127.0.0.1:7719/ingest/981fe459-55aa-4b6a-b93e-29a4ea52759b", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "88eb62" },
       body: JSON.stringify({
         sessionId: "88eb62",
-        runId: "story-hud",
-        hypothesisId: "A-B-C",
+        runId: "panel-right",
+        hypothesisId: "H1-H4",
         location: "flight.js:setLiveBeat",
         message: "story beat layout",
         data: {
           beat: i,
           sceneCount: scenes.length,
-          cardOverflowY: cs?.overflowY || null,
-          cardH: card ? Math.round(card.getBoundingClientRect().height) : 0,
-          cardScrollH: card?.scrollHeight || 0,
-          liveH: live ? Math.round(live.getBoundingClientRect().height) : 0,
+          rail,
+          stageLeft: sr ? Math.round(sr.left) : null,
+          stageRightGap: sr ? Math.round(window.innerWidth - sr.right) : null,
+          stageW: sr ? Math.round(sr.width) : null,
+          cardLeft: cr ? Math.round(cr.left) : null,
+          cardW: cr ? Math.round(cr.width) : null,
+          cardPad: cs?.padding || null,
+          vw: window.innerWidth,
+          rightPinned: sr && cr ? cr.right > window.innerWidth * 0.72 : false,
+          chrome,
+          notch,
           duoH: duo ? Math.round(duo.getBoundingClientRect().height) : 0,
-          duoMaxH: duo ? getComputedStyle(duo).maxHeight : null,
-          gridCols: live ? getComputedStyle(live).gridTemplateColumns : null,
           imgs,
           broken: !!live?.querySelector(".is-broken,.fv-fallback"),
         },
