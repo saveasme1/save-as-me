@@ -466,10 +466,10 @@ body.is-cesium-ready #cesiumContainer {
   top: max(1rem, env(safe-area-inset-top));
   right: max(1.15rem, env(safe-area-inset-right));
   bottom: 3.2rem;
-  /* pin to right dock — do not stretch left→right (that centered the AR panel) */
+  /* mobile: full-bleed between insets; desktop pins width in min-width:981px */
   left: auto;
   width: auto;
-  max-width: min(42vw, 560px);
+  max-width: none;
   display: flex;
   align-items: stretch;
   justify-content: flex-end;
@@ -1284,8 +1284,10 @@ body.is-ready .boot {
   .ui-action.ghost { margin: 0; }
 
   .stage {
-    left: 0.55rem;
-    right: 0.55rem;
+    left: max(0.55rem, env(safe-area-inset-left)) !important;
+    right: max(0.55rem, env(safe-area-inset-right)) !important;
+    width: auto !important;
+    max-width: none !important;
     /* under brand+route; JS also nudges via --stage-top when gauges/route grow */
     top: var(--stage-top, calc(max(0.4rem, env(safe-area-inset-top)) + 5.3rem));
     bottom: calc(8.4rem + env(safe-area-inset-bottom));
@@ -1511,13 +1513,13 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
 }
 .ar-hud .link-out{color:#9fdfff !important;border-color:rgba(159,223,255,.45) !important}
 .project-card.ar-hud{
-  width:min(42vw, 560px) !important;
-  max-width:560px !important;
-  min-width:min(320px, 100%);
+  width:100% !important;
+  max-width:none;
+  min-width:0;
   max-height:calc(100vh - 3.8rem);
   overflow-x:hidden;
   overflow-y:auto;
-  padding:1.35rem 1.4rem 1.45rem !important;
+  padding:1.1rem 1.15rem 1.2rem !important;
   margin-left:0 !important;
   flex:0 0 auto;
   box-sizing:border-box;
@@ -1658,14 +1660,53 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
     width:auto !important;
     max-width:min(42vw, 560px) !important;
   }
-  .project-card.ar-hud{width:min(42vw, 560px) !important;max-width:560px !important}
+  .project-card.ar-hud{
+    width:min(42vw, 560px) !important;
+    max-width:560px !important;
+    padding:1.35rem 1.4rem 1.45rem !important;
+  }
 }
 @media (max-width:980px){
-  .stage{width:auto;left:0.55rem;right:0.55rem}
-  .project-card.ar-hud{max-height:min(54vh,480px) !important;width:100% !important;max-width:none !important;padding:0.85rem 0.9rem !important}
-  .film-scene{grid-template-columns:1fr !important}
-  .device-duo{grid-template-columns:1.45fr .7fr;gap:.4rem}
-  .device-mo{max-width:96px;padding:6px 5px 8px}
+  .cesium-credit-host{
+    left:auto !important;
+    right:max(0.4rem, env(safe-area-inset-right));
+    bottom:calc(7.8rem + env(safe-area-inset-bottom));
+    max-width:42vw;
+    transform:scale(0.72);
+    transform-origin:right bottom;
+    z-index:20;
+    opacity:0.55;
+  }
+  .stage{
+    left:max(0.55rem, env(safe-area-inset-left)) !important;
+    right:max(0.55rem, env(safe-area-inset-right)) !important;
+    width:auto !important;
+    max-width:none !important;
+  }
+  .project-card.ar-hud{
+    width:100% !important;
+    max-width:none !important;
+    min-width:0 !important;
+    max-height:min(52vh, 460px) !important;
+    padding:0.75rem 0.8rem 0.85rem !important;
+  }
+  .film-scene{
+    grid-template-columns:1fr !important;
+    padding:.55rem .5rem !important;
+    transform:none !important;
+  }
+  .film-scene:not(.is-live){opacity:.55;filter:saturate(.8)}
+  .device-duo{
+    grid-template-columns:minmax(0,1.5fr) minmax(72px,.62fr) !important;
+    gap:.35rem;
+    align-items:end;
+  }
+  .device-chrome{padding:.22rem .35rem}
+  .device-chrome b{margin-left:1.6rem;font-size:.42rem}
+  .device-mo{max-width:88px !important;padding:5px 4px 7px}
+  .device-pc .device-screen{aspect-ratio:16/10}
+  .film-caption h3{font-size:1rem}
+  .film-caption p{font-size:.78rem}
   .boot-en{font-size:min(13cqi,15vh,3.7rem) !important}
   .boot-en .boot-outline,.boot-en .boot-solid{transform:skewX(-5deg)}
   .ui-brand strong,.route-item span{color:#121417 !important}
