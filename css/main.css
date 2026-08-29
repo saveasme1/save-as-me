@@ -1372,13 +1372,16 @@ body.is-ready .boot {
 
 @media (min-width: 981px) and (max-width: 1200px) {
   .stage {
-    left: calc(min(28vw, 280px) + 1.6rem);
+    left: auto;
+    right: max(1.15rem, env(safe-area-inset-right));
+    width: auto;
+    max-width: min(46vw, 520px);
   }
   .system-card, .contact-card, .hero-card {
     width: min(100%, 400px);
   }
-  .project-card {
-    width: min(100%, 560px);
+  .project-card.ar-hud {
+    width: min(46vw, 520px) !important;
   }
 }
 
