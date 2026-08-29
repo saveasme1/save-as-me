@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte6510w";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte6d6pv";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fix4bmte6510w";
+} from "./gmp-usn-route.js?v=fix4bmte6d6pv";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1720,14 +1720,16 @@ new GLTFLoader().load(
 );
 
 /* ========== UI ========== */
-function clearStage() {
-  [el.hero, el.project, el.system, el.contact].forEach((c) => c.classList.add("is-hidden"));
-}
-
 function show(card) {
   clearStage();
   card.classList.remove("is-hidden");
+  document.body.classList.toggle("is-project-open", card === el.project);
   scheduleMobileFloatGauges();
+}
+
+function clearStage() {
+  [el.hero, el.project, el.system, el.contact].forEach((c) => c.classList.add("is-hidden"));
+  document.body.classList.remove("is-project-open");
 }
 
 function setEnv(env) {
@@ -1801,7 +1803,7 @@ function stopStoryPlay() {
   galleryTimers = [];
 }
 
-const ASSET_V = "fix4bmte6510w";
+const ASSET_V = "fix4bmte6d6pv";
 function assetUrl(src) {
   if (!src) return src;
   if (/^https?:\/\//i.test(src)) return src;
