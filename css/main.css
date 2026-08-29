@@ -1703,27 +1703,39 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
     width:100% !important;
     max-width:100% !important;
     min-width:0 !important;
-    max-height:min(52vh, 460px) !important;
-    padding:0.75rem 0.8rem 0.85rem !important;
+    max-height:min(58vh, 520px) !important;
+    padding:0.85rem 1rem 0.95rem !important;
     background:#0c1826 linear-gradient(155deg,rgba(10,22,34,.97),rgba(14,28,42,.95)) !important;
   }
   .film-scene{
     grid-template-columns:1fr !important;
-    padding:.55rem .5rem !important;
+    padding:.6rem .55rem !important;
     transform:none !important;
+    overflow:hidden;
   }
   .film-scene:not(.is-live){opacity:.55;filter:saturate(.8)}
+  /* mobile: stack PC full-width, phone below — side-by-side was unreadable */
   .device-duo{
-    grid-template-columns:minmax(0,1.5fr) minmax(72px,.62fr) !important;
-    gap:.35rem;
-    align-items:end;
+    grid-template-columns:1fr !important;
+    gap:.45rem;
+    align-items:start;
   }
   .device-chrome{padding:.22rem .35rem}
   .device-chrome b{margin-left:1.6rem;font-size:.42rem}
-  .device-mo{max-width:88px !important;padding:5px 4px 7px}
+  .device-mo{
+    max-width:132px !important;
+    padding:6px 5px 8px;
+    justify-self:start;
+  }
   .device-pc .device-screen{aspect-ratio:16/10}
-  .film-caption h3{font-size:1rem}
-  .film-caption p{font-size:.78rem}
+  .film-caption h3{font-size:1.05rem}
+  .film-caption p{font-size:.8rem;-webkit-line-clamp:unset;display:block;overflow:visible}
+  .project-card .lede{
+    -webkit-line-clamp:4 !important;
+    overflow:hidden;
+  }
+  .film-rail{gap:.28rem;flex-wrap:wrap}
+  .film-rail button{font-size:.52rem;padding:.24rem .42rem}
   .boot-en{font-size:min(13cqi,15vh,3.7rem) !important}
   .boot-en .boot-outline,.boot-en .boot-solid{transform:skewX(-5deg)}
   .ui-brand strong,.route-item span{color:#121417 !important}
