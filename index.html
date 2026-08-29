@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/main.css?v=fix4bmte6qbb3" />
+  <link rel="stylesheet" href="css/main.css?v=fix4bmte7jqxu" />
   <link
     rel="stylesheet"
     href="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Widgets/widgets.css"
@@ -78,14 +78,13 @@
       </button>
     </nav>
 
-    <div class="ui-actions-wrap">
-      <div class="look-snaps" role="group" aria-label="화면 보기">
-        <button type="button" class="snap-btn" id="lookLeft" data-look="left">좌측 화면</button>
-        <button type="button" class="snap-btn is-on" id="viewReset" data-look="center">정면</button>
-        <button type="button" class="snap-btn" id="lookRight" data-look="right">우측 화면</button>
+    <div class="ui-actions-wrap" id="uiActionsWrap">
+      <div class="look-snaps" role="group" aria-label="시선">
+        <button type="button" class="snap-btn" id="lookLeft" data-look="left" aria-label="좌측 보기" title="좌측">◀</button>
+        <button type="button" class="snap-btn is-on" id="viewReset" data-look="center" aria-label="정면" title="정면">●</button>
+        <button type="button" class="snap-btn" id="lookRight" data-look="right" aria-label="우측 보기" title="우측">▶</button>
       </div>
-      <button type="button" class="ui-action" id="viewSystem">시스템 보기</button>
-      <button type="button" class="ui-action ghost" id="viewContact">프로젝트 문의</button>
+      <a class="ui-action ghost dock-inquire" id="viewContact" href="mailto:saveasme1@gmail.com">문의</a>
     </div>
   </aside>
 
@@ -230,6 +229,6 @@
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js"></script>
   <script src="js/cesium-token.js"></script>
   <script src="js/cesium-token.local.js"></script>
-  <script type="module" src="js/flight.js?v=fix4bmte6qbb3"></script>
+  <script type="module" src="js/flight.js?v=fix4bmte7jqxu"></script>
 </body>
 </html>

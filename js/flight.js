@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte6qbb3";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte7jqxu";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fix4bmte6qbb3";
+} from "./gmp-usn-route.js?v=fix4bmte7jqxu";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1803,7 +1803,7 @@ function stopStoryPlay() {
   galleryTimers = [];
 }
 
-const ASSET_V = "fix4bmte6qbb3";
+const ASSET_V = "fix4bmte7jqxu";
 function assetUrl(src) {
   if (!src) return src;
   if (/^https?:\/\//i.test(src)) return src;
@@ -2185,9 +2185,8 @@ document.getElementById("mRouteBtn")?.addEventListener("click", () => {
   const open = document.body.classList.toggle("is-routes-open");
   document.getElementById("mRouteBtn")?.setAttribute("aria-expanded", open ? "true" : "false");
 });
-document.getElementById("viewSystem")?.addEventListener("click", () => show(el.system));
 document.getElementById("viewContact")?.addEventListener("click", () => {
-  show(el.contact);
+  /* mailto handled by href; optional soft env cue */
   cityGroup.visible = true;
   setEnv(PROJECTS[4].env);
 });
