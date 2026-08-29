@@ -498,8 +498,14 @@ body.is-cesium-ready #cesiumContainer {
   opacity: 0;
   transform: translateY(18px) scale(0.985);
   pointer-events: none !important;
-  position: absolute;
+  position: absolute !important;
   visibility: hidden;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
 }
 
 .eyebrow {
@@ -1374,16 +1380,16 @@ body.is-ready .boot {
 
 @media (min-width: 981px) and (max-width: 1200px) {
   .stage {
-    left: auto;
-    right: max(1.15rem, env(safe-area-inset-right));
-    width: auto;
-    max-width: min(46vw, 520px);
+    left: auto !important;
+    right: max(0.85rem, env(safe-area-inset-right)) !important;
+    width: min(40vw, 480px) !important;
+    max-width: 480px !important;
   }
   .system-card, .contact-card, .hero-card {
     width: min(100%, 400px);
   }
   .project-card.ar-hud {
-    width: min(46vw, 520px) !important;
+    width: 100% !important;
   }
 }
 
@@ -1530,16 +1536,31 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
   overflow-x:hidden;
   overflow-y:auto;
   padding:1.1rem 1.15rem 1.2rem !important;
-  margin-left:0 !important;
-  flex:0 0 auto;
+  margin:0 !important;
+  flex:1 1 auto;
+  align-self:stretch;
   box-sizing:border-box;
+  position:relative !important;
+  left:auto !important;
+  right:auto !important;
+  inset:auto !important;
+  transform:none !important;
+}
+#projectCard:not(.is-hidden){
+  position:relative !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  transform:none !important;
+  left:0 !important;
+  right:0 !important;
+  width:100% !important;
 }
 .film-rail{
   position:sticky;top:0;z-index:3;padding:.25rem 0 .35rem;
   background:linear-gradient(180deg,rgba(10,22,34,.96),rgba(10,22,34,.82));
 }
 @keyframes arPanelIn{
-  from{opacity:0;transform:perspective(900px) rotateX(8deg) translateY(28px) scale(.96);filter:blur(6px)}
+  from{opacity:0;transform:translateY(18px);filter:blur(4px)}
   to{opacity:1;transform:none;filter:blur(0)}
 }
 @keyframes arScan{from{background-position:0 0,0 0}to{background-position:0 0,0 48px}}
@@ -1556,15 +1577,16 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
 .film-scene{
   display:grid !important;grid-template-columns:1fr !important;
   gap:.65rem !important;align-items:stretch;padding:.7rem .75rem !important;border-radius:12px !important;
-  background:rgba(6,16,28,.45) !important;border:none !important;
-  opacity:.4;transform:translateX(14px);filter:saturate(.65);
-  transition:opacity .4s,transform .45s,box-shadow .3s,filter .4s;
-  animation:beatEnter .55s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0)*.1s);
+  background:rgba(8,18,30,.96) !important;border:none !important;
+  opacity:1;transform:none;filter:none;
+  transition:opacity .35s,box-shadow .3s,filter .35s;
+  /* do NOT use animation-fill that ends at opacity:.4 — that kept live cards translucent forever */
 }
 .film-scene.is-live{
-  opacity:1;transform:none;filter:none;
-  background:rgba(8,20,34,.72) !important;
+  opacity:1 !important;transform:none !important;filter:none !important;
+  background:rgba(8,20,34,.98) !important;
   box-shadow:0 0 0 1px rgba(140,230,255,.28),0 12px 32px rgba(0,20,40,.35);
+  position:relative;z-index:2;
 }
 .film-scene.is-live .device-duo,
 .film-scene.is-live .film-still,
@@ -1572,17 +1594,26 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
 .film-scene.is-live .device-mo{
   max-height:none !important;min-height:0;
 }
-.film-scene.is-done{opacity:.78;filter:saturate(.95)}
-/* collapsed beats keep rail usable without shredding the next card */
+.film-scene.is-done{
+  opacity:1 !important;filter:none !important;transform:none !important;
+  background:rgba(8,18,30,.96) !important;
+}
+/* collapsed beats: solid, no see-through stack */
+.film-scene:not(.is-live){
+  opacity:1 !important;transform:none !important;filter:none !important;
+  background:rgba(8,18,30,.96) !important;
+  box-shadow:none;
+  position:relative;z-index:1;
+}
 .film-scene:not(.is-live) .device-duo,
 .film-scene:not(.is-live) .film-still,
 .film-scene:not(.is-live) .gallery-still{
-  max-height:88px;min-height:72px;
+  max-height:72px;min-height:64px;
 }
-.film-scene:not(.is-live) .device-mo{max-height:88px}
+.film-scene:not(.is-live) .device-mo{max-height:72px}
 .film-scene:not(.is-live) .device-chrome,.film-scene:not(.is-live) .device-notch{display:none}
 .film-scene:not(.is-live) .film-caption p{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-@keyframes beatEnter{from{opacity:0;transform:translateX(30px) skewX(-2deg)}to{opacity:.4;transform:translateX(14px)}}
+.film-scene:not(.is-live) .film-caption{opacity:.72}
 
 .device-duo{
   display:grid;
@@ -1666,14 +1697,30 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
 @media (min-width:981px){
   .stage{
     left:auto !important;
-    right:max(1.15rem, env(safe-area-inset-right)) !important;
-    width:auto !important;
-    max-width:min(42vw, 560px) !important;
+    right:0.75rem !important;
+    width:min(34vw, 520px) !important;
+    max-width:520px !important;
+    justify-content:flex-end !important;
+    align-items:stretch !important;
+    overflow:visible;
   }
   .project-card.ar-hud{
-    width:min(42vw, 560px) !important;
-    max-width:560px !important;
-    padding:1.35rem 1.4rem 1.45rem !important;
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    transform:none !important;
+    position:relative !important;
+    left:0 !important;
+    right:0 !important;
+    padding:1.25rem 1.3rem 1.35rem !important;
+  }
+  /* PC: gauges stay left; never cover the right story dock */
+  body.is-project-open .float-gauges{
+    max-width:7.2rem;
+    right:auto;
+  }
+  body.is-project-open .stage{
+    z-index:28;
   }
 }
 @media (max-width:980px){
@@ -1713,7 +1760,7 @@ body:not(.is-cockpit-ready) #mfdClipLayer {
     transform:none !important;
     overflow:hidden;
   }
-  .film-scene:not(.is-live){opacity:.55;filter:saturate(.8)}
+  .film-scene:not(.is-live){opacity:1 !important;filter:none !important;transform:none !important}
   /* mobile: stack PC full-width, phone below — side-by-side was unreadable */
   .device-duo{
     grid-template-columns:1fr !important;
