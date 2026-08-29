@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fix4cardmte4m5kx";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte51fbh";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fix4cardmte4m5kx";
+} from "./gmp-usn-route.js?v=fix4bmte51fbh";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1801,24 +1801,31 @@ function stopStoryPlay() {
   galleryTimers = [];
 }
 
+const ASSET_V = "fix4bmte51fbh";
+function assetUrl(src) {
+  if (!src) return src;
+  if (/^https?:\/\//i.test(src)) return src;
+  return src.includes("?") ? `${src}&v=${ASSET_V}` : `${src}?v=${ASSET_V}`;
+}
+
 function renderMedia(s) {
   if (s.pc || s.mo) {
     const onErr = `onerror="this.closest('.device-pc,.device-mo')?.classList.add('is-broken');this.replaceWith(Object.assign(document.createElement('div'),{className:'fv-fallback',innerHTML:'PREVIEW'}))"`;
     const pc = s.pc
-      ? `<div class="device-pc" data-label="PC"><img src="${s.pc}" alt="" loading="lazy" ${onErr} /></div>`
+      ? `<div class="device-pc" data-label="PC"><img src="${assetUrl(s.pc)}" alt="" loading="lazy" ${onErr} /></div>`
       : "";
     const mo = s.mo
-      ? `<div class="device-mo" data-label="MO"><img src="${s.mo}" alt="" loading="lazy" ${onErr} /></div>`
+      ? `<div class="device-mo" data-label="MO"><img src="${assetUrl(s.mo)}" alt="" loading="lazy" ${onErr} /></div>`
       : `<div class="device-mo" data-label="MO">${virtualStill(s.kind)}</div>`;
     return `<div class="device-duo">${pc}${mo}</div>`;
   }
   if (s.gallery && s.gallery.length) {
-    const first = s.gallery[0];
-    return `<div class="gallery-still" data-gallery="${s.gallery.join("|")}"><img src="${first}" alt="" loading="lazy" /></div>`;
+    const first = assetUrl(s.gallery[0]);
+    return `<div class="gallery-still" data-gallery="${s.gallery.map(assetUrl).join("|")}"><img src="${first}" alt="" loading="lazy" /></div>`;
   }
   if (s.img) {
     const fit = s.fit === "contain" ? " is-contain" : "";
-    return `<div class="film-still${fit}"><img src="${s.img}" alt="" loading="lazy" /></div>`;
+    return `<div class="film-still${fit}"><img src="${assetUrl(s.img)}" alt="" loading="lazy" /></div>`;
   }
   return virtualStill(s.kind);
 }
