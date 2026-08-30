@@ -368,20 +368,20 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .work-card h3 {
   margin: 0.15rem 0 0;
-  font-size: 1.15rem;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
   letter-spacing: -0.02em;
 }
 .work-card .tag {
   font-family: var(--font-m);
-  font-size: 0.58rem;
+  font-size: 0.68rem;
   letter-spacing: 0.12em;
-  color: rgba(239, 236, 228, 0.5);
+  color: var(--lime);
 }
 .work-card .lede {
   margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.45;
-  color: rgba(239, 236, 228, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(239, 236, 228, 0.78);
 }
 .story-steps {
   display: flex;
