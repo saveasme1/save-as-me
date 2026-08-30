@@ -477,7 +477,7 @@ body.is-lightbox { overflow: hidden; }
   background: #05080e;
 }
 .lb-pc img { aspect-ratio: 16 / 10; object-fit: cover; object-position: top; }
-.lb-mo img { aspect-ratio: 9 / 16; object-fit: cover; object-position: top; max-width: 180px; margin-inline: auto; }
+.lb-mo img { aspect-ratio: 9 / 16; object-fit: cover; object-position: top; max-width: 260px; margin-inline: auto; }
 .story-lightbox-cap {
   margin: 0.75rem 0 0.45rem;
   font-family: var(--font-m);
@@ -527,8 +527,8 @@ body.is-lightbox { overflow: hidden; }
 /* PC + MO device duo */
 .device-duo {
   display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(120px, 0.48fr);
-  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.62fr);
+  gap: 1rem;
   align-items: end;
 }
 .device-pc, .device-mo {
@@ -553,11 +553,11 @@ body.is-lightbox { overflow: hidden; }
   pointer-events: none;
 }
 .device-mo .device-label {
-  top: 0.85rem;
-  right: 0.35rem;
-  font-size: 0.52rem;
-  letter-spacing: 0.1em;
-  padding: 0.16rem 0.35rem;
+  top: 1rem;
+  right: 0.5rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  padding: 0.2rem 0.45rem;
 }
 .device-pc { border-radius: 12px; }
 .device-chrome {
@@ -594,16 +594,16 @@ body.is-lightbox { overflow: hidden; }
   position: relative;
 }
 .device-mo {
-  border-radius: 18px;
-  padding: 8px 7px 10px;
-  max-width: 168px;
+  border-radius: 22px;
+  padding: 10px 9px 12px;
+  max-width: 280px;
   justify-self: end;
   width: 100%;
 }
 .device-mo .notch {
-  width: 34%;
-  height: 4px;
-  margin: 0 auto 5px;
+  width: 36%;
+  height: 6px;
+  margin: 0 auto 8px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.7);
 }
