@@ -262,25 +262,25 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* centered work stage: active + dimmed neighbors */
 .work-stage {
   position: relative;
-  width: min(100%, 1680px);
+  width: min(100%, 1780px);
   margin: 0 auto;
-  padding: 0.5rem var(--gutter) 1.4rem;
-  min-height: clamp(640px, 78vh, 920px);
+  padding: 0.35rem max(0.5rem, calc(var(--gutter) - 0.5rem)) 1.4rem;
+  min-height: clamp(720px, 86vh, 1040px);
 }
 .work-track {
   position: relative;
-  height: clamp(620px, 74vh, 880px);
+  height: clamp(700px, 82vh, 1000px);
   perspective: 1600px;
 }
 .work-card {
   position: absolute;
   top: 0;
   left: 50%;
-  width: min(96vw, 1080px);
+  width: min(98vw, 1280px);
   background: var(--steel);
   border: 1px solid rgba(239, 236, 228, 0.1);
   border-radius: 22px;
-  padding: 1.15rem 1.2rem 1.35rem;
+  padding: 1.15rem 1.25rem 1.4rem;
   display: grid;
   gap: 0.85rem;
   transform: translateX(-50%) scale(0.72);
@@ -527,8 +527,8 @@ body.is-lightbox { overflow: hidden; }
 /* PC + MO device duo */
 .device-duo {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(220px, 0.62fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+  gap: 1.1rem;
   align-items: start;
 }
 .device-pc, .device-mo {
@@ -539,36 +539,42 @@ body.is-lightbox { overflow: hidden; }
 }
 .device-label {
   position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
   z-index: 4;
   font-family: var(--font-m);
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  padding: 0.2rem 0.45rem;
+  letter-spacing: 0.12em;
+  padding: 0.22rem 0.5rem;
   border-radius: 4px;
   background: rgba(212, 255, 58, 0.92);
   color: var(--ink);
   pointer-events: none;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+/* PC label: under chrome, not on URL text */
+.device-pc .device-label {
+  top: auto;
+  bottom: 0.55rem;
+  right: 0.55rem;
 }
 .device-mo .device-label {
-  top: 1rem;
+  top: 1.05rem;
   right: 0.5rem;
   font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  padding: 0.2rem 0.45rem;
 }
 .device-pc { border-radius: 12px; }
 .device-chrome {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.4rem 0.55rem;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
   background: #141a24;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 2.1rem;
 }
 .device-chrome i {
+  flex: 0 0 auto;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -577,26 +583,29 @@ body.is-lightbox { overflow: hidden; }
 }
 .device-chrome b {
   flex: 1;
-  margin-left: 2rem;
+  min-width: 0;
+  margin-left: 2.1rem;
   font-family: var(--font-m);
-  font-size: 0.68rem;
-  color: rgba(200, 220, 235, 0.85);
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: rgba(210, 225, 240, 0.9);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.35);
   border-radius: 4px;
-  padding: 0.18rem 0.45rem;
+  padding: 0.2rem 0.5rem;
 }
 .device-pc .screen {
   aspect-ratio: 16 / 10;
   background: #05080e;
   position: relative;
+  min-height: 280px;
 }
 .device-mo {
   border-radius: 22px;
   padding: 10px 9px 12px;
-  max-width: 280px;
+  max-width: 240px;
   justify-self: end;
   width: 100%;
 }
@@ -619,16 +628,20 @@ body.is-lightbox { overflow: hidden; }
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: top center;
   opacity: 0;
-  transform: scale(1.04);
+  transform: scale(1.02);
   transition: opacity 0.55s ease, transform 2.2s ease;
+  background: #0a0e16;
+}
+.device-pc .screen .story-frame {
+  object-fit: contain;
+  object-position: top left;
 }
 .device-mo .screen .story-frame {
   object-fit: contain;
   object-position: top center;
-  background: #0a0e16;
 }
 .story-screen .story-frame.is-on {
   opacity: 1;
