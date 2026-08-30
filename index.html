@@ -3,232 +3,148 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="description" content="SaveAs For Biz — 비즈니스의 아이디어를 실제로 작동하게 만듭니다." />
-  <meta name="theme-color" content="#85B9E6" />
+  <meta name="description" content="SaveAs For Biz — 커머스·앱·브랜딩을 실제로 작동하게 만드는 디지털 스튜디오." />
+  <meta name="theme-color" content="#0b0d10" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
   <meta property="og:title" content="SaveAs For Biz" />
-  <meta property="og:description" content="쇼핑몰, 웹서비스, 커스텀 시스템, 자동화까지. 기획부터 디자인, 개발, 운영 구조까지 연결합니다." />
+  <meta property="og:description" content="쇼핑몰, 웹서비스, 커스텀 시스템, 자동화까지. 기획부터 운영까지." />
   <meta property="og:url" content="https://save-as.me/" />
   <link rel="icon" href="assets/brand/saveas-logo.png" type="image/png" />
-  <title>SaveAs For Biz — 세이브애즈 포 비즈</title>
+  <title>SaveAs For Biz — Portfolio</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/main.css?v=fix4bmtfnx3ja" />
-  <link
-    rel="stylesheet"
-    href="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Widgets/widgets.css"
-  />
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
-    }
-  }
-  </script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/portfolio.css?v=fix4bmtfoa6xn" />
 </head>
-<body class="wip-skip-boot is-ready">
-  <div id="cesiumContainer" aria-hidden="true"></div>
-  <div id="cesiumCredit" class="cesium-credit-host" aria-hidden="false"></div>
-  <div id="webgl" aria-hidden="true"></div>
+<body>
+  <div class="bg-runway" aria-hidden="true"></div>
 
-  <div class="vignette" aria-hidden="true"></div>
-  <div class="glass-glare" aria-hidden="true"></div>
-
-  <aside class="flight-ui" id="flightUi">
-    <header class="ui-brand">
-      <img src="assets/brand/saveas-logo.png" alt="SaveAs" width="32" height="32" />
-      <div>
-        <strong>SAVEAS FOR BIZ</strong>
-        <em>DIGITAL SYSTEM STUDIO</em>
-      </div>
-      <button type="button" class="m-route-btn" id="mRouteBtn" aria-expanded="false" aria-controls="routeNav">ROUTE</button>
-    </header>
-
-    <div class="ui-meta">
-      <div><span>PROJECT</span><b id="metaIndex">01 / 05</b></div>
-      <div><span>CURRENT</span><b id="metaName">LOCAL</b></div>
-    </div>
-
-    <p class="ui-label">PROJECT ROUTE</p>
-    <nav class="route" id="routeNav" aria-label="프로젝트">
-      <button type="button" class="route-item is-active" data-index="0">
-        <em>01</em>
-        <span>쇼핑몰 · 홈페이지</span>
-      </button>
-      <button type="button" class="route-item" data-index="1">
-        <em>02</em>
-        <span>온라인 사업전환</span>
-      </button>
-      <button type="button" class="route-item" data-index="2">
-        <em>03</em>
-        <span>앱 · 웹 개발</span>
-      </button>
-      <button type="button" class="route-item" data-index="3">
-        <em>04</em>
-        <span>쿠팡 로켓배송</span>
-      </button>
-      <button type="button" class="route-item" data-index="4">
-        <em>05</em>
-        <span>브랜딩 · OEM</span>
-      </button>
+  <div class="site">
+    <nav class="dock" aria-label="주요 이동">
+      <a href="#top" data-nav>Home</a>
+      <a href="#work" data-nav>Work</a>
+      <a href="#skills" data-nav>Skills</a>
+      <a class="dock-lab" href="flight.html">3D Lab</a>
+      <a href="#contact" data-nav>Contact</a>
     </nav>
 
-    <div class="ui-actions-wrap" id="uiActionsWrap">
-      <div class="look-snaps" role="group" aria-label="시선">
-        <button type="button" class="snap-btn" id="lookLeft" data-look="left" aria-label="좌측 보기" title="좌측">◀</button>
-        <button type="button" class="snap-btn is-on" id="viewReset" data-look="center" aria-label="정면" title="정면">●</button>
-        <button type="button" class="snap-btn" id="lookRight" data-look="right" aria-label="우측 보기" title="우측">▶</button>
+    <header class="hero" id="top">
+      <p class="hero-meta">
+        SEOUL · STUDIO<br />
+        SAVE-AS.ME<br />
+        EST. PORTFOLIO 2026
+      </p>
+      <div class="hero-slash" aria-hidden="true"></div>
+      <div class="hero-brand">
+        <img src="assets/brand/saveas-logo.png" width="42" height="42" alt="SaveAs" />
+        <strong>SAVEAS FOR BIZ</strong>
       </div>
-      <a class="ui-action ghost dock-inquire" id="viewContact" href="mailto:saveasme1@gmail.com">문의</a>
-    </div>
-  </aside>
+      <h1 class="hero-mark">FAST<br />FORWARD<br /><em>YOUR</em><br />BUSINESS.</h1>
+      <p class="hero-line">커머스·전환·앱·로켓·브랜딩까지. 아이디어를 “실제로 팔리고 돌아가는 것”으로 만듭니다.</p>
+      <div class="hero-cta">
+        <a class="btn btn-lime" href="#work">프로젝트 보기</a>
+        <a class="btn btn-ghost" href="flight.html">3D 비행 랩 열기</a>
+      </div>
+    </header>
 
-  <div class="float-gauges" id="floatGauges" aria-label="flight instruments">
-    <div class="fg-progress" id="fgProgress" role="slider" tabindex="0" aria-label="flight progress scrubber" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" title="클릭해서 비행 시점 이동">
-      <div class="fg-progress-meta">
-        <span>PROGRESS</span>
-        <b id="gFlightPct">0%</b>
-      </div>
-      <div class="fg-progress-track" id="fgProgressTrack">
-        <div class="fg-progress-fill" id="gFlightBar" style="transform:scaleX(0)"></div>
-      </div>
-    </div>
-    <div class="fg-body">
-      <div class="fg-meters">
-        <div><span>ALT</span><b id="gAlt">000</b></div>
-        <div><span>SPD</span><b id="gSpd">000</b></div>
-        <div><span>HDG</span><b id="gHdg">000°</b></div>
-      </div>
-      <div class="fg-route" id="fgRoute">
-        <div class="fg-leg">
-          <span>FROM</span>
-          <b id="gDep">Ulsan · USN</b>
+    <section class="section" id="work">
+      <div class="section-head">
+        <div>
+          <p class="kicker">SELECTED WORK</p>
+          <h2>작동하는 결과물</h2>
         </div>
-        <div class="fg-leg">
-          <span>TO</span>
-          <b id="gArr">Gimpo · GMP</b>
-        </div>
-        <div class="fg-leg fg-time">
-          <span>ETE</span>
-          <b id="gEte">1:50</b>
+        <p>각 카드에서 PC·모바일 UI를 같이 봅니다. 가로로 밀어 다음 프로젝트를 확인하세요.</p>
+      </div>
+      <div class="work-rail-wrap">
+        <div class="work-rail" id="workRail">
+          <!-- filled by portfolio.js -->
         </div>
       </div>
-    </div>
+    </section>
+
+    <section class="section" id="skills">
+      <div class="section-head">
+        <div>
+          <p class="kicker">SIGNAL STRENGTH</p>
+          <h2>기술 숙련도</h2>
+        </div>
+        <p>사이트·레포 헤더 기준으로 추정한 수치입니다. 원하시면 퍼센트만 알려주시면 바로 맞춥니다.</p>
+      </div>
+      <div class="skills-grid">
+        <article class="skill-block">
+          <h3>saveas.co.kr</h3>
+          <p class="note">실측: Apache · WordPress · WooCommerce · Flatsome</p>
+          <div class="skill" data-pct="88"><div class="skill-row"><span>PHP / WordPress</span><b>88%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="82"><div class="skill-row"><span>JavaScript</span><b>82%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="90"><div class="skill-row"><span>HTML / CSS</span><b>90%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="78"><div class="skill-row"><span>WooCommerce</span><b>78%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="70"><div class="skill-row"><span>MySQL</span><b>70%</b></div><div class="bar"><i></i></div></div>
+        </article>
+        <article class="skill-block">
+          <h3>Studio / Apps</h3>
+          <p class="note">asflower → Next.js · MakerBridge → Express/Node (헤더 기준)</p>
+          <div class="skill" data-pct="85"><div class="skill-row"><span>JavaScript / ESM</span><b>85%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="72"><div class="skill-row"><span>Node / Express</span><b>72%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="68"><div class="skill-row"><span>Next.js / React</span><b>68%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="74"><div class="skill-row"><span>Cafe24 / 커머스</span><b>74%</b></div><div class="bar"><i></i></div></div>
+          <div class="skill" data-pct="80"><div class="skill-row"><span>UI · 반응형</span><b>80%</b></div><div class="bar"><i></i></div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="lab">
+      <div class="section-head">
+        <div>
+          <p class="kicker">EXPERIMENTAL LAB</p>
+          <h2>3D 비행 시스템</h2>
+        </div>
+        <p>기존에 만들던 콕핏 경험은 별도 랩 페이지로 옮겼습니다. 포트폴리오와 실험을 분리했습니다.</p>
+      </div>
+      <div class="lab-panel">
+        <div class="lab-copy">
+          <p class="kicker">FLIGHT DECK</p>
+          <h3>Interactive cockpit on a real route</h3>
+          <p>
+            A320 콕핏 GLB + 창밖 Cesium 지형/항공영상 + Three.js 캐빈 라이팅.
+            울산→김포 루트를 따라가며 프로젝트 스토리를 MFD에 띄우는 실험형 사이트입니다.
+          </p>
+          <ul class="stack-list">
+            <li>Three.js</li>
+            <li>CesiumJS</li>
+            <li>WebGL</li>
+            <li>glTF / GLB</li>
+            <li>Vanilla ESM</li>
+            <li>Gimpo–Ulsan path</li>
+          </ul>
+          <a class="btn btn-lime" href="flight.html">랩 들어가기 →</a>
+        </div>
+        <a class="lab-shot" href="flight.html" aria-label="3D 비행 랩 미리보기">
+          <img src="assets/_qa-mobile-wash.jpg" alt="콕핏 3D 미리보기" loading="lazy" />
+          <span>OPEN LAB</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section" id="contact">
+      <div class="contact-box">
+        <p class="kicker" style="color:#7a8a20">NEXT BRIEF</p>
+        <h2>프로젝트가 필요하신가요?</h2>
+        <p>형태가 정해지지 않아도 됩니다. 문제만 가져오시면 커머스·앱·자동화 중 필요한 방식으로 맞춥니다.</p>
+        <div class="hero-cta">
+          <a class="btn btn-lime" href="mailto:saveasme1@gmail.com">saveasme1@gmail.com</a>
+          <a class="btn btn-ghost" href="https://www.saveas.co.kr/" target="_blank" rel="noopener">saveas.co.kr ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-foot">
+      <span>© SaveAs For Biz</span>
+      <span>Design-led portfolio · 3D lab on /flight.html</span>
+    </footer>
   </div>
 
-  <main class="stage" id="stage">
-    <section class="hero-card ar-hud" id="heroCard">
-      <p class="eyebrow">SAVEAS FOR BIZ</p>
-      <h1>비즈니스의 아이디어를<br />실제로 작동하게 만듭니다.</h1>
-      <p class="lede">커머스 · 사업전환 · 앱/웹 · 쿠팡 · 브랜딩·OEM.<br />기획부터 제작, 운영까지 한 편의 루트로 연결합니다.</p>
-      <div class="chips">
-        <span>COMMERCE</span><span>CONVERT</span><span>BUILD</span><span>COUPANG</span><span>CRAFT</span>
-      </div>
-    </section>
-
-    <section class="project-card ar-hud is-hidden" id="projectCard" aria-live="polite">
-      <div class="project-copy">
-        <p class="eyebrow" id="pEye">ACT 01</p>
-        <h2 id="pTitle">쇼핑몰 및<br />홈페이지 제작</h2>
-        <p class="lede" id="pBody">카페24부터 독립 몰, 기업·브랜드 사이트까지. 판매와 브랜드가 실제로 작동하는 웹을 만듭니다.</p>
-        <div class="project-tags" id="pTags"></div>
-        <a class="link-out" id="pLink" href="#" target="_blank" rel="noopener" hidden>자세히 보기 ↗</a>
-      </div>
-      <div class="film-reel" id="pReel" hidden></div>
-      <div class="project-display" id="pDisplay" hidden>
-        <div class="display-bezel">
-          <div class="display-bar">
-            <span id="dLabel">DISPLAY</span>
-            <span class="dot"></span>
-          </div>
-          <div class="display-screen" id="dScreen">
-            <img id="dImg" alt="" />
-            <div class="mb-switches" id="mbSwitches" hidden>
-              <button type="button" data-demo="editor" class="on">TEXT</button>
-              <button type="button" data-demo="product">IMAGE</button>
-              <button type="button" data-demo="cutline">CUTLINE</button>
-              <button type="button" data-demo="dash">ADMIN</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="system-card ar-hud is-hidden" id="systemCard">
-      <p class="eyebrow">SYSTEM MAP</p>
-      <h2>5개 ACT로 연결합니다.</h2>
-      <div class="sys-grid">
-        <article><h3>COMMERCE</h3><p>Cafe24 · 독립몰 · 기업·브랜드 홈페이지</p></article>
-        <article><h3>CONVERT</h3><p>오프라인→온라인 · 상품기획 · 판매환경</p></article>
-        <article><h3>BUILD</h3><p>MakerBridge · Cursor Mobile · PWA</p></article>
-        <article><h3>COUPANG · CRAFT</h3><p>로켓그로스 · 브랜딩 · OEM A to Z</p></article>
-      </div>
-      <button type="button" class="ui-action ghost" id="closeSystem">돌아가기</button>
-    </section>
-
-    <section class="contact-card ar-hud is-hidden" id="contactCard">
-      <p class="eyebrow">FINAL APPROACH</p>
-      <h2>프로젝트가 필요하신가요?</h2>
-      <p class="lede">정해진 형태가 없어도 괜찮습니다.<br />문제부터 함께 정리하고 필요한 방식으로 구현합니다.</p>
-      <div class="contact-actions">
-        <a class="ui-action" href="mailto:saveasme1@gmail.com">프로젝트 문의</a>
-        <a class="link-out" href="https://instagram.com/saveasme1" target="_blank" rel="noopener">Instagram</a>
-      </div>
-    </section>
-  </main>
-
-  <footer class="hud-bottom">
-    <span id="liveClock">00:00:00</span>
-    <span id="routeLabel">GMP → USN</span>
-    <span>드래그 · 회전</span>
-    <span>스크롤 · 줌</span>
-    <span class="hud-credit">Terrain © Cesium · Imagery © providers · Cockpit © IDG-A32X</span>
-  </footer>
-
-  <div class="boot" id="boot">
-    <div class="boot-inner">
-            <svg class="boot-svg-defs" width="0" height="0" aria-hidden="true" focusable="false">
-        <defs>
-          <filter id="bootOutlineUnion" x="-15%" y="-40%" width="130%" height="180%" color-interpolation-filters="sRGB">
-            <feMorphology in="SourceAlpha" operator="dilate" radius="2.1" result="dilated"/>
-            <feComposite in="dilated" in2="SourceAlpha" operator="out" result="ring"/>
-            <feFlood flood-color="#071018" result="ink"/>
-            <feComposite in="ink" in2="ring" operator="in"/>
-          </filter>
-        </defs>
-      </svg>
-      <div class="boot-copy">
-        <p class="boot-mark">SAVEAS FOR BIZ</p>
-        <h1 class="boot-en" id="bootEn" aria-label="Fast forward your business">
-          <span class="boot-line boot-outline" aria-hidden="true">
-            <svg class="boot-outline-svg" viewBox="0 0 1100 120" preserveAspectRatio="xMidYMid meet">
-              <text x="550" y="94" text-anchor="middle" filter="url(#bootOutlineUnion)">FAST FORWARD</text>
-            </svg>
-          </span>
-          <span class="boot-line boot-solid">YOUR BUSINESS.</span>
-        </h1>
-        <p class="boot-ko">당신의 사업을 가장 빠르게 도약시켜드립니다.</p>
-      </div>
-      <div class="boot-load" aria-live="polite">
-        <div class="boot-load-row">
-          <span id="bootLoadLabel">LOADING</span>
-          <b id="bootLoadPct">0%</b>
-        </div>
-        <div class="boot-load-track">
-          <div class="boot-load-fill" id="bootLoadFill" style="transform:scaleX(0)"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cesium.com/downloads/cesiumjs/releases/1.125/Build/Cesium/Cesium.js"></script>
-  <script src="js/cesium-token.js"></script>
-  <script src="js/cesium-token.local.js"></script>
-  <script type="module" src="js/flight.js?v=fix4bmtfnx3ja"></script>
+  <script type="module" src="js/portfolio.js?v=fix4bmtfoa6xn"></script>
 </body>
 </html>

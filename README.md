@@ -1,12 +1,28 @@
 # SaveAs For Biz
 
-Interactive flight portfolio — Three.js cockpit experience for **save-as.me**.
+Creative portfolio for **https://save-as.me** + experimental **3D Flight Lab**.
 
-## Stack
+## Pages
 
-- Three.js (Sky + procedural cockpit + billboard clouds)
-- Vanilla ESM modules (import map)
-- Bright aircraft ivory / aluminum UI overlay
+| URL | What |
+| --- | --- |
+| `/` (`index.html`) | Editorial portfolio — work rail (PC+MO), skill bars, contact |
+| `/flight.html` | Previous cockpit experience — Three.js + CesiumJS |
+
+## Stack (portfolio)
+
+- Vanilla HTML / CSS / ESM
+- Syne + Pretendard + IBM Plex Mono
+
+## Stack (flight lab)
+
+- Three.js (cockpit GLB, lighting)
+- CesiumJS (terrain / imagery route)
+- Vanilla ESM modules
+
+## Skill % note
+
+Bars on `/#skills` are **estimates** from live headers (e.g. saveas.co.kr → WordPress/WooCommerce/Apache). Adjust `data-pct` in `index.html`.
 
 ## Local
 
@@ -17,3 +33,4 @@ npx --yes serve .
 ## Deploy
 
 GitHub Pages from `main` root. `CNAME` → `save-as.me`.
+Cache bust: `node _stamp.js`
