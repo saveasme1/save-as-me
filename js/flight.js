@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fix4bmtfnx3ja";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4bmtfoa6xn";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fix4bmtfnx3ja";
+} from "./gmp-usn-route.js?v=fix4bmtfoa6xn";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1803,7 +1803,7 @@ function stopStoryPlay() {
   galleryTimers = [];
 }
 
-const ASSET_V = "fix4bmtfnx3ja";
+const ASSET_V = "fix4bmtfoa6xn";
 function assetUrl(src) {
   if (!src) return src;
   if (/^https?:\/\//i.test(src)) return src;
