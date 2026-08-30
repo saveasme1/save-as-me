@@ -22,7 +22,7 @@ Creative portfolio for **https://save-as.me** + experimental **3D Flight Lab**.
 
 ## Skill % note
 
-Bars on `/#skills` are **estimates** from live headers (e.g. saveas.co.kr → WordPress/WooCommerce/Apache). Adjust `data-pct` in `index.html`.
+Bars on `/#skills` are **estimates** from live headers (e.g. saveas.co.kr → WordPress/Apache). Adjust `data-pct` in `index.html`.
 
 ## Local
 
