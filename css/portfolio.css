@@ -590,10 +590,15 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
     grid-template-columns: 1fr;
   }
   .hero-meta { display: none; }
+  .hero-mark {
+    font-size: clamp(2.6rem, 15.5vw, 4.4rem);
+    max-width: 100%;
+  }
   .hero-slash {
     width: 58vw;
-    opacity: 0.7;
-    bottom: 18%;
+    opacity: 0.55;
+    bottom: 22%;
+    right: -18%;
   }
   .work-card {
     flex-basis: min(88vw, 420px);
