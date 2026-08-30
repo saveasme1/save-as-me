@@ -602,6 +602,11 @@ body.is-lightbox { overflow: hidden; }
   transform: scale(1.04);
   transition: opacity 0.55s ease, transform 2.2s ease;
 }
+.device-mo .screen .story-frame {
+  object-fit: contain;
+  object-position: top center;
+  background: #0a0e16;
+}
 .story-screen .story-frame.is-on {
   opacity: 1;
   transform: scale(1);
