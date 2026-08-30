@@ -33,22 +33,22 @@ const WORKS = [
     no: "02",
     tag: "INDEPENDENT MALL",
     title: "asflower.vercel.app",
-    lede: "꽃 독립몰 홈 → Shop → 상품 → 주문 흐름.",
-    chips: ["Next.js", "Vercel", "꽃다발", "주문"],
+    lede: "홈 → 맞춤제작(3D) → 바로주문 상품 담기까지 실제 플로우.",
+    chips: ["Next.js", "Vercel", "3D 맞춤제작", "주문"],
     host: "asflower.vercel.app",
     link: "https://asflower.vercel.app/",
     scenes: [
       { step: "홈", pc: S("asf-01-home.jpg"), mo: S("asf-mo-01-home.jpg") },
-      { step: "Shop", pc: S("asf-02-shop.jpg"), mo: S("asf-mo-02-shop.jpg") },
-      { step: "상품", pc: S("asf-03-product.jpg"), mo: S("asf-mo-03-product.jpg") },
-      { step: "카트", pc: S("asf-04-cart.jpg"), mo: S("asf-mo-04-cart.jpg") },
+      { step: "제작", pc: S("asf-02-shop.jpg"), mo: S("asf-mo-02-shop.jpg") },
+      { step: "구성", pc: S("asf-03-product.jpg"), mo: S("asf-mo-03-product.jpg") },
+      { step: "주문", pc: S("asf-04-cart.jpg"), mo: S("asf-mo-04-cart.jpg") },
     ],
   },
   {
     no: "03",
     tag: "CONVERT",
     title: "까치산 → 스마트스토어",
-    lede: "오프라인 매장·메뉴가 네이버 스마트스토어로 전환되어 전국 판매.",
+    lede: "오프라인 매장·메뉴를 상품화해 스마트스토어로 전국 판매. (스토어: smartstore.naver.com/_mymura)",
     chips: ["오프라인→온라인", "스마트스토어", "상품화"],
     host: "smartstore.naver.com/_mymura",
     link: "https://smartstore.naver.com/_mymura",
@@ -56,9 +56,8 @@ const WORKS = [
       { step: "매장", pc: FOOD("kimchi-01.jpg"), mo: FOOD("kimchi-03.png") },
       { step: "메뉴", pc: FOOD("kimchi-02.jpg"), mo: FOOD("kimchi-04.png") },
       { step: "상품화", pc: FOOD("kimchi-06.png"), mo: FOOD("kimchi-05.jpg") },
-      { step: "스토어", pc: S("mymura-01-store.jpg"), mo: S("mymura-mo-01-store.jpg") },
-      { step: "상세", pc: S("mymura-02-product.jpg"), mo: S("mymura-mo-02-product.jpg") },
-      { step: "판매", pc: S("mymura-03-detail.jpg"), mo: S("mymura-mo-03-detail.jpg") },
+      { step: "패키지", pc: FOOD("kimchi-07.png"), mo: FOOD("kimchi-08.png") },
+      { step: "판매준비", pc: FOOD("kimchi-09.png"), mo: FOOD("kimchi-10.png") },
     ],
   },
   {
@@ -141,10 +140,12 @@ function deviceStage(w) {
     .join("");
   return `<div class="device-duo">
     <div class="device-pc">
+      <div class="device-label">PC</div>
       <div class="device-chrome" aria-hidden="true"><i></i><b>${w.host}</b></div>
       <div class="screen story-screen" data-kind="pc">${pcImgs}<span class="story-caption" data-cap></span></div>
     </div>
     <div class="device-mo">
+      <div class="device-label">MOBILE</div>
       <div class="notch" aria-hidden="true"></div>
       <div class="screen story-screen" data-kind="mo">${moImgs}</div>
     </div>
