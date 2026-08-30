@@ -2,13 +2,13 @@ import * as THREE from "three";
 import { Sky } from "three/addons/objects/Sky.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
-import { createCesiumWorld } from "./cesium-world.js?v=fix4bmte7t4yb";
+import { createCesiumWorld } from "./cesium-world.js?v=fix4bmtfnx3ja";
 import {
   ROUTE_META,
   formatRouteDuration,
   routeLabelShort,
   FLIGHT_DURATION_SEC,
-} from "./gmp-usn-route.js?v=fix4bmte7t4yb";
+} from "./gmp-usn-route.js?v=fix4bmtfnx3ja";
 
 const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isMobile = () => window.innerWidth < 980;
@@ -1803,7 +1803,7 @@ function stopStoryPlay() {
   galleryTimers = [];
 }
 
-const ASSET_V = "fix4bmte7t4yb";
+const ASSET_V = "fix4bmtfnx3ja";
 function assetUrl(src) {
   if (!src) return src;
   if (/^https?:\/\//i.test(src)) return src;
@@ -1861,6 +1861,13 @@ function setLiveBeat(i) {
         host.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
       } else {
         node.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+      }
+      /* mobile: reset each beat's horizontal track to the media slide */
+      if (isMobile()) {
+        const track = node.querySelector(".film-htrack");
+        if (track) track.scrollTo({ left: 0, behavior: "auto" });
+        const duo = node.querySelector(".device-duo");
+        if (duo) duo.scrollTo({ left: 0, behavior: "auto" });
       }
     }
   });
@@ -1969,14 +1976,18 @@ function renderScenes(scenes) {
         ? `<a class="film-link" href="${s.link}" target="_blank" rel="noopener">사이트 열기 ↗</a>`
         : "";
       return `<article class="film-scene" style="--i:${i}" data-beat="${i}">
-        ${renderMedia(s)}
-        <div class="film-caption">
-          <span class="beat-phase"><b>${s.phase || String(i + 1).padStart(2, "0")}</b> ${s.stage || "STEP"}${weeks}</span>
-          <em>${s.label || `SCENE ${String(i + 1).padStart(2, "0")}`}</em>
-          <h3>${s.title || ""}</h3>
-          <p>${s.text || ""}</p>
-          ${renderColors(s.colors)}
-          ${link}
+        <div class="film-htrack">
+          <div class="film-hslide film-hslide--media">${renderMedia(s)}</div>
+          <div class="film-hslide film-hslide--caption">
+            <div class="film-caption">
+              <span class="beat-phase"><b>${s.phase || String(i + 1).padStart(2, "0")}</b> ${s.stage || "STEP"}${weeks}</span>
+              <em>${s.label || `SCENE ${String(i + 1).padStart(2, "0")}`}</em>
+              <h3>${s.title || ""}</h3>
+              <p>${s.text || ""}</p>
+              ${renderColors(s.colors)}
+              ${link}
+            </div>
+          </div>
         </div>
       </article>`;
     })
