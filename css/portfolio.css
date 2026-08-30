@@ -495,10 +495,18 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   transform: scale(1.04);
   transition: opacity 0.55s ease, transform 2.2s ease;
 }
-.work-card.is-active .story-screen .story-frame.is-on {
+.story-screen .story-frame.is-on {
   opacity: 1;
   transform: scale(1);
   z-index: 1;
+}
+.work-card.is-active .story-screen .story-frame.is-on {
+  /* ken burns while live */
+  animation: storyKen 2.2s ease-out;
+}
+@keyframes storyKen {
+  from { transform: scale(1.06); }
+  to { transform: scale(1); }
 }
 .story-caption {
   position: absolute;
