@@ -25,7 +25,7 @@ const WORKS = [
       { step: "편집기", pc: S("saveas-04-editor.jpg"), mo: S("saveas-mo-04-editor.jpg") },
       { step: "텍스트", pc: S("saveas-05-text.jpg"), mo: S("saveas-mo-05-text.jpg") },
       { step: "이미지", pc: S("saveas-06-image.jpg"), mo: S("saveas-mo-06-image.jpg") },
-      { step: "도구", pc: S("saveas-07-layer.jpg"), mo: S("saveas-mo-07-layer.jpg") },
+      { step: "로고", pc: S("saveas-07-layer.jpg"), mo: S("saveas-mo-07-layer.jpg") },
       { step: "저장", pc: S("saveas-08-save.jpg"), mo: S("saveas-mo-08-save.jpg") },
     ],
   },
