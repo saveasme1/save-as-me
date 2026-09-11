@@ -280,7 +280,10 @@ function renderWorks() {
 }
 
 function stopStories() {
-  if (storyTimer) clearInterval(storyTimer);
+  if (storyTimer) {
+    clearInterval(storyTimer);
+    clearTimeout(storyTimer);
+  }
   storyTimer = 0;
 }
 
@@ -304,6 +307,16 @@ function showScene(card, i) {
   if (lb && !lb.hidden) fillLightbox();
 }
 
+function advanceAfterScenes(card, n) {
+  if (paused) return;
+  const next = storyIdx + 1;
+  if (next >= n) {
+    setActive(active + 1);
+    return;
+  }
+  showScene(card, next);
+}
+
 function playCardStory(card) {
   const work = WORKS[active];
   const n = (work.scenes || []).length;
@@ -311,11 +324,14 @@ function playCardStory(card) {
   storyIdx = 0;
   paused = false;
   showScene(card, 0);
-  if (reduce || n < 2) return;
-  storyTimer = setInterval(() => {
-    if (paused) return;
-    showScene(card, storyIdx + 1);
-  }, 2300);
+  if (reduce) return;
+  if (n < 2) {
+    storyTimer = setTimeout(() => {
+      if (!paused) setActive(active + 1);
+    }, 4500);
+    return;
+  }
+  storyTimer = setInterval(() => advanceAfterScenes(card, n), 2300);
 }
 
 function fillLightbox() {
@@ -356,14 +372,17 @@ function openLightbox() {
 function resumeStory(card) {
   const work = WORKS[active];
   const n = (work.scenes || []).length;
-  if (!card || !n || reduce || n < 2) return;
+  if (!card || !n || reduce) return;
   paused = false;
   stopStories();
   showScene(card, storyIdx);
-  storyTimer = setInterval(() => {
-    if (paused) return;
-    showScene(card, storyIdx + 1);
-  }, 2300);
+  if (n < 2) {
+    storyTimer = setTimeout(() => {
+      if (!paused) setActive(active + 1);
+    }, 4500);
+    return;
+  }
+  storyTimer = setInterval(() => advanceAfterScenes(card, n), 2300);
 }
 
 function closeLightbox() {
